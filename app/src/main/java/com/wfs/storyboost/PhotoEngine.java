@@ -228,11 +228,11 @@ public final class PhotoEngine {
                 int c = src[i];
                 int l = src[i - 1], r = src[i + 1], u = src[i - width], d = src[i + width];
                 int rr = clamp(Math.round(Color.red(c) + strength * (4 * Color.red(c)
-                        - Color.red(l) - Color.red(r) - Color.red(u) - Color.red(d)));
+                        - Color.red(l) - Color.red(r) - Color.red(u) - Color.red(d))));
                 int gg = clamp(Math.round(Color.green(c) + strength * (4 * Color.green(c)
-                        - Color.green(l) - Color.green(r) - Color.green(u) - Color.green(d)));
+                        - Color.green(l) - Color.green(r) - Color.green(u) - Color.green(d))));
                 int bb = clamp(Math.round(Color.blue(c) + strength * (4 * Color.blue(c)
-                        - Color.blue(l) - Color.blue(r) - Color.blue(u) - Color.blue(d)));
+                        - Color.blue(l) - Color.blue(r) - Color.blue(u) - Color.blue(d))));
                 dst[i] = Color.rgb(rr, gg, bb);
             }
         }

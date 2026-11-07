@@ -517,7 +517,7 @@ public final class MainActivity extends Activity {
     private Button button(String caption, boolean primary) {
         Button button = new Button(this);
         button.setText(caption);
-        button.setTextAllCaps(false);
+        button.setAllCaps(false);
         button.setTextSize(15);
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         button.setTextColor(primary ? BG : TEXT);

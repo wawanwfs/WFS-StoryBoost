@@ -1,106 +1,101 @@
-# WFS StoryBoost
+# WFS StoryBoost 📱
 
-**Android app — one-tap aesthetic enhancement + WhatsApp Story export for photos and videos.**
+**Aplikasi Android offline-first untuk mempercantik foto/video dan menyiapkan hasil untuk WhatsApp Story, Instagram, TikTok, maupun konten landscape.**
 
-The project is implemented in **Java** with native Android UI. Photo enhancement uses native Bitmap processing and video processing uses **AndroidX Media3 Transformer 1.11.1** with the phone's media codecs. There is **no cloud processing**, account login, or INTERNET permission.
+[![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
 
-> **Build status:** Source is complete as a buildable Android Gradle project, but **the APK has not been compiled or tested on a device in this delivery environment** (Android SDK and online dependencies are unavailable there). Use the GitHub Actions workflow or Android build instructions below to produce an installable debug APK. Do not mistake the project ZIP for a compiled APK.
+> **v1.4.0 • source development build.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
 
-## Features
+## 🌟 Fitur
 
-| Feature | Photo | Video |
+| Fitur | Detail |
+|---|---|
+| 💎 Aesthetic Enhance | Natural, Cinematic, Vibrant, Soft Night untuk foto dan video |
+| ↔️ Rasio dua arah | **9:16 → 16:9** dan **16:9 → 9:16**, juga 1:1, 4:5, Original. Tombol satu ketuk menukar rasio |
+| 🖼️ Bingkai | **Fit**, **Crop**, **Blur Background** (blur untuk foto; video menggunakan Fit) |
+| 🔍 Before / After | **Geser pembatas** pada pratinjau foto asli vs editan setelah ekspor |
+| 🎥 Video Optimizer | MP4 H.264/AAC, bitrate adaptif resolusi dan perkiraan FPS, pemeriksaan struktur MP4 hasil ekspor |
+| 📦 Batch Processing | Pilih hingga 10 file dan proses secara berurutan |
+| 📤 Ekspor | MediaStore: `Pictures/WFS StoryBoost` atau `Movies/WFS StoryBoost` |
+| 🔒 Privacy | Tanpa login, izin storage menyeluruh, atau permintaan akses internet |
+
+### Ukuran ekspor
+
+| Rasio | Full HD | HD |
 |---|---|---|
-| Automatically processes selected file(s) | Yes | Yes |
-| Natural / Cinematic / Vibrant looks | Yes | Yes |
-| Story aspect ratio 9:16 | Yes | Yes |
-| Fit (no crop) or crop to fill | Yes | Yes |
-| Full HD 1080×1920 or HD 720×1280 | Yes | Yes |
-| Output format | JPEG Q95 | MP4 / H.264 video + AAC audio |
-| Image sharpening | Light unsharp | Not implemented (color enhancement only) |
-| Video audio preserved | N/A | Yes, AAC transcoded when necessary |
-| Gallery output | Pictures/WFS StoryBoost | Movies/WFS StoryBoost |
-| Privacy | Local | Local |
+| 9:16 | 1080×1920 | 720×1280 |
+| 16:9 | 1920×1080 | 1280×720 |
+| 1:1 | 1080×1080 | 720×720 |
+| 4:5 | 1080×1350 | 720×900 |
+| Original | maksimal sisi panjang 1920, tidak upscale | maksimal sisi panjang 1280, tidak upscale |
 
-- Up to 10 media files per selection, processed sequentially.
-- Processing starts automatically when files are selected.
-- Shares the most recent output using the Android share chooser.
-- Android 10 (API 29) or newer; tested build of this delivery **not available**.
-- If the input is too small, upscaling does **not** create genuine new detail. The app does not offer AI generative object editing, face reconstruction or super-resolution.
-- When Fit is selected for photos, the whole photo is presented with a soft backdrop; for videos, letter/pillarboxing is used.
-- App must remain open during export. No foreground background service in v1.
+Konversi rasio **tidak memutar** isi media. **Fit** menjaga seluruh foto/video dengan tepi, sedangkan **Crop** memotong area atas/bawah atau kiri/kanan. Untuk foto, **Blur** mengisi tepi dengan latar kabur. Video Blur dinamis belum tersedia; aplikasi jelas menggunakan Fit, bukan diam-diam mengubah framing.
 
-## Build option A: GitHub Actions (recommended, no Android Studio required)
+## 📥 Download APK (via GitHub Actions)
 
-1. Create a **new empty repository** in GitHub (e.g. `WFS-StoryBoost`).
-2. Upload **the files and folders inside this ZIP** to the repository root, preserving `.github/workflows/build-apk.yml`. Do **not** upload the ZIP as a single file.
-3. If the default branch is `main` or `master`, the build workflow launches on push. You can also go to **Actions → Build WFS StoryBoost APK → Run workflow**.
-4. When the build succeeds, open the workflow run → **Artifacts** → **WFS-StoryBoost-APK**.
-5. Download the artifact ZIP and extract `app-debug.apk`, then install it on your Android device. Android will ask permission to install an APK from the selected file manager/browser.
-6. This is a **debug-signed APK** for personal installation; distributing via Play Store requires a signed **release** variant and further testing.
+1. Buka tab [**Actions**](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml).
+2. Pilih workflow **Build WFS StoryBoost APK**.
+3. Buka run terbaru dengan status **Success** (atau klik **Run workflow** jika diperlukan).
+4. Unduh artifact **WFS-StoryBoost-v1.4.0-APK** dan ekstrak ZIP-nya.
+5. Instal `app-debug.apk` di Android 10 atau versi lebih baru (aktifkan izin pemasangan aplikasi dari sumber tersebut saat diminta).
 
-Note: GitHub Actions must be enabled for the repository. If a job fails, inspect the build log instead of assuming the APK was created.
+> Artifact tersedia **hanya setelah build sukses**. Debug APK ditandatangani kunci debug dan belum siap distribusi Google Play. Jangan mengunggah kunci signing atau password ke repository.
 
-## Build option B: Windows 10/11 + Android Studio
+## 🧰 Build lokal Windows 10/11
 
-1. Install Android Studio and in **SDK Manager**, install **Android SDK Platform 35** and **Build Tools 35**. JDK 17 is required (Android Studio bundles an appropriate JBR in recent releases).
-2. Extract the ZIP.
-3. In PowerShell, from the project root run:
+Syarat: **JDK 17**, **Android SDK API 35 + Build Tools 35**, Android Studio atau SDK cmdline tools, dan koneksi untuk Gradle/dependensi.
 
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
-   ```
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
+```
 
-4. The helper downloads Gradle 8.11.1 (internet needed once), then runs `:app:assembleDebug`.
-5. The built APK will be at `dist\WFS-StoryBoost-v1.0.0-debug.apk`. It is signed with the standard Android debug certificate.
+Jika sukses, APK debug berada pada `dist/WFS-StoryBoost-v1.4.0-debug.apk`.
 
-You can also open the project in Android Studio, configure Gradle 8.11.1/JDK 17, Sync, and run `:app:assembleDebug`.
+## ✅ Pengujian
 
-## Use on your Android phone
+Uji perhitungan tanpa Android SDK:
 
-1. Install the APK.
-2. Open **WFS StoryBoost**.
-3. Select **Natural**, **Cinematic** or **Vibrant**.
-4. Choose **Fit** (whole frame) or **Crop** (fill Story screen), and **Full HD** or **HD**.
-5. Tap **Pilih foto / video**, then select up to 10 items.
-6. Keep the app open until the process finishes. Find outputs in your Gallery under **WFS StoryBoost**.
-7. Choose **Bagikan hasil terakhir** or use the saved file from the Gallery to post your WhatsApp Status / Instagram Story.
+```bash
+bash scripts/test-ratio-geometry.sh
+```
 
-## Limitations and quality facts
+Output yang diharapkan: `PASS 27 aspect geometry assertions`.
 
-- WhatsApp compresses uploaded Status media and changes its settings server-side. **No third-party app can guarantee zero loss or zero compression** after upload.
-- The app saves to a Story-compatible 9:16 frame and avoids excessive re-encoding before sharing.
-- H.264 hardware encoder and Media3 support vary across Android vendors. Some 1080x1920 video exports may fall back to other supported configurations or fail on particular devices; try HD 720×1280 when necessary.
-- HDR content and unusual formats can be device-dependent. Video output is best verified by inspecting the exported file's dimensions/audio and watching the full clip.
-- A small input, heavy motion blur, and low bitrates cannot be magically restored to sharp HD by pixel sharpening.
-- v1 processes a queue in the foreground, one at a time. It does not divide longer videos into WhatsApp Status segments.
-- Photo EXIF GPS and camera metadata are **not intentionally preserved** in the exported JPEG. Source files are never modified.
+**Workflow CI:** menjalankan pengujian rasio dan bitrate, kompilasi Android debug APK, lalu mengunggah artifact. Ini belum menggantikan pengujian aktual pada ponsel dan verifikasi visual/AV video yang diekspor. Ikuti [`tests/TEST_PLAN.md`](tests/TEST_PLAN.md) untuk QA manual, khususnya video landscape↔portrait, HEIC, perangkat resolusi kecil, video dengan/tanpa audio, serta pembatalan antrean.
 
-## Technical notes
-
-- App ID: `com.wfs.storyboost`
-- Min SDK 29 / Target SDK 35
-- Gradle: 8.11.1 / Android Gradle Plugin: 8.9.2 / Java 17
-- Media3: 1.11.1 for Transformer, Effect, Common
-- Outputs written via Android MediaStore scoped storage and made visible after completion.
-- No storage permission or INTERNET permission; the Android document picker temporarily grants file read access.
-
-## Project layout
+## 📁 Struktur proyek
 
 ```text
-WFS-StoryBoost/
-├── .github/workflows/build-apk.yml
-├── app/
-│   ├── build.gradle
-│   └── src/main/
-│       ├── AndroidManifest.xml
-│       ├── java/com/wfs/storyboost/
-│       │   ├── MainActivity.java
-│       │   ├── PhotoEngine.java
-│       │   ├── VideoEngine.java
-│       │   └── MediaSaver.java
-│       └── res/...
-├── scripts/build-windows.ps1
-├── build.gradle
-├── settings.gradle
-└── gradle.properties
+app/src/main/java/com/wfs/storyboost/
+  MainActivity.java          # UI, picker, queue, progress, share
+  PhotoEngine.java           # perbaikan foto, framing, before/after
+  BeforeAfterView.java       # interaksi pembatas preview
+  VideoEngine.java           # Media3 Transformer
+  VideoBitrate.java          # estimator bitrate AVC (tested)
+  AspectRatioProfile.java    # rasio output (tested)
+  FrameMath.java             # fit/crop (tested)
+  ExportOptions.java         # snapshot pengaturan batch
+  MediaSaver.java            # ekspor ke galeri via MediaStore
+.github/workflows/build-apk.yml
+scripts/test-ratio-geometry.sh
+scripts/build-windows.ps1
+tests/AspectRatioProfileTest.java
+tests/TEST_PLAN.md
 ```
+
+## ⚠️ Batasan jujur
+
+- AI super-resolution, true AI deblur, restorasi wajah, analisis subjek, serta video blur dinamis **belum diimplementasikan**.
+- Before/after saat ini untuk **foto**; belum ada player preview video di dalam aplikasi.
+- Frame-rate metadata tidak selalu tersedia; jika tidak ada, bitrate memakai asumsi 30 fps.
+- Pemeriksaan video memastikan file, resolusi dan durasi valid, tetapi belum menjamin audio sinkron; perlu QA perangkat.
+- Frame rate dan HDR bergantung decoder/encoder perangkat. Media yang tidak didukung dapat gagal diekspor, dengan pesan error.
+- UI saat ini dibuat secara programatik; belum memiliki layar timeline, crop manual, atau ekspor multi-aspect sekaligus.
+- Antrean harus dijalankan saat aplikasi tetap aktif (belum foreground service/background worker).
+- Untuk video, perangkat mungkin menolak codec, resolusi, atau kombinasi input tertentu; uji pada perangkat nyata.
+
+## 🔧 Teknologi
+
+Android Java 17, minSdk 29 (Android 10), target/compile SDK 35; Android Gradle Plugin 8.9.2, Gradle 8.11.1, AndroidX Media3 1.11.1, MediaStore scoped storage. Proses tetap lokal di Android.
+
+© WFS StoryBoost. Hak cipta dan lisensi mengikuti pemilik repository; tidak ada lisensi open-source yang diasumsikan atau ditambahkan secara otomatis.

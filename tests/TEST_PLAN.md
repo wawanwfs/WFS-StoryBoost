@@ -1,6 +1,6 @@
-# WFS StoryBoost — Manual Device QA Matrix v1.3.0
+# WFS StoryBoost — Manual Device QA Matrix v1.4.0
 
-Geometry tests (`bash scripts/test-ratio-geometry.sh`) cover 17 non-Android assertions. **They do not prove Android build or end-to-end behavior.** Before a production release, run this checklist on Android 10/12/14/16 (at least low-memory and flagship codecs).
+Geometry tests (`bash scripts/test-ratio-geometry.sh`) cover 27 non-Android assertions. **They do not prove Android build or end-to-end behavior.** Before a production release, run this checklist on Android 10/12/14/16 (at least low-memory and flagship codecs).
 
 | # | Input | Selected output | Framing | Expected dimensions / behavior |
 |---|---|---|---|---|
@@ -27,7 +27,7 @@ Geometry tests (`bash scripts/test-ratio-geometry.sh`) cover 17 non-Android asse
 
 Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration, video H.264, audio AAC if source has audio. Listen fully to confirm no broken audio/transitions. Confirm Gallery folders, rotate the phone, and retry after process kill. Do not call the APK production-ready without these device tests passing.
 
-## Additional v1.3 QA — before/after and bitrate
+## Additional v1.4 QA — before/after and bitrate
 
 - [ ] Import an image, export with Natural, confirm two halves show same composition and dragging separator reveals the difference.
 - [ ] Repeat with 16:9 source → 9:16 Fit and Crop; no mismatched scale between before and after.
@@ -37,3 +37,10 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] Video HD/Full HD bitrate and file size look reasonable; compression may differ by encoder.
 - [ ] Cancel a long video and inspect that temp file and pending queue are cleaned.
 - [ ] Test Android 10 and Android 16 with HEIC photos, unusual EXIF rotations, silent videos, and high-fps recordings.
+
+## v1.4 tambahan
+
+- [ ] Tekan tombol tukar rasio 9:16 ↔ 16:9, konfirmasi ukuran berubah pada label output.
+- [ ] Pilih Soft Night pada foto malam; pastikan shadow lebih terbaca tanpa mengubah wajah.
+- [ ] Ekspor video 60 fps dan 30 fps; periksa peningkatan target bitrate bila metadata tersedia.
+- [ ] MP4 rusak atau output resolusi salah harus gagal validasi sebelum tersimpan di galeri.

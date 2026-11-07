@@ -66,6 +66,20 @@ public final class AspectRatioProfileTest {
         catch(IllegalArgumentException expected){passed++;}
         check(new ExportOptions(1,0,0,true,1000,3000).forRatio(1).trimStartMs==1000,"multi ratio retains clip");
         check(!new ExportOptions(1,0,0,true).inHd().fullHd,"fallback HD");
+        FrameMath.Bounds left=FrameMath.center(1920,1080,1080,1920,
+                AspectRatioProfile.CROP,0f,0.5f);
+        FrameMath.Bounds right=FrameMath.center(1920,1080,1080,1920,
+                AspectRatioProfile.CROP,1f,0.5f);
+        check(left.left==0f,"left anchored crop");
+        check(Math.abs(right.right-1080)<0.1f,"right anchored crop");
+        CropFocus.Bounds l=CropFocus.region(1920,1080,1080,1920,0,0.5f);
+        CropFocus.Bounds r=CropFocus.region(1920,1080,1080,1920,1,0.5f);
+        check(Math.abs(l.left+1f)<0.001f,"NDC left focus");
+        check(Math.abs(r.right-1f)<0.001f,"NDC right focus");
+        CropFocus.Bounds top=CropFocus.region(1080,1920,1920,1080,0.5f,0f);
+        check(Math.abs(top.top-1f)<0.001f,"NDC top focus");
+        check(new ExportOptions(1,0,1,true,0,0,0f,1f).inHd().focusY==1f,
+                "focus preserved through HD fallback");
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

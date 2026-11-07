@@ -10,6 +10,7 @@ import androidx.media3.common.MimeTypes;
 import androidx.media3.effect.Contrast;
 import androidx.media3.effect.HslAdjustment;
 import androidx.media3.effect.GaussianBlurWithFrameOverlaid;
+import androidx.media3.effect.Crop;
 import androidx.media3.effect.Presentation;
 import androidx.media3.effect.RgbAdjustment;
 import androidx.media3.transformer.Composition;
@@ -78,8 +79,14 @@ public final class VideoEngine {
         float scale=VideoFramePlan.sharpScale(sourceSize.width,sourceSize.height,
                 target.width,target.height);
         if(blur&&scale<0.999f)effects.add(new GaussianBlurWithFrameOverlaid(20f,scale,scale));
+        if(crop){
+            CropFocus.Bounds region=CropFocus.region(sourceSize.width,sourceSize.height,
+                    target.width,target.height,settings.focusX,settings.focusY);
+            effects.add(new Crop(region.left,region.right,region.bottom,region.top));
+        }
         effects.add(Presentation.createForWidthAndHeight(target.width,target.height,
-                crop||(blur&&scale<0.999f)
+                crop ? Presentation.LAYOUT_SCALE_TO_FIT :
+                (blur&&scale<0.999f)
                     ? Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
                     : Presentation.LAYOUT_SCALE_TO_FIT));
         MediaItem.ClippingConfiguration.Builder clip=new MediaItem.ClippingConfiguration.Builder()

@@ -18,6 +18,10 @@ public final class FrameMath {
 
     public static Bounds center(int sourceW, int sourceH, int targetW, int targetH,
                                  int frameStyle) {
+        return center(sourceW,sourceH,targetW,targetH,frameStyle,0.5f,0.5f);
+    }
+    public static Bounds center(int sourceW,int sourceH,int targetW,int targetH,
+                                int frameStyle,float focusX,float focusY) {
         if (sourceW <= 0 || sourceH <= 0 || targetW <= 0 || targetH <= 0) {
             throw new IllegalArgumentException("Dimensions must be positive");
         }
@@ -26,7 +30,10 @@ public final class FrameMath {
                 : Math.min((double) targetW / sourceW, (double) targetH / sourceH);
         float drawnW = (float) (sourceW * scale);
         float drawnH = (float) (sourceH * scale);
-        return new Bounds((targetW - drawnW) / 2f, (targetH - drawnH) / 2f,
-                (targetW + drawnW) / 2f, (targetH + drawnH) / 2f);
+        float x=(targetW-drawnW)*(frameStyle==AspectRatioProfile.CROP?
+                Math.max(0f,Math.min(1f,focusX)):0.5f);
+        float y=(targetH-drawnH)*(frameStyle==AspectRatioProfile.CROP?
+                Math.max(0f,Math.min(1f,focusY)):0.5f);
+        return new Bounds(x,y,x+drawnW,y+drawnH);
     }
 }

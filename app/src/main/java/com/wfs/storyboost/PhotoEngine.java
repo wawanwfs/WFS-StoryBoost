@@ -51,7 +51,7 @@ public final class PhotoEngine {
                     drawBlurredBackground(canvas, oriented, width, height);
                 }
                 FrameMath.Bounds b = FrameMath.center(oriented.getWidth(), oriented.getHeight(),
-                        width, height, settings.frameStyle);
+                        width, height, settings.frameStyle, settings.focusX, settings.focusY);
                 canvas.drawBitmap(oriented, null,
                         new RectF(b.left, b.top, b.right, b.bottom), photoPaint);
 
@@ -92,7 +92,7 @@ public final class PhotoEngine {
                 drawBlurredBackground(canvas, oriented, width, height);
             }
             FrameMath.Bounds b = FrameMath.center(oriented.getWidth(), oriented.getHeight(),
-                    width, height, settings.frameStyle);
+                    width, height, settings.frameStyle, settings.focusX, settings.focusY);
             Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
             canvas.drawBitmap(oriented, null,
                     new RectF(b.left, b.top, b.right, b.bottom), paint);

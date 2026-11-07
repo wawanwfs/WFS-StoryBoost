@@ -54,6 +54,18 @@ public final class AspectRatioProfileTest {
                 == VideoBitrate.estimate(1080, 1920, true), "unknown fps falls back to 30");
         check(VideoBitrate.estimate(1920, 1080, true, 240f) <= 15_000_000,
                 "FPS adaptive bitrate is capped");
+        check(Math.abs(VideoFramePlan.sharpScale(1920,1080,1080,1920)-0.31640625f)<0.001,"blur landscape portrait");
+        check(Math.abs(VideoFramePlan.sharpScale(1080,1920,1920,1080)-0.31640625f)<0.001,"blur portrait landscape");
+        check(VideoFramePlan.sharpScale(1080,1920,720,1280)==1f,"same aspect");
+        check(VideoFramePlan.sharpScale(1080,1080,1080,1920)<1f,"square blur");
+        check(ClipWindow.expectedDuration(120000,10000,30000)==20000,"clip time range");
+        check(ClipWindow.expectedDuration(120000,30000,0)==90000,"clip open end");
+        try{ClipWindow.validate(5000,1000);throw new AssertionError("invalid clip accepted");}
+        catch(IllegalArgumentException expected){passed++;}
+        try{ClipWindow.expectedDuration(4000,5000,0);throw new AssertionError("out of bounds accepted");}
+        catch(IllegalArgumentException expected){passed++;}
+        check(new ExportOptions(1,0,0,true,1000,3000).forRatio(1).trimStartMs==1000,"multi ratio retains clip");
+        check(!new ExportOptions(1,0,0,true).inHd().fullHd,"fallback HD");
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

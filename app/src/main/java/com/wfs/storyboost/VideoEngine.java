@@ -9,6 +9,7 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.effect.Contrast;
 import androidx.media3.effect.HslAdjustment;
+import androidx.media3.effect.GaussianBlurWithFrameOverlaid;
 import androidx.media3.effect.Presentation;
 import androidx.media3.effect.RgbAdjustment;
 import androidx.media3.transformer.Composition;
@@ -36,11 +37,24 @@ public final class VideoEngine {
 
     private Transformer transformer;
     private File temp;
+    private boolean cancelled;
 
     /** Call on main thread; returned dimensions are the requested encoded canvas. */
     public AspectRatioProfile.Size start(Context context, Uri source,
                                           ExportOptions settings, Listener callback) {
-        AspectRatioProfile.Size sourceSize = readVideoDimensions(context, source);
+        cancelled=false;
+        return startInternal(context,source,settings,callback,true);
+    }
+    private AspectRatioProfile.Size startInternal(Context context,Uri source,
+            ExportOptions settings,Listener callback,boolean allowFallback){
+        AspectRatioProfile.Size sourceSize=readVideoDimensions(context,source);
+        final MediaProbe.Info sourceInfo;
+        try{
+            sourceInfo=MediaProbe.inspect(context,source);
+            if(!sourceInfo.video)throw new IllegalArgumentException("File tidak berisi video");
+        }catch(Exception ex){throw new IllegalArgumentException("Media tidak didukung: "+ex.getMessage(),ex);}
+        long expectedDuration=ClipWindow.expectedDuration(MediaProbe.duration(context,source),
+                settings.trimStartMs,settings.trimEndMs);
         final AspectRatioProfile.Size target = AspectRatioProfile.resolve(settings.ratio,
                 settings.fullHd, sourceSize.width, sourceSize.height);
         temp = new File(context.getCacheDir(), "storyboost_" + System.nanoTime() + ".mp4");
@@ -59,15 +73,23 @@ public final class VideoEngine {
             effects.add(new Contrast(0.025f));
             effects.add(new HslAdjustment.Builder().adjustSaturation(4).build());
         }
-        // BLUR is photo-only in v1.4: for video, preserve the entire original frame
-        // with letter/pillarboxing rather than silently cropping it.
-        boolean crop = settings.frameStyle == AspectRatioProfile.CROP;
-        effects.add(Presentation.createForWidthAndHeight(target.width, target.height,
-                crop ? Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
-                        : Presentation.LAYOUT_SCALE_TO_FIT));
-        EditedMediaItem item = new EditedMediaItem.Builder(MediaItem.fromUri(source))
+        boolean crop=settings.frameStyle==AspectRatioProfile.CROP;
+        boolean blur=settings.frameStyle==AspectRatioProfile.BLUR;
+        float scale=VideoFramePlan.sharpScale(sourceSize.width,sourceSize.height,
+                target.width,target.height);
+        if(blur&&scale<0.999f)effects.add(new GaussianBlurWithFrameOverlaid(20f,scale,scale));
+        effects.add(Presentation.createForWidthAndHeight(target.width,target.height,
+                crop||(blur&&scale<0.999f)
+                    ? Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
+                    : Presentation.LAYOUT_SCALE_TO_FIT));
+        MediaItem.ClippingConfiguration.Builder clip=new MediaItem.ClippingConfiguration.Builder()
+                .setStartPositionMs(settings.trimStartMs);
+        if(settings.trimEndMs>0)clip.setEndPositionMs(settings.trimEndMs);
+        MediaItem mediaItem=new MediaItem.Builder().setUri(source)
+                .setClippingConfiguration(clip.build()).build();
+        EditedMediaItem item = new EditedMediaItem.Builder(mediaItem)
                 .setEffects(new Effects(Collections.emptyList(), effects)).build();
-        float frameRate = readVideoFrameRate(context, source);
+        float frameRate = sourceInfo.fps;
         int bitrate = VideoBitrate.estimate(target.width, target.height, settings.fullHd, frameRate);
         VideoEncoderSettings requested = new VideoEncoderSettings.Builder()
                 .setBitrate(bitrate).setiFrameIntervalSeconds(2f).build();
@@ -79,16 +101,21 @@ public final class VideoEngine {
                 .addListener(new Transformer.Listener() {
                     @Override public void onCompleted(Composition composition, ExportResult result) {
                         try {
-                            validateOutput(temp, target);
-                            callback.onSuccess(temp, target);
+                            validateOutput(temp,target,sourceInfo,expectedDuration);
+                            if(!cancelled)callback.onSuccess(temp,target);
                         } catch (Exception invalid) {
-                            callback.onError("Validasi MP4 gagal: " + invalid.getMessage());
+                            if(!cancelled)callback.onError("Validasi MP4 gagal: "+invalid.getMessage());
                         }
                     }
                     @Override public void onError(Composition composition, ExportResult result,
                                                    ExportException e) {
-                        callback.onError(e.getMessage() == null
-                                ? "Video gagal diekspor." : e.getMessage());
+                        if(cancelled)return;
+                        if(allowFallback&&settings.fullHd){
+                            if(temp!=null)temp.delete();
+                            try{startInternal(context,source,settings.inHd(),callback,false);return;}
+                            catch(Exception problem){callback.onError("FHD/HD gagal: "+problem.getMessage());return;}
+                        }
+                        callback.onError(e.getMessage()==null?"Video gagal diekspor.":e.getMessage());
                     }
                 })
                 .build();
@@ -116,23 +143,8 @@ public final class VideoEngine {
         }
     }
 
-    /** Best-effort metadata; not every camera writes a frame-rate field. */
-    private static float readVideoFrameRate(Context context, Uri uri) {
-        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-        try {
-            retriever.setDataSource(context, uri);
-            String value = retriever.extractMetadata(
-                    MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE);
-            return value == null ? 30f : Float.parseFloat(value);
-        } catch (Exception ignored) {
-            return 30f;
-        } finally {
-            try { retriever.release(); } catch (Exception ignored) { }
-        }
-    }
-
     /** Reject empty/truncated media before it reaches the public Gallery. */
-    private static void validateOutput(File file, AspectRatioProfile.Size target) throws Exception {
+    private static void validateOutput(File file, AspectRatioProfile.Size target,MediaProbe.Info sourceInfo,long expectedDuration) throws Exception {
         if (!file.isFile() || file.length() < 1024) {
             throw new java.io.IOException("File video kosong atau terpotong.");
         }
@@ -153,9 +165,8 @@ public final class VideoEngine {
             }
             String duration = retriever.extractMetadata(
                     MediaMetadataRetriever.METADATA_KEY_DURATION);
-            if (duration == null || Long.parseLong(duration) <= 0) {
-                throw new java.io.IOException("Durasi MP4 tidak terbaca.");
-            }
+            if(duration==null||Long.parseLong(duration)<=0)throw new java.io.IOException("Durasi MP4 tidak terbaca.");
+            MediaProbe.verifyTracks(sourceInfo,MediaProbe.inspect(file),expectedDuration);
         } finally {
             try { retriever.release(); } catch (Exception ignored) { }
         }
@@ -175,6 +186,7 @@ public final class VideoEngine {
     }
 
     public void cancel() {
+        cancelled=true;
         if (transformer != null) transformer.cancel();
         cleanup();
     }

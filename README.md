@@ -1,10 +1,23 @@
-# WFS StoryBoost 📱
+# ✦ WFS StoryBoost — Creative Media Studio
 
 **Aplikasi Android offline-first untuk mempercantik foto/video dan menyiapkan hasil untuk WhatsApp Story, Instagram, TikTok, maupun konten landscape.**
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
 
-> **v1.6.0 • source development build.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
+> **v2.0.0 • Premium Studio UI + Source-Aware Quality Engine.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
+
+## ✨ Baru di v2.0.0
+
+**Premium Studio UI** kini memiliki header berlogo, hero gradien, kartu cepat Enhance Foto/Video, tombol Ubah Rasio, batch processing, panel editor dengan preset warna, kontrol crop, panel ekspor, dan navigasi Beranda–Editor–Hasil yang interaktif.
+
+**Quality Engine**:
+- **HD**: preset hemat data.
+- **Full HD**: kanvas 1080×1920 atau orientasi lain, H.264 adaptif sampai 22 Mbps.
+- **Max Detail**: mempertahankan resolusi sumber hingga batas 4K untuk sumber yang mencukupi; bitrate AVC dapat mencapai 60 Mbps tergantung resolusi dan FPS.
+- Pada mode **Crop + Max Detail**, ukuran output dapat lebih kecil daripada 4K agar pemotongan tidak memperbesar piksel dari sumber.
+- Foto diekspor JPEG kualitas 98 dan filter sharpen kasar dihilangkan guna mencegah halo, ringing, serta lonjakan memori.
+- Tidak ada AI upscaling sungguhan; resolusi tidak sama dengan detail baru yang diciptakan.
+- **Sumber gambar berkualitas rendah tidak akan menjadi tajam sempurna hanya dengan ekspor ulang.**
 
 ## ✨ v1.7.0: Logo & instalasi
 
@@ -43,12 +56,16 @@
 
 Konversi rasio **tidak memutar** isi media. **Fit** menjaga seluruh foto/video dengan tepi, sedangkan **Crop** memotong area atas/bawah atau kiri/kanan. Untuk foto, **Blur** mengisi tepi dengan latar kabur. Video Blur dinamis diimplementasikan menggunakan GaussianBlurWithFrameOverlaid dan perlu pengujian visual di GPU perangkat nyata.
 
+## 🧪 Bukti pengujian UI & instalasi
+
+Workflow membangun APK, memvalidasi signature dan launcher, memasang APK di Android emulator API 35, meluncurkan MainActivity, lalu merekam **screenshot aktual home app** sebagai artifact `WFS-StoryBoost-v2.0.0-Emulator-Screenshot`. Screenshot adalah UI aplikasi nyata, bukan poster AI.
+
 ## 📥 Download APK (via GitHub Actions)
 
 1. Buka tab [**Actions**](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml).
-2. Pilih workflow **Build WFS StoryBoost APK**.
+2. Pilih workflow **Build and verify WFS StoryBoost APK**.
 3. Buka run terbaru dengan status **Success** (atau klik **Run workflow** jika diperlukan).
-4. Unduh artifact **WFS-StoryBoost-v1.7.0-Debug-APK** dan ekstrak ZIP-nya.
+4. Unduh artifact **WFS-StoryBoost-v2.0.0-Debug-APK** dan ekstrak ZIP-nya.
 5. Instal `app-debug.apk` di Android 10 atau versi lebih baru (aktifkan izin pemasangan aplikasi dari sumber tersebut saat diminta).
 
 > Artifact tersedia **hanya setelah build sukses**. Debug APK ditandatangani kunci debug sementara; untuk update stabil gunakan signed release dengan GitHub Secrets. v1.7 memakai package baru untuk menghindari konflik dengan versi lama. Jangan mengunggah kunci signing atau password ke repository.
@@ -61,7 +78,7 @@ Syarat: **JDK 17**, **Android SDK API 36 + Build Tools 35**, Android Studio atau
 powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
 ```
 
-Jika sukses, APK debug berada pada `dist/WFS-StoryBoost-v1.7.0-debug.apk`.
+Jika sukses, APK debug berada pada `dist/WFS-StoryBoost-v2.0.0-debug.apk`.
 
 ## ✅ Pengujian
 
@@ -71,7 +88,7 @@ Uji perhitungan tanpa Android SDK:
 bash scripts/test-ratio-geometry.sh
 ```
 
-Output yang diharapkan: `PASS 43 aspect geometry assertions`.
+Output yang diharapkan: `PASS 53 aspect geometry assertions`.
 
 **Workflow CI:** menjalankan pengujian rasio dan bitrate, kompilasi Android debug APK, lalu mengunggah artifact. CI menambahkan smoke test instalasi pada emulator, namun belum menggantikan pengujian aktual pada ponsel dan verifikasi visual/AV video yang diekspor. Ikuti [`tests/TEST_PLAN.md`](tests/TEST_PLAN.md) untuk QA manual, khususnya video landscape↔portrait, HEIC, perangkat resolusi kecil, video dengan/tanpa audio, serta pembatalan antrean.
 
@@ -95,7 +112,7 @@ tests/AspectRatioProfileTest.java
 tests/TEST_PLAN.md
 ```
 
-## ⚠️ Audit batasan v1.6.0
+## ⚠️ Audit batasan pengembangan
 
 | Batasan | Status |
 |---|---|
@@ -105,16 +122,20 @@ tests/TEST_PLAN.md
 | Track audio hilang | Divalidasi keberadaan audio serta perbedaan durasi (belum sample-accurate) |
 | Multi-aspect sekaligus | 9:16 dan 16:9 dalam satu batch |
 | Trim video | Input waktu mulai/akhir dalam detik |
-| Encoder Full HD gagal | Mencoba sekali lagi pada HD, tidak menjamin seluruh decoder vendor |
+| Encoder Full HD gagal | Mencoba sekali lagi pada HD; Max Detail tidak turun diam-diam ke HD |
 | AI super-resolution, AI deblur, face restoration | Belum: membutuhkan model ML berlisensi serta evaluasi performa dan identitas wajah |
 | Crop manual berbasis fokus | Slider X/Y bekerja untuk foto dan video pada mode Crop |
 | Pelacakan subjek otomatis dan timeline multi-track | Belum; membutuhkan modul analisis dan editor lanjutan |
 | Proses saat aplikasi ditutup | Belum; butuh foreground service media-processing yang sesuai aturan Android |
 | HDR dan format vendor | Masih tergantung dukungan decoder/encoder perangkat |
-| Play Store | APK debug saja; belum signing release dan QA produksi |
+| Play Store | APK debug; signed release tersedia hanya jika pemilik repo mengonfigurasi signing secrets; QA perangkat produksi masih perlu |
 | Status WhatsApp/IG | Kompresi setelah unggah di luar kontrol aplikasi |
 
 Fitur bertanda *belum* tetap dicantumkan secara transparan dan tidak diklaim selesai.
+
+## 📝 Ekspektasi kualitas
+
+WhatsApp/Instagram tetap melakukan proses ulang unggahan. Untuk membandingkan kualitas secara adil, periksa **sumber asli → file hasil aplikasi → media setelah diunggah** secara terpisah. Kualitas Max Detail menghasilkan file lebih besar dan membutuhkan RAM, CPU, GPU, serta ruang penyimpanan lebih banyak. Kamera sumber yang sudah pecah atau berkompresi berat tidak bisa dipulihkan sepenuhnya dengan filter ini.
 
 ## 🔧 Teknologi
 

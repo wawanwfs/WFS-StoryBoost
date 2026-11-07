@@ -1,6 +1,7 @@
 package com.wfs.storyboost;
 
 import android.content.Context;
+import android.app.ActivityManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -31,7 +32,9 @@ public final class PhotoEngine {
     }
 
     public static Result process(Context context, Uri uri, ExportOptions settings) throws IOException {
-        Bitmap source = decode(context, uri, settings.qualityMode == OutputProfile.MAX_DETAIL ? 4096 : settings.fullHd ? 2880 : 1920);
+        int maxSide = settings.qualityMode == OutputProfile.MAX_DETAIL
+                ? preferredDecodeLimit(context) : settings.fullHd ? 2880 : 1920;
+        Bitmap source = decode(context, uri, maxSide);
         if (source == null) throw new IOException("Foto tidak bisa dibaca.");
         Bitmap oriented = orient(context, uri, source);
         if (oriented != source) source.recycle();
@@ -154,6 +157,13 @@ public final class PhotoEngine {
                 px[y * w + x] = Color.rgb(red / n, green / n, blue / n);
             }
         }
+    }
+
+    /** Avoid forced 2x JPEG downsampling on phones with enough memory for 4K sources. */
+    private static int preferredDecodeLimit(Context context) {
+        ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        int heapMb = manager == null ? 192 : manager.getLargeMemoryClass();
+        return heapMb >= 384 ? 6144 : 4096;
     }
 
     private static Bitmap decode(Context context, Uri uri, int maxSide) throws IOException {

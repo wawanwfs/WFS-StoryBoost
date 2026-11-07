@@ -1,13 +1,9 @@
-# Android/Gradle outputs
 .gradle/
 build/
-**/build/
-*.apk
-*.aab
-*.hprof
+app/build/
 local.properties
 .idea/
 *.iml
+.DS_Store
 .tools/
 dist/
-.DS_Store

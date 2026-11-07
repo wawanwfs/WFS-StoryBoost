@@ -44,3 +44,12 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] Pilih Soft Night pada foto malam; pastikan shadow lebih terbaca tanpa mengubah wajah.
 - [ ] Ekspor video 60 fps dan 30 fps; periksa peningkatan target bitrate bila metadata tersedia.
 - [ ] MP4 rusak atau output resolusi salah harus gagal validasi sebelum tersimpan di galeri.
+
+## v1.5 QA tambahan
+- [ ] Video Blur 9:16 ↔ 16:9 di beberapa GPU, periksa tidak gepeng.
+- [ ] Preview video asli/hasil, playback, audio, seek.
+- [ ] Dual-aspect untuk foto/video, cek 2 output masing-masing.
+- [ ] Video trim 5–15 detik dari sumber 20 detik, cek durasi dan audio.
+- [ ] File dengan dan tanpa audio, sumber HDR, 60fps/120fps.
+- [ ] Fallback ketika perangkat tidak mendukung output Full HD.
+- [ ] Periksa sinkronisasi audio secara manual di perangkat.

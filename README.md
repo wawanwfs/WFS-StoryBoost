@@ -4,7 +4,7 @@
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
 
-> **v1.4.0 • source development build.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
+> **v1.5.0 • source development build.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
 
 ## 🌟 Fitur
 
@@ -12,11 +12,12 @@
 |---|---|
 | 💎 Aesthetic Enhance | Natural, Cinematic, Vibrant, Soft Night untuk foto dan video |
 | ↔️ Rasio dua arah | **9:16 → 16:9** dan **16:9 → 9:16**, juga 1:1, 4:5, Original. Tombol satu ketuk menukar rasio |
-| 🖼️ Bingkai | **Fit**, **Crop**, **Blur Background** (blur untuk foto; video menggunakan Fit) |
-| 🔍 Before / After | **Geser pembatas** pada pratinjau foto asli vs editan setelah ekspor |
-| 🎥 Video Optimizer | MP4 H.264/AAC, bitrate adaptif resolusi dan perkiraan FPS, pemeriksaan struktur MP4 hasil ekspor |
-| 📦 Batch Processing | Pilih hingga 10 file dan proses secara berurutan |
+| 🖼️ Bingkai | **Fit**, **Crop**, **Blur Background** untuk foto dan video dengan GPU |
+| 🔍 Before / After | Geser pembatas pada foto; pemutar video asli vs hasil setelah ekspor |
+| 🎥 Video Optimizer | MP4 H.264/AAC, bitrate FPS track, validasi audio/durasi, fallback Full HD→HD |
+| 📦 Batch Processing | Pilih hingga 10 file, opsi ekspor 9:16 dan 16:9 sekaligus (20 output) |
 | 📤 Ekspor | MediaStore: `Pictures/WFS StoryBoost` atau `Movies/WFS StoryBoost` |
+| ✂️ Trim video | Potong awal/akhir video dengan waktu detik |
 | 🔒 Privacy | Tanpa login, izin storage menyeluruh, atau permintaan akses internet |
 
 ### Ukuran ekspor
@@ -29,7 +30,7 @@
 | 4:5 | 1080×1350 | 720×900 |
 | Original | maksimal sisi panjang 1920, tidak upscale | maksimal sisi panjang 1280, tidak upscale |
 
-Konversi rasio **tidak memutar** isi media. **Fit** menjaga seluruh foto/video dengan tepi, sedangkan **Crop** memotong area atas/bawah atau kiri/kanan. Untuk foto, **Blur** mengisi tepi dengan latar kabur. Video Blur dinamis belum tersedia; aplikasi jelas menggunakan Fit, bukan diam-diam mengubah framing.
+Konversi rasio **tidak memutar** isi media. **Fit** menjaga seluruh foto/video dengan tepi, sedangkan **Crop** memotong area atas/bawah atau kiri/kanan. Untuk foto, **Blur** mengisi tepi dengan latar kabur. Video Blur dinamis diimplementasikan menggunakan GaussianBlurWithFrameOverlaid dan perlu pengujian visual di GPU perangkat nyata.
 
 ## 📥 Download APK (via GitHub Actions)
 
@@ -59,7 +60,7 @@ Uji perhitungan tanpa Android SDK:
 bash scripts/test-ratio-geometry.sh
 ```
 
-Output yang diharapkan: `PASS 27 aspect geometry assertions`.
+Output yang diharapkan: `PASS 37 aspect geometry assertions`.
 
 **Workflow CI:** menjalankan pengujian rasio dan bitrate, kompilasi Android debug APK, lalu mengunggah artifact. Ini belum menggantikan pengujian aktual pada ponsel dan verifikasi visual/AV video yang diekspor. Ikuti [`tests/TEST_PLAN.md`](tests/TEST_PLAN.md) untuk QA manual, khususnya video landscape↔portrait, HEIC, perangkat resolusi kecil, video dengan/tanpa audio, serta pembatalan antrean.
 
@@ -83,16 +84,25 @@ tests/AspectRatioProfileTest.java
 tests/TEST_PLAN.md
 ```
 
-## ⚠️ Batasan jujur
+## ⚠️ Audit batasan v1.5.0
 
-- AI super-resolution, true AI deblur, restorasi wajah, analisis subjek, serta video blur dinamis **belum diimplementasikan**.
-- Before/after saat ini untuk **foto**; belum ada player preview video di dalam aplikasi.
-- Frame-rate metadata tidak selalu tersedia; jika tidak ada, bitrate memakai asumsi 30 fps.
-- Pemeriksaan video memastikan file, resolusi dan durasi valid, tetapi belum menjamin audio sinkron; perlu QA perangkat.
-- Frame rate dan HDR bergantung decoder/encoder perangkat. Media yang tidak didukung dapat gagal diekspor, dengan pesan error.
-- UI saat ini dibuat secara programatik; belum memiliki layar timeline, crop manual, atau ekspor multi-aspect sekaligus.
-- Antrean harus dijalankan saat aplikasi tetap aktif (belum foreground service/background worker).
-- Untuk video, perangkat mungkin menolak codec, resolusi, atau kombinasi input tertentu; uji pada perangkat nyata.
+| Batasan | Status |
+|---|---|
+| Blur video bergerak | Sudah ditambahkan; masih perlu QA visual berbagai perangkat |
+| Preview video asli/hasil | Sudah ada player di aplikasi setelah ekspor |
+| FPS metadata | Dibaca dari track via MediaExtractor; 30 FPS hanya fallback |
+| Track audio hilang | Divalidasi keberadaan audio serta perbedaan durasi (belum sample-accurate) |
+| Multi-aspect sekaligus | 9:16 dan 16:9 dalam satu batch |
+| Trim video | Input waktu mulai/akhir dalam detik |
+| Encoder Full HD gagal | Mencoba sekali lagi pada HD, tidak menjamin seluruh decoder vendor |
+| AI super-resolution, AI deblur, face restoration | Belum: membutuhkan model ML berlisensi serta evaluasi performa dan identitas wajah |
+| Pelacakan subjek, manual crop, timeline multi-track | Belum: perlu modul editor interaktif dan pengujian terpisah |
+| Proses saat aplikasi ditutup | Belum; butuh foreground service media-processing yang sesuai aturan Android |
+| HDR dan format vendor | Masih tergantung dukungan decoder/encoder perangkat |
+| Play Store | APK debug saja; belum signing release dan QA produksi |
+| Status WhatsApp/IG | Kompresi setelah unggah di luar kontrol aplikasi |
+
+Fitur bertanda *belum* tetap dicantumkan secara transparan dan tidak diklaim selesai.
 
 ## 🔧 Teknologi
 

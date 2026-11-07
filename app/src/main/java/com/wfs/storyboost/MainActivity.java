@@ -27,6 +27,10 @@ import android.widget.ArrayAdapter;
 import android.widget.AdapterView;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.VideoView;
+import android.widget.MediaController;
+import android.widget.EditText;
+import android.text.InputType;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -46,7 +50,12 @@ public final class MainActivity extends Activity {
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final ArrayDeque<Uri> pending = new ArrayDeque<>();
+    private static final class ExportJob {
+        final Uri uri;
+        final ExportOptions options;
+        ExportJob(Uri uri,ExportOptions options){this.uri=uri;this.options=options;}
+    }
+    private final ArrayDeque<ExportJob> pending = new ArrayDeque<>();
     private final VideoEngine videos = new VideoEngine();
     private ProgressBar progress;
     private TextView status, count, outputLabel;
@@ -55,7 +64,11 @@ public final class MainActivity extends Activity {
     private RadioGroup presets;
     private Spinner ratioSpinner, frameSpinner;
     private TextView ratioHint;
-    private Switch hdSwitch;
+    private Switch hdSwitch,dualAspectSwitch;
+    private EditText trimStartField,trimEndField;
+    private VideoView videoPreview;
+    private Button originalVideoButton,exportedVideoButton;
+    private Uri previewOriginalVideo,previewExportVideo;
     private ExportOptions queueOptions;
     private boolean busy = false;
     private boolean videoActive = false;
@@ -150,22 +163,36 @@ public final class MainActivity extends Activity {
         opts.addView(text("Cara mengisi bingkai", 13, TEXT, true));
         frameSpinner = spinner(new String[]{
                 "Fit  •  Utuh, tanpa potong", "Crop  •  Penuhi layar",
-                "Blur  •  Latar kabur (foto)"
+                "Blur  •  Latar kabur foto & video"
         });
         opts.addView(frameSpinner);
+        space(opts, 10);
+        dualAspectSwitch=switcher("Ekspor sekaligus 9:16 dan 16:9",false);
+        opts.addView(dualAspectSwitch);
+        space(opts,9);
+        opts.addView(text("Trim video opsional (detik, 0 = awal/akhir)",12,SOFT,false));
+        LinearLayout trimRow=new LinearLayout(this);
+        trimRow.setOrientation(LinearLayout.HORIZONTAL);
+        trimStartField=trimInput("Mulai 0");trimEndField=trimInput("Selesai 0");
+        trimRow.addView(trimStartField,new LinearLayout.LayoutParams(0,dp(52),1));
+        trimRow.addView(trimEndField,new LinearLayout.LayoutParams(0,dp(52),1));
+        opts.addView(trimRow);
         space(opts, 10);
         hdSwitch = switcher("Kualitas Full HD (nonaktif: HD)", true);
         opts.addView(hdSwitch);
         ratioHint = text("", 12, SOFT, false);
         opts.addView(ratioHint);
         space(opts, 8);
-        opts.addView(text("Video dengan Blur menggunakan Fit + tepi gelap pada v1.4; "
-                + "Crop memangkas sisi, Fit mempertahankan gambar utuh.", 12, SOFT, false));
+        opts.addView(text("Blur video: latar bergerak dari tiap frame via GPU. "
+                + "Crop memotong, Fit mempertahankan media utuh.",12,SOFT,false));
         SharedPreferences prefs = getPreferences(MODE_PRIVATE);
         ratioSpinner.setSelection(Math.max(0, Math.min(4, prefs.getInt("ratio", 0))));
         frameSpinner.setSelection(Math.max(0, Math.min(2, prefs.getInt("frame", 0))));
         hdSwitch.setChecked(prefs.getBoolean("full_hd", true));
         presets.check(1000 + Math.max(0, Math.min(3, prefs.getInt("preset", 1))));
+        dualAspectSwitch.setChecked(prefs.getBoolean("dual_ratio",false));
+        trimStartField.setText(prefs.getString("trim_start",""));
+        trimEndField.setText(prefs.getString("trim_end",""));
         AdapterView.OnItemSelectedListener ratioListener = new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> a, View view, int position, long id) {
                 updateRatioHint();
@@ -207,6 +234,19 @@ public final class MainActivity extends Activity {
         preview.setVisibility(View.GONE);
         results.addView(preview, new LinearLayout.LayoutParams(-1, dp(260)));
         results.addView(text("Geser pembatas: kiri asli • kanan hasil edit", 12, SOFT, false));
+        videoPreview=new VideoView(this);
+        videoPreview.setVisibility(View.GONE);
+        videoPreview.setBackgroundColor(Color.BLACK);
+        MediaController mc=new MediaController(this);
+        mc.setAnchorView(videoPreview);videoPreview.setMediaController(mc);
+        results.addView(videoPreview,new LinearLayout.LayoutParams(-1,dp(250)));
+        originalVideoButton=button("▶ Video asli",false);
+        exportedVideoButton=button("▶ Video hasil",false);
+        originalVideoButton.setVisibility(View.GONE);
+        exportedVideoButton.setVisibility(View.GONE);
+        originalVideoButton.setOnClickListener(v->playVideoPreview(false));
+        exportedVideoButton.setOnClickListener(v->playVideoPreview(true));
+        results.addView(originalVideoButton);results.addView(exportedVideoButton);
         outputLabel = text("", 12, SOFT, false);
         results.addView(outputLabel);
         space(results, 11);
@@ -230,6 +270,41 @@ public final class MainActivity extends Activity {
         setContentView(scroll);
     }
 
+    private EditText trimInput(String hint){
+        EditText f=new EditText(this);f.setHint(hint);f.setHintTextColor(SOFT);
+        f.setTextColor(TEXT);f.setSingleLine(true);f.setTextSize(13);
+        f.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        return f;
+    }
+    private static long secondsToMs(EditText field){
+        String t=field.getText().toString().trim();
+        if(t.isEmpty())return 0;
+        try{
+            double seconds=Double.parseDouble(t);
+            if(!Double.isFinite(seconds)||seconds<0||seconds>36000)
+                throw new NumberFormatException();
+            return Math.round(seconds*1000);
+        }catch(NumberFormatException e){
+            throw new IllegalArgumentException("Trim harus angka detik 0–36000.");
+        }
+    }
+    private void playVideoPreview(boolean exported){
+        Uri uri=exported?previewExportVideo:previewOriginalVideo;
+        if(uri==null)return;
+        videoPreview.stopPlayback();
+        videoPreview.setVideoURI(uri);
+        videoPreview.setOnPreparedListener(player->{
+            player.setLooping(false);videoPreview.start();
+        });
+        videoPreview.setVisibility(View.VISIBLE);
+    }
+    private void hideVideoPreview(){
+        if(videoPreview!=null){
+            videoPreview.stopPlayback();videoPreview.setVisibility(View.GONE);
+            originalVideoButton.setVisibility(View.GONE);
+            exportedVideoButton.setVisibility(View.GONE);
+        }
+    }
     private void updateRatioHint() {
         if (ratioHint == null || ratioSpinner == null || hdSwitch == null) return;
         int ratio = ratioSpinner.getSelectedItemPosition();
@@ -288,21 +363,33 @@ public final class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != PICK_MEDIA || resultCode != RESULT_OK || data == null) return;
         pending.clear();
+        java.util.ArrayList<Uri> chosen=new java.util.ArrayList<>();
         if (data.getClipData() != null) {
             ClipData clip = data.getClipData();
-            for (int i = 0; i < clip.getItemCount() && pending.size() < 10; i++) {
-                pending.add(clip.getItemAt(i).getUri());
+            for(int i=0;i<clip.getItemCount()&&chosen.size()<10;i++){
+                chosen.add(clip.getItemAt(i).getUri());
             }
         } else if (data.getData() != null) {
-            pending.add(data.getData());
+            chosen.add(data.getData());
         }
-        if (pending.isEmpty()) return;
-        queueOptions = new ExportOptions(Math.max(0, presets.getCheckedRadioButtonId() - 1000),
-                ratioSpinner.getSelectedItemPosition(), frameSpinner.getSelectedItemPosition(),
-                hdSwitch.isChecked());
+        if(chosen.isEmpty())return;
+        try{
+            queueOptions=new ExportOptions(Math.max(0,presets.getCheckedRadioButtonId()-1000),
+                ratioSpinner.getSelectedItemPosition(),frameSpinner.getSelectedItemPosition(),
+                hdSwitch.isChecked(),secondsToMs(trimStartField),secondsToMs(trimEndField));
+        }catch(IllegalArgumentException e){status.setText(e.getMessage());return;}
+        for(Uri uri:chosen){
+            if(dualAspectSwitch.isChecked()){
+                pending.add(new ExportJob(uri,queueOptions.forRatio(AspectRatioProfile.PORTRAIT_9_16)));
+                pending.add(new ExportJob(uri,queueOptions.forRatio(AspectRatioProfile.LANDSCAPE_16_9)));
+            }else pending.add(new ExportJob(uri,queueOptions));
+        }
         getPreferences(MODE_PRIVATE).edit()
                 .putInt("ratio", queueOptions.ratio).putInt("frame", queueOptions.frameStyle)
-                .putInt("preset", queueOptions.preset).putBoolean("full_hd", queueOptions.fullHd).apply();
+                .putInt("preset",queueOptions.preset).putBoolean("full_hd",queueOptions.fullHd)
+                .putBoolean("dual_ratio",dualAspectSwitch.isChecked())
+                .putString("trim_start",trimStartField.getText().toString())
+                .putString("trim_end",trimEndField.getText().toString()).apply();
         total = pending.size(); done = 0; failed = 0; aborted = false; busy = true;
         selectButton.setEnabled(false); selectButton.setAlpha(0.55f);
         cancelButton.setVisibility(View.VISIBLE);
@@ -316,16 +403,17 @@ public final class MainActivity extends Activity {
             finishQueue();
             return;
         }
-        Uri input = pending.removeFirst();
+        ExportJob job=pending.removeFirst();
+        Uri input=job.uri;
         int current = done + failed + 1;
         status.setText("Memproses file " + current + " dari " + total);
         count.setText("Tetap buka aplikasi sampai seluruh file selesai.");
         progress.setProgress(0);
         String mime = getContentResolver().getType(input);
         if (mime != null && mime.startsWith("video/")) {
-            processVideo(input, queueOptions);
+            processVideo(input,job.options);
         } else if (mime != null && mime.startsWith("image/")) {
-            processPhoto(input, queueOptions);
+            processPhoto(input,job.options);
         } else {
             failed++;
             outputLabel.setText("Jenis file tak didukung: " + (mime == null ? "unknown" : mime));
@@ -356,6 +444,7 @@ public final class MainActivity extends Activity {
                     progress.setProgress(100);
                     done++;
                     lastSaved = saved; lastType = "image/jpeg";
+                    hideVideoPreview();
                     preview.setImages(originalPreview, processedPreview);
                     outputLabel.setText("Foto " + result.size + " ("
                             + AspectRatioProfile.label(settings.ratio)
@@ -387,11 +476,15 @@ public final class MainActivity extends Activity {
                                 lastSaved = saved; lastType = "video/mp4";
                                 preview.clearImages();
                                 preview.setVisibility(View.GONE);
+                                previewOriginalVideo=input;previewExportVideo=saved;
+                                originalVideoButton.setVisibility(View.VISIBLE);
+                                exportedVideoButton.setVisibility(View.VISIBLE);
+                                videoPreview.setVisibility(View.VISIBLE);
+                                videoPreview.setVideoURI(saved);
+                                videoPreview.seekTo(1);
                                 outputLabel.setText("Video " + dimensions + " ("
                                         + AspectRatioProfile.label(settings.ratio)
-                                        + ") disimpan di Movies/WFS StoryBoost" +
-                                        (settings.frameStyle == AspectRatioProfile.BLUR
-                                                ? " • Video Blur menggunakan Fit." : ""));
+                                        + ") disimpan di Movies/WFS StoryBoost");
                                 updateShare();
                                 videos.cleanup();
                                 processNext();
@@ -552,6 +645,7 @@ public final class MainActivity extends Activity {
     protected void onDestroy() {
         stopPulse();
         videos.cancel();
+        hideVideoPreview();
         preview.clearImages();
         io.shutdown();
         super.onDestroy();

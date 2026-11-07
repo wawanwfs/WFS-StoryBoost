@@ -121,7 +121,7 @@ public final class MainActivity extends Activity {
         LinearLayout name = new LinearLayout(this);
         name.setOrientation(LinearLayout.VERTICAL);
         name.addView(text("WFS StoryBoost", 23, TEXT, true));
-        TextView kicker = text("CREATIVE MEDIA STUDIO  /  v2.0", 10, CYAN, true);
+        TextView kicker = text("CREATIVE MEDIA STUDIO  /  v2.1", 10, CYAN, true);
         kicker.setLetterSpacing(0.08f);
         name.addView(kicker);
         LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(0, -2, 1f);

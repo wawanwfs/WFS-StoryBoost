@@ -59,3 +59,13 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] Video portrait ke landscape fokus Y 0/50/100.
 - [ ] Fit dan Blur tidak berubah saat fokus digeser.
 - [ ] Dual-aspect tidak mendistorsi isi gambar.
+
+## v1.7 Install / launcher icon / upgrade QA
+- [ ] Android 10, 13, and 16: install APK with package `com.wfs.storyboost.studio`.
+- [ ] App launcher shows WFS camera/play icon and the correct application label.
+- [ ] Cold launch works; photo picker opens without ALL_FILES_ACCESS or internet permission.
+- [ ] `adb shell am start -n com.wfs.storyboost.studio/com.wfs.storyboost.MainActivity` succeeds.
+- [ ] APK contains adaptive launcher icon, passes `apksigner verify`, `zipalign -c` and ZIP integrity check.
+- [ ] With an older `com.wfs.storyboost` build still installed, new package installs side-by-side.
+- [ ] After GitHub secrets are configured, two successive *signed release* builds have the same signer certificate and install with `adb install -r`.
+- [ ] Debug APK update between GitHub runs can fail due to ephemeral debug certificates: DO NOT promise seamless updates.

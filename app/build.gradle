@@ -2,21 +2,52 @@ plugins {
     id 'com.android.application'
 }
 
+// A stable release-signing key must be provided privately through CI secrets or
+// ORG_GRADLE_PROJECT_* environment variables. Never commit the key or passwords.
+def signingProperties = ['storyboostKeystoreFile', 'storyboostKeystorePassword',
+                         'storyboostKeyAlias', 'storyboostKeyPassword']
+def stableSigningReady = signingProperties.every {
+    project.hasProperty(it) && project.property(it).toString().trim().length() > 0
+}
+
 android {
     namespace 'com.wfs.storyboost'
     compileSdk 36
 
     defaultConfig {
-        applicationId 'com.wfs.storyboost'
+        // v1.4–v1.6 used the same app ID with different ephemeral debug certificates,
+        // causing INSTALL_FAILED_UPDATE_INCOMPATIBLE. New package installs side by side.
+        applicationId 'com.wfs.storyboost.studio'
         minSdk 29
         targetSdk 35
-        versionCode 6
-        versionName '1.6.0'
+        versionCode 17
+        versionName '1.7.0'
+    }
+
+    signingConfigs {
+        stableRelease {
+            if (stableSigningReady) {
+                storeFile file(project.property('storyboostKeystoreFile'))
+                storePassword project.property('storyboostKeystorePassword').toString()
+                keyAlias project.property('storyboostKeyAlias').toString()
+                keyPassword project.property('storyboostKeyPassword').toString()
+                enableV1Signing true
+                enableV2Signing true
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            // Debug signatures may change between GitHub runners. For upgrades use
+            // stableRelease with private signing credentials instead.
+            applicationIdSuffix ''
+        }
         release {
             minifyEnabled false
+            if (stableSigningReady) {
+                signingConfig signingConfigs.stableRelease
+            }
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

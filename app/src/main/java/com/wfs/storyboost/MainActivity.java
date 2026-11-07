@@ -17,6 +17,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
@@ -102,7 +103,23 @@ public final class MainActivity extends Activity {
         eyebrow.setLetterSpacing(0.15f);
         column.addView(eyebrow);
         space(column, 10);
-        column.addView(text("StoryBoost", 36, TEXT, true));
+        LinearLayout brandRow = new LinearLayout(this);
+        brandRow.setOrientation(LinearLayout.HORIZONTAL);
+        brandRow.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView appLogo = new ImageView(this);
+        appLogo.setImageResource(R.mipmap.ic_launcher);
+        appLogo.setContentDescription("Logo WFS StoryBoost");
+        appLogo.setAdjustViewBounds(true);
+        brandRow.addView(appLogo, new LinearLayout.LayoutParams(dp(76), dp(76)));
+        LinearLayout brandTitles = new LinearLayout(this);
+        brandTitles.setOrientation(LinearLayout.VERTICAL);
+        brandTitles.addView(text("StoryBoost", 31, TEXT, true));
+        brandTitles.addView(text("PHOTO & VIDEO STUDIO  •  v1.7", 11, ACCENT, true));
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        titleParams.leftMargin = dp(12);
+        brandRow.addView(brandTitles, titleParams);
+        column.addView(brandRow);
         space(column, 6);
         column.addView(text("Foto dan video lebih estetik. Siap unggah sebagai WhatsApp Story.",
                 15, SOFT, false));

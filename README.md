@@ -6,6 +6,16 @@
 
 > **v1.6.0 • source development build.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
 
+## ✨ v1.7.0: Logo & instalasi
+
+- Launcher icon **WFS StoryBoost** yang baru (kamera + play + orbit biru-ungu), adaptive icon untuk Android 10–16, plus logo SVG dalam `assets/`.
+- **Application ID baru:** `com.wfs.storyboost.studio` untuk menghindari konflik update aplikasi debug lama `com.wfs.storyboost`. Versi lama dan baru dapat terpasang bersamaan.
+- GitHub CI mengecek signature dengan `apksigner`, file ZIP dengan `unzip -t`, alignment dengan `zipalign`, nama package, label dan aset ikon.
+- CI menjalankan **emulator Android 35** untuk smoke test instalasi dan launch.
+- Dukungan *stable signed release* apabila empat GitHub Actions secrets signing telah disiapkan. Tanpa secrets, yang tersedia hanya debug APK yang **tidak menjamin update tanpa uninstall**.
+
+[Lihat panduan instalasi dan signing](docs/INSTALL.md).
+
 ## 🌟 Fitur
 
 | Fitur | Detail |
@@ -38,10 +48,10 @@ Konversi rasio **tidak memutar** isi media. **Fit** menjaga seluruh foto/video d
 1. Buka tab [**Actions**](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml).
 2. Pilih workflow **Build WFS StoryBoost APK**.
 3. Buka run terbaru dengan status **Success** (atau klik **Run workflow** jika diperlukan).
-4. Unduh artifact **WFS-StoryBoost-v1.4.0-APK** dan ekstrak ZIP-nya.
+4. Unduh artifact **WFS-StoryBoost-v1.7.0-Debug-APK** dan ekstrak ZIP-nya.
 5. Instal `app-debug.apk` di Android 10 atau versi lebih baru (aktifkan izin pemasangan aplikasi dari sumber tersebut saat diminta).
 
-> Artifact tersedia **hanya setelah build sukses**. Debug APK ditandatangani kunci debug dan belum siap distribusi Google Play. Jangan mengunggah kunci signing atau password ke repository.
+> Artifact tersedia **hanya setelah build sukses**. Debug APK ditandatangani kunci debug sementara; untuk update stabil gunakan signed release dengan GitHub Secrets. v1.7 memakai package baru untuk menghindari konflik dengan versi lama. Jangan mengunggah kunci signing atau password ke repository.
 
 ## 🧰 Build lokal Windows 10/11
 
@@ -51,7 +61,7 @@ Syarat: **JDK 17**, **Android SDK API 36 + Build Tools 35**, Android Studio atau
 powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
 ```
 
-Jika sukses, APK debug berada pada `dist/WFS-StoryBoost-v1.4.0-debug.apk`.
+Jika sukses, APK debug berada pada `dist/WFS-StoryBoost-v1.7.0-debug.apk`.
 
 ## ✅ Pengujian
 
@@ -63,7 +73,7 @@ bash scripts/test-ratio-geometry.sh
 
 Output yang diharapkan: `PASS 43 aspect geometry assertions`.
 
-**Workflow CI:** menjalankan pengujian rasio dan bitrate, kompilasi Android debug APK, lalu mengunggah artifact. Ini belum menggantikan pengujian aktual pada ponsel dan verifikasi visual/AV video yang diekspor. Ikuti [`tests/TEST_PLAN.md`](tests/TEST_PLAN.md) untuk QA manual, khususnya video landscape↔portrait, HEIC, perangkat resolusi kecil, video dengan/tanpa audio, serta pembatalan antrean.
+**Workflow CI:** menjalankan pengujian rasio dan bitrate, kompilasi Android debug APK, lalu mengunggah artifact. CI menambahkan smoke test instalasi pada emulator, namun belum menggantikan pengujian aktual pada ponsel dan verifikasi visual/AV video yang diekspor. Ikuti [`tests/TEST_PLAN.md`](tests/TEST_PLAN.md) untuk QA manual, khususnya video landscape↔portrait, HEIC, perangkat resolusi kecil, video dengan/tanpa audio, serta pembatalan antrean.
 
 ## 📁 Struktur proyek
 

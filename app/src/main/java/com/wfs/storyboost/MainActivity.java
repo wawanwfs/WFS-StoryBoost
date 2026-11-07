@@ -148,9 +148,9 @@ public final class MainActivity extends Activity {
         heroContent.addView(heroTag);
         View heroSpace = new View(this);
         heroContent.addView(heroSpace,new LinearLayout.LayoutParams(1,0,1));
-        heroContent.addView(text("Foto & Video\\nLebih Bercerita.", 26, TEXT, true));
+        heroContent.addView(text("Foto & Video\nLebih Bercerita.", 26, TEXT, true));
         space(heroContent, 8);
-        heroContent.addView(text("Warna sinematik • Rasio fleksibel\\nDetail dijaga sesuai media asli", 12, 0xFFE4E8FF, false));
+        heroContent.addView(text("Warna sinematik • Rasio fleksibel\nDetail dijaga sesuai media asli", 12, 0xFFE4E8FF, false));
         space(heroContent, 13);
         selectButton = button("✦   Auto Enhance Sekarang", true);
         selectButton.setBackground(gradientCard(0xFFBE7BFF, 0xFF3BAEFA, 17));
@@ -402,7 +402,7 @@ public final class MainActivity extends Activity {
         cancelButton.setOnClickListener(v -> cancelWork());
         results.addView(cancelButton);
         space(column, 17);
-        TextView footer = text("WFS STORYBOOST  •  PREMIUM CREATIVE STUDIO\\nPRIVATE BY DESIGN  ·  Tanpa akun, tanpa server, tanpa watermark.\nKualitas unggahan WhatsApp tetap mengikuti kompresi platform.", 11, SOFT, false);
+        TextView footer = text("WFS STORYBOOST  •  PREMIUM CREATIVE STUDIO\nPRIVATE BY DESIGN  ·  Tanpa akun, tanpa server, tanpa watermark.\nKualitas unggahan WhatsApp tetap mengikuti kompresi platform.", 11, SOFT, false);
         footer.setGravity(Gravity.CENTER_HORIZONTAL);
         column.addView(footer);
 
@@ -633,7 +633,7 @@ public final class MainActivity extends Activity {
                 if(advice.severeLoss()){
                     new AlertDialog.Builder(this)
                         .setTitle("Perhatikan detail sumber")
-                        .setMessage(advice.description()+"\\n\\nUntuk menjaga semua detail, gunakan Blur. Pilih tetap Crop bila ingin layar penuh tanpa tepi.")
+                        .setMessage(advice.description()+"\n\nUntuk menjaga semua detail, gunakan Blur. Pilih tetap Crop bila ingin layar penuh tanpa tepi.")
                         .setPositiveButton("Tetap Crop",(d,w)->beginQueue(chosen,selected))
                         .setNeutralButton("Gunakan Blur",(d,w)->{
                             frameSpinner.setSelection(AspectRatioProfile.BLUR);

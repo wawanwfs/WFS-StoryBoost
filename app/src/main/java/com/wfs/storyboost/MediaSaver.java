@@ -67,12 +67,13 @@ public final class MediaSaver {
             if(in==null||out==null)throw new IOException("File sumber/tujuan tak tersedia");
             byte[] bytes=new byte[128*1024];int length;
             while((length=in.read(bytes))!=-1)out.write(bytes,0,length);
-            publish(resolver,destination);
-            return destination;
         } catch(Exception e){
             resolver.delete(destination,null,null);
             throw new IOException("Gagal menyalin video sumber",e);
         }
+        // Publish only after the MP4 stream has been completely flushed and closed.
+        publish(resolver,destination);
+        return destination;
     }
 
     private static ContentValues metadata(String name, String mime, String directory) {

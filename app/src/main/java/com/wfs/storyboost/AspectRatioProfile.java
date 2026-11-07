@@ -46,6 +46,13 @@ public final class AspectRatioProfile {
 
     private static int even(int x) { return Math.max(2, x - x % 2); }
 
+    /** Reverse portrait/landscape; retain other selected aspect ratios. */
+    public static int reverse(int ratio) {
+        if (ratio == PORTRAIT_9_16) return LANDSCAPE_16_9;
+        if (ratio == LANDSCAPE_16_9) return PORTRAIT_9_16;
+        return ratio;
+    }
+
     public static String label(int ratio) {
         switch (ratio) {
             case PORTRAIT_9_16: return "9:16";

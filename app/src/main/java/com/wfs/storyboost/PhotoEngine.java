@@ -56,7 +56,7 @@ public final class PhotoEngine {
                         new RectF(b.left, b.top, b.right, b.bottom), photoPaint);
 
                 // Avoid excessive halos and memory usage on large images.
-                sharpen(output, width, height, settings.preset == 0 ? 0.12f : 0.17f);
+                sharpen(output, width, height, settings.preset == 0 ? 0.12f : settings.preset == 3 ? 0.11f : 0.17f);
                 try (ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
                     if (!output.compress(Bitmap.CompressFormat.JPEG, 95, bytes)) {
                         throw new IOException("Gagal mengenkode JPEG.");
@@ -200,16 +200,19 @@ public final class PhotoEngine {
     }
 
     private static ColorMatrixColorFilter colorFilter(int preset) {
-        float sat = preset == 0 ? 1.055f : preset == 1 ? 1.12f : 1.21f;
-        float contrast = preset == 0 ? 1.035f : preset == 1 ? 1.07f : 1.095f;
-        float red = preset == 0 ? 1.01f : 1.045f;
+        float sat = preset == 0 ? 1.055f : preset == 1 ? 1.12f
+                : preset == 2 ? 1.21f : 1.075f;
+        float contrast = preset == 0 ? 1.035f : preset == 1 ? 1.07f
+                : preset == 2 ? 1.095f : 1.025f;
+        float red = preset == 0 ? 1.01f : preset == 3 ? 1.018f : 1.045f;
         float blue = preset == 1 ? 0.99f : 1.01f;
+        float lift = preset == 3 ? 10f : 0f;
         ColorMatrix matrix = new ColorMatrix();
         matrix.setSaturation(sat);
         matrix.postConcat(new ColorMatrix(new float[]{
-                contrast * red, 0, 0, 0, 3 - 128 * (contrast - 1),
-                0, contrast * 1.01f, 0, 0, 2 - 128 * (contrast - 1),
-                0, 0, contrast * blue, 0, 2 - 128 * (contrast - 1),
+                contrast * red, 0, 0, 0, lift + 3 - 128 * (contrast - 1),
+                0, contrast * 1.01f, 0, 0, lift + 2 - 128 * (contrast - 1),
+                0, 0, contrast * blue, 0, lift + 2 - 128 * (contrast - 1),
                 0, 0, 0, 1, 0
         }));
         return new ColorMatrixColorFilter(matrix);

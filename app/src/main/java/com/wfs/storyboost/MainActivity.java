@@ -103,7 +103,7 @@ public final class MainActivity extends Activity {
         presets = new RadioGroup(this);
         presets.setOrientation(RadioGroup.VERTICAL);
         String[] looks = {"Natural  ·  warna realistis", "Cinematic  ·  hangat & tajam",
-                "Vibrant  ·  warna lebih hidup"};
+                "Vibrant  ·  warna lebih hidup", "Soft Night  ·  bayangan lebih terang"};
         for (int i = 0; i < looks.length; i++) {
             RadioButton radio = new RadioButton(this);
             radio.setId(1000 + i);
@@ -134,6 +134,18 @@ public final class MainActivity extends Activity {
                 "1:1  •  Persegi", "4:5  •  Feed portrait", "Original  •  Rasio sumber"
         });
         opts.addView(ratioSpinner);
+        Button reverseRatio = button("⇄  Tukar rasio 9:16 / 16:9", false);
+        reverseRatio.setOnClickListener(v -> {
+            int current = ratioSpinner.getSelectedItemPosition();
+            int reversed = AspectRatioProfile.reverse(current);
+            if (current != reversed) {
+                ratioSpinner.setSelection(reversed);
+                updateRatioHint();
+            } else {
+                ratioHint.setText("Pilih rasio 9:16 atau 16:9 dahulu untuk menukar orientasi.");
+            }
+        });
+        opts.addView(reverseRatio);
         space(opts, 11);
         opts.addView(text("Cara mengisi bingkai", 13, TEXT, true));
         frameSpinner = spinner(new String[]{
@@ -147,13 +159,13 @@ public final class MainActivity extends Activity {
         ratioHint = text("", 12, SOFT, false);
         opts.addView(ratioHint);
         space(opts, 8);
-        opts.addView(text("Video dengan Blur menggunakan Fit + tepi gelap pada v1.3; "
+        opts.addView(text("Video dengan Blur menggunakan Fit + tepi gelap pada v1.4; "
                 + "Crop memangkas sisi, Fit mempertahankan gambar utuh.", 12, SOFT, false));
         SharedPreferences prefs = getPreferences(MODE_PRIVATE);
-        ratioSpinner.setSelection(prefs.getInt("ratio", 0));
-        frameSpinner.setSelection(prefs.getInt("frame", 0));
+        ratioSpinner.setSelection(Math.max(0, Math.min(4, prefs.getInt("ratio", 0))));
+        frameSpinner.setSelection(Math.max(0, Math.min(2, prefs.getInt("frame", 0))));
         hdSwitch.setChecked(prefs.getBoolean("full_hd", true));
-        presets.check(1000 + prefs.getInt("preset", 1));
+        presets.check(1000 + Math.max(0, Math.min(3, prefs.getInt("preset", 1))));
         AdapterView.OnItemSelectedListener ratioListener = new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> a, View view, int position, long id) {
                 updateRatioHint();
@@ -285,7 +297,7 @@ public final class MainActivity extends Activity {
             pending.add(data.getData());
         }
         if (pending.isEmpty()) return;
-        queueOptions = new ExportOptions(presets.getCheckedRadioButtonId() - 1000,
+        queueOptions = new ExportOptions(Math.max(0, presets.getCheckedRadioButtonId() - 1000),
                 ratioSpinner.getSelectedItemPosition(), frameSpinner.getSelectedItemPosition(),
                 hdSwitch.isChecked());
         getPreferences(MODE_PRIVATE).edit()

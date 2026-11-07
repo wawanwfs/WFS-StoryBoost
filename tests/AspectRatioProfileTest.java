@@ -42,6 +42,18 @@ public final class AspectRatioProfileTest {
             AspectRatioProfile.resolve(0, true, 0, 100);
             throw new AssertionError("Expected invalid dimension rejection");
         } catch (IllegalArgumentException expected) { passed++; }
+        check(AspectRatioProfile.reverse(AspectRatioProfile.PORTRAIT_9_16)
+                == AspectRatioProfile.LANDSCAPE_16_9, "9:16 -> 16:9 reverse");
+        check(AspectRatioProfile.reverse(AspectRatioProfile.LANDSCAPE_16_9)
+                == AspectRatioProfile.PORTRAIT_9_16, "16:9 -> 9:16 reverse");
+        check(AspectRatioProfile.reverse(AspectRatioProfile.ORIGINAL)
+                == AspectRatioProfile.ORIGINAL, "original ratio reverse stays original");
+        check(VideoBitrate.estimate(1080, 1920, true, 60f)
+                > VideoBitrate.estimate(1080, 1920, true, 30f), "60fps gets more budget");
+        check(VideoBitrate.estimate(1080, 1920, true, 0f)
+                == VideoBitrate.estimate(1080, 1920, true), "unknown fps falls back to 30");
+        check(VideoBitrate.estimate(1920, 1080, true, 240f) <= 15_000_000,
+                "FPS adaptive bitrate is capped");
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

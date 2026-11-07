@@ -29,6 +29,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.VideoView;
 import android.widget.MediaController;
+import android.widget.SeekBar;
 import android.widget.EditText;
 import android.text.InputType;
 
@@ -66,6 +67,7 @@ public final class MainActivity extends Activity {
     private TextView ratioHint;
     private Switch hdSwitch,dualAspectSwitch;
     private EditText trimStartField,trimEndField;
+    private SeekBar focusXSeek,focusYSeek;
     private VideoView videoPreview;
     private Button originalVideoButton,exportedVideoButton;
     private Uri previewOriginalVideo,previewExportVideo;
@@ -166,6 +168,14 @@ public final class MainActivity extends Activity {
                 "Blur  •  Latar kabur foto & video"
         });
         opts.addView(frameSpinner);
+        opts.addView(text("Fokus Crop • kiri/kanan",12,SOFT,false));
+        focusXSeek=new SeekBar(this);
+        focusXSeek.setMax(100);focusXSeek.setProgress(50);
+        opts.addView(focusXSeek);
+        opts.addView(text("Fokus Crop • atas/bawah",12,SOFT,false));
+        focusYSeek=new SeekBar(this);
+        focusYSeek.setMax(100);focusYSeek.setProgress(50);
+        opts.addView(focusYSeek);
         space(opts, 10);
         dualAspectSwitch=switcher("Ekspor sekaligus 9:16 dan 16:9",false);
         opts.addView(dualAspectSwitch);
@@ -184,7 +194,7 @@ public final class MainActivity extends Activity {
         opts.addView(ratioHint);
         space(opts, 8);
         opts.addView(text("Blur video: latar bergerak dari tiap frame via GPU. "
-                + "Crop memotong, Fit mempertahankan media utuh.",12,SOFT,false));
+                + "Mode Crop mengikuti slider fokus X/Y, Fit mempertahankan media utuh.",12,SOFT,false));
         SharedPreferences prefs = getPreferences(MODE_PRIVATE);
         ratioSpinner.setSelection(Math.max(0, Math.min(4, prefs.getInt("ratio", 0))));
         frameSpinner.setSelection(Math.max(0, Math.min(2, prefs.getInt("frame", 0))));
@@ -193,6 +203,8 @@ public final class MainActivity extends Activity {
         dualAspectSwitch.setChecked(prefs.getBoolean("dual_ratio",false));
         trimStartField.setText(prefs.getString("trim_start",""));
         trimEndField.setText(prefs.getString("trim_end",""));
+        focusXSeek.setProgress(Math.max(0,Math.min(100,prefs.getInt("focus_x",50))));
+        focusYSeek.setProgress(Math.max(0,Math.min(100,prefs.getInt("focus_y",50))));
         AdapterView.OnItemSelectedListener ratioListener = new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> a, View view, int position, long id) {
                 updateRatioHint();
@@ -376,7 +388,8 @@ public final class MainActivity extends Activity {
         try{
             queueOptions=new ExportOptions(Math.max(0,presets.getCheckedRadioButtonId()-1000),
                 ratioSpinner.getSelectedItemPosition(),frameSpinner.getSelectedItemPosition(),
-                hdSwitch.isChecked(),secondsToMs(trimStartField),secondsToMs(trimEndField));
+                hdSwitch.isChecked(),secondsToMs(trimStartField),secondsToMs(trimEndField),
+                focusXSeek.getProgress()/100f,focusYSeek.getProgress()/100f);
         }catch(IllegalArgumentException e){status.setText(e.getMessage());return;}
         for(Uri uri:chosen){
             if(dualAspectSwitch.isChecked()){
@@ -389,7 +402,9 @@ public final class MainActivity extends Activity {
                 .putInt("preset",queueOptions.preset).putBoolean("full_hd",queueOptions.fullHd)
                 .putBoolean("dual_ratio",dualAspectSwitch.isChecked())
                 .putString("trim_start",trimStartField.getText().toString())
-                .putString("trim_end",trimEndField.getText().toString()).apply();
+                .putString("trim_end",trimEndField.getText().toString())
+                .putInt("focus_x",focusXSeek.getProgress())
+                .putInt("focus_y",focusYSeek.getProgress()).apply();
         total = pending.size(); done = 0; failed = 0; aborted = false; busy = true;
         selectButton.setEnabled(false); selectButton.setAlpha(0.55f);
         cancelButton.setVisibility(View.VISIBLE);

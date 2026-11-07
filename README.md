@@ -4,13 +4,14 @@
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
 
-> **v1.5.0 • source development build.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
+> **v1.6.0 • source development build.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
 
 ## 🌟 Fitur
 
 | Fitur | Detail |
 |---|---|
 | 💎 Aesthetic Enhance | Natural, Cinematic, Vibrant, Soft Night untuk foto dan video |
+| 🎯 Fokus crop | Slider kiri/kanan dan atas/bawah untuk foto & video pada mode Crop |
 | ↔️ Rasio dua arah | **9:16 → 16:9** dan **16:9 → 9:16**, juga 1:1, 4:5, Original. Tombol satu ketuk menukar rasio |
 | 🖼️ Bingkai | **Fit**, **Crop**, **Blur Background** untuk foto dan video dengan GPU |
 | 🔍 Before / After | Geser pembatas pada foto; pemutar video asli vs hasil setelah ekspor |
@@ -60,7 +61,7 @@ Uji perhitungan tanpa Android SDK:
 bash scripts/test-ratio-geometry.sh
 ```
 
-Output yang diharapkan: `PASS 37 aspect geometry assertions`.
+Output yang diharapkan: `PASS 43 aspect geometry assertions`.
 
 **Workflow CI:** menjalankan pengujian rasio dan bitrate, kompilasi Android debug APK, lalu mengunggah artifact. Ini belum menggantikan pengujian aktual pada ponsel dan verifikasi visual/AV video yang diekspor. Ikuti [`tests/TEST_PLAN.md`](tests/TEST_PLAN.md) untuk QA manual, khususnya video landscape↔portrait, HEIC, perangkat resolusi kecil, video dengan/tanpa audio, serta pembatalan antrean.
 
@@ -84,7 +85,7 @@ tests/AspectRatioProfileTest.java
 tests/TEST_PLAN.md
 ```
 
-## ⚠️ Audit batasan v1.5.0
+## ⚠️ Audit batasan v1.6.0
 
 | Batasan | Status |
 |---|---|
@@ -96,7 +97,8 @@ tests/TEST_PLAN.md
 | Trim video | Input waktu mulai/akhir dalam detik |
 | Encoder Full HD gagal | Mencoba sekali lagi pada HD, tidak menjamin seluruh decoder vendor |
 | AI super-resolution, AI deblur, face restoration | Belum: membutuhkan model ML berlisensi serta evaluasi performa dan identitas wajah |
-| Pelacakan subjek, manual crop, timeline multi-track | Belum: perlu modul editor interaktif dan pengujian terpisah |
+| Crop manual berbasis fokus | Slider X/Y bekerja untuk foto dan video pada mode Crop |
+| Pelacakan subjek otomatis dan timeline multi-track | Belum; membutuhkan modul analisis dan editor lanjutan |
 | Proses saat aplikasi ditutup | Belum; butuh foreground service media-processing yang sesuai aturan Android |
 | HDR dan format vendor | Masih tergantung dukungan decoder/encoder perangkat |
 | Play Store | APK debug saja; belum signing release dan QA produksi |

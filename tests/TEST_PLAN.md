@@ -53,3 +53,9 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] File dengan dan tanpa audio, sumber HDR, 60fps/120fps.
 - [ ] Fallback ketika perangkat tidak mendukung output Full HD.
 - [ ] Periksa sinkronisasi audio secara manual di perangkat.
+
+## v1.6 Crop focus
+- [ ] Foto landscape ke portrait fokus X 0/50/100.
+- [ ] Video portrait ke landscape fokus Y 0/50/100.
+- [ ] Fit dan Blur tidak berubah saat fokus digeser.
+- [ ] Dual-aspect tidak mendistorsi isi gambar.

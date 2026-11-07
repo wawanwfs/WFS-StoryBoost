@@ -1,0 +1,57 @@
+name: Bootstrap source and build WFS StoryBoost
+on:
+  push:
+    paths:
+      - 'bootstrap/project.b64'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Unpack original project source
+        run: |
+          test -s bootstrap/project.b64
+          base64 --decode bootstrap/project.b64 | tar -xJf -
+          test -f app/build.gradle
+          test -f app/src/main/java/com/wfs/storyboost/MainActivity.java
+      - name: Verify pure Java regression tests
+        run: bash scripts/test-ratio-geometry.sh
+      - name: Commit extracted source to main
+        run: |
+          git config user.name 'wawanwfs'
+          git config user.email '90094394+wawanwfs@users.noreply.github.com'
+          git add -A
+          git rm -r bootstrap
+          git rm --cached .github/workflows/bootstrap.yml
+          rm -f .github/workflows/bootstrap.yml
+          git commit -m "feat: import complete WFS StoryBoost v1.3 Android source" || true
+          git push origin HEAD:main
+      - name: Configure Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Configure Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Configure Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install Android API
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Build APK
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WFS-StoryBoost-v1.3.0-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

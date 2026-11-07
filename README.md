@@ -43,7 +43,7 @@ Konversi rasio **tidak memutar** isi media. **Fit** menjaga seluruh foto/video d
 
 ## 🧰 Build lokal Windows 10/11
 
-Syarat: **JDK 17**, **Android SDK API 35 + Build Tools 35**, Android Studio atau SDK cmdline tools, dan koneksi untuk Gradle/dependensi.
+Syarat: **JDK 17**, **Android SDK API 36 + Build Tools 35**, Android Studio atau SDK cmdline tools, dan koneksi untuk Gradle/dependensi.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
@@ -96,6 +96,6 @@ tests/TEST_PLAN.md
 
 ## 🔧 Teknologi
 
-Android Java 17, minSdk 29 (Android 10), target/compile SDK 35; Android Gradle Plugin 8.9.2, Gradle 8.11.1, AndroidX Media3 1.11.1, MediaStore scoped storage. Proses tetap lokal di Android.
+Android Java 17, minSdk 29 (Android 10), target SDK 35 / compile SDK 36; Android Gradle Plugin 8.11.1, Gradle 8.13, AndroidX Media3 1.11.1, MediaStore scoped storage. Proses tetap lokal di Android.
 
 © WFS StoryBoost. Hak cipta dan lisensi mengikuti pemilik repository; tidak ada lisensi open-source yang diasumsikan atau ditambahkan secara otomatis.

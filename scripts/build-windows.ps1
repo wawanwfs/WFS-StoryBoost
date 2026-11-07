@@ -1,5 +1,5 @@
 # WFS StoryBoost Android debug APK builder, for Windows 10/11.
-# Requirements: Android Studio SDK Platform 35 & Build Tools 35, JDK 17.
+# Requirements: Android Studio SDK Platform 36 & Build Tools 35, JDK 17.
 $ErrorActionPreference = "Stop"
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot ".."))
 
@@ -23,7 +23,7 @@ if (-not $env:JAVA_HOME) {
 if ($env:JAVA_HOME) { $env:PATH = (Join-Path $env:JAVA_HOME "bin") + ";" + $env:PATH }
 try { & java -version } catch { throw "JDK 17 belum ditemukan. Instal JDK 17 atau Android Studio." }
 
-$GradleVersion = "8.11.1"
+$GradleVersion = "8.13"
 $ToolsDir = Join-Path (Get-Location) ".tools"
 $GradleDir = Join-Path $ToolsDir "gradle-$GradleVersion"
 $GradleExe = Join-Path $GradleDir "bin\gradle.bat"

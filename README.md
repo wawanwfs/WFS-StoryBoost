@@ -4,9 +4,17 @@
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
 
-> **v2.0.0 • Premium Studio UI + Source-Aware Quality Engine.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
+> **v2.1.0 • Premium Studio UI + Source-Aware Quality Engine.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
 
-## ✨ Baru di v2.0.0
+## ✨ Baru di v2.1.0
+- **Premium Visual Hero** memakai panorama matahari terbenam dan ilustrasi kota pada Canvas Android, tidak bergantung koneksi internet atau poster AI.
+- **Quick Studio 6 menu**: Enhance Foto, Enhance Video, Ubah Rasio, Batch Export, Filter Premium, Lihat Hasil.
+- **Preset chip tanpa radio circle**; navigasi editor, hasil dan pilihan rasio tetap aktif.
+- **Quality Advisor** menghitung piksel asli yang tersisa ketika crop; dialog memberi pilihan lanjut crop atau beralih Blur sebelum kehilangan detail.
+- **Original / No Edit** untuk menjaga sumber tanpa filter. Pada JPEG asli dan MP4 asli dengan rasio Original, Fit, Max Detail, tanpa trim: berkas disalin persis tanpa *lossy re-encode*.
+- **Max Detail** tetap default; batas nyata resolusi dan kualitas sumber dijelaskan. Tidak ada klaim AI upscale palsu.
+
+
 
 **Premium Studio UI** kini memiliki header berlogo, hero gradien, kartu cepat Enhance Foto/Video, tombol Ubah Rasio, batch processing, panel editor dengan preset warna, kontrol crop, panel ekspor, dan navigasi Beranda–Editor–Hasil yang interaktif.
 
@@ -33,7 +41,7 @@
 
 | Fitur | Detail |
 |---|---|
-| 💎 Aesthetic Enhance | Natural, Cinematic, Vibrant, Soft Night untuk foto dan video |
+| 💎 Aesthetic Enhance | Natural, Cinematic, Vibrant, Soft Night, dan Asli / No Edit |
 | 🎯 Fokus crop | Slider kiri/kanan dan atas/bawah untuk foto & video pada mode Crop |
 | ↔️ Rasio dua arah | **9:16 → 16:9** dan **16:9 → 9:16**, juga 1:1, 4:5, Original. Tombol satu ketuk menukar rasio |
 | 🖼️ Bingkai | **Fit**, **Crop**, **Blur Background** untuk foto dan video dengan GPU |
@@ -58,14 +66,14 @@ Konversi rasio **tidak memutar** isi media. **Fit** menjaga seluruh foto/video d
 
 ## 🧪 Bukti pengujian UI & instalasi
 
-Workflow membangun APK, memvalidasi signature dan launcher, memasang APK di Android emulator API 35, meluncurkan MainActivity, lalu merekam **screenshot aktual home app** sebagai artifact `WFS-StoryBoost-v2.0.0-Emulator-Screenshot`. Screenshot adalah UI aplikasi nyata, bukan poster AI.
+Workflow membangun APK, memvalidasi signature dan launcher, memasang APK di Android emulator API 35, meluncurkan MainActivity, lalu merekam **screenshot aktual home app** sebagai artifact `WFS-StoryBoost-v2.1.0-Emulator-Screenshot`. Screenshot adalah UI aplikasi nyata, bukan poster AI.
 
 ## 📥 Download APK (via GitHub Actions)
 
 1. Buka tab [**Actions**](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml).
 2. Pilih workflow **Build and verify WFS StoryBoost APK**.
 3. Buka run terbaru dengan status **Success** (atau klik **Run workflow** jika diperlukan).
-4. Unduh artifact **WFS-StoryBoost-v2.0.0-Debug-APK** dan ekstrak ZIP-nya.
+4. Unduh artifact **WFS-StoryBoost-v2.1.0-Debug-APK** dan ekstrak ZIP-nya.
 5. Instal `app-debug.apk` di Android 10 atau versi lebih baru (aktifkan izin pemasangan aplikasi dari sumber tersebut saat diminta).
 
 > Artifact tersedia **hanya setelah build sukses**. Debug APK ditandatangani kunci debug sementara; untuk update stabil gunakan signed release dengan GitHub Secrets. v1.7 memakai package baru untuk menghindari konflik dengan versi lama. Jangan mengunggah kunci signing atau password ke repository.
@@ -78,7 +86,7 @@ Syarat: **JDK 17**, **Android SDK API 36 + Build Tools 35**, Android Studio atau
 powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
 ```
 
-Jika sukses, APK debug berada pada `dist/WFS-StoryBoost-v2.0.0-debug.apk`.
+Jika sukses, APK debug berada pada `dist/WFS-StoryBoost-v2.1.0-debug.apk`.
 
 ## ✅ Pengujian
 
@@ -142,3 +150,6 @@ WhatsApp/Instagram tetap melakukan proses ulang unggahan. Untuk membandingkan ku
 Android Java 17, minSdk 29 (Android 10), target SDK 35 / compile SDK 36; Android Gradle Plugin 8.11.1, Gradle 8.13, AndroidX Media3 1.11.1, MediaStore scoped storage. Proses tetap lokal di Android.
 
 © WFS StoryBoost. Hak cipta dan lisensi mengikuti pemilik repository; tidak ada lisensi open-source yang diasumsikan atau ditambahkan secara otomatis.
+## 🔬 QA tambahan v2.1
+
+Periksa **foto 1920×1080 → 9:16 Crop**: dialog Quality Advisor harus muncul dan menawarkan Blur (mencegah klaim kualitas Full HD palsu). Uji sebaliknya 9:16 → 16:9 Crop, dan bandingkan hasil Fit/Blur/Crop. Uji *preset Asli* dengan JPG + MP4 dalam rasio Original, Fit, Max Detail: SHA-256 sumber dan hasil harus identik jika sumber MP4/JPEG didukung. Untuk perangkat fisik, lakukan ekspor di ponsel lalu evaluasi *source → exported → WhatsApp Status*. Kompresi WhatsApp tetap di luar kendali aplikasi.

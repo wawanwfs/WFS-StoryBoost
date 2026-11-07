@@ -60,7 +60,7 @@ public final class VideoEngine {
                 settings.qualityMode, sourceSize.width, sourceSize.height, settings.frameStyle);
         temp = new File(context.getCacheDir(), "storyboost_" + System.nanoTime() + ".mp4");
         List<Effect> effects = new ArrayList<>();
-        if (settings.preset > 0) {
+        if (settings.preset > 0 && settings.preset < 4) {
             effects.add(new Contrast(settings.preset == 3 ? 0.015f
                     : settings.preset == 1 ? 0.065f : 0.09f));
             effects.add(new HslAdjustment.Builder()
@@ -70,7 +70,7 @@ public final class VideoEngine {
                     .setRedScale(settings.preset == 3 ? 1.035f : 1.025f)
                     .setGreenScale(settings.preset == 3 ? 1.035f : 1.008f)
                     .setBlueScale(settings.preset == 1 ? 0.99f : 1.015f).build());
-        } else {
+        } else if (settings.preset == 0) {
             effects.add(new Contrast(0.025f));
             effects.add(new HslAdjustment.Builder().adjustSaturation(4).build());
         }

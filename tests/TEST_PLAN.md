@@ -69,3 +69,13 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] With an older `com.wfs.storyboost` build still installed, new package installs side-by-side.
 - [ ] After GitHub secrets are configured, two successive *signed release* builds have the same signer certificate and install with `adb install -r`.
 - [ ] Debug APK update between GitHub runs can fail due to ephemeral debug certificates: DO NOT promise seamless updates.
+
+## v2.1 actual output & UI
+- [ ] Real emulator screenshots: home hero contains scenic artwork, six action tiles, and functional bottom navigation.
+- [ ] Tap each action: photo picker, video picker, ratio navigation, batch picker, filter editor, result navigation.
+- [ ] Landscape 1920x1080 → Story 9:16 Crop: Quality Advisor warns about retained pixels and offers Blur.
+- [ ] Portrait 1080x1920 → 16:9 Crop: same warning; selecting Blur preserves complete photo.
+- [ ] JPEG with Asli/Original/Fit/Max Detail: output SHA-256 matches input (no recompression).
+- [ ] MP4 with Asli/Original/Fit/Max Detail/no trim: output SHA-256 matches input.
+- [ ] Enhanced MP4 and JPEG: original must not be copied unchanged; preview and share remain functional.
+- [ ] Check screenshot in 320x640 and large resolution: no overflow, no invisible buttons, no clipped labels.

@@ -1,6 +1,7 @@
 package com.wfs.storyboost;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.content.ClipData;
 import android.content.Intent;
@@ -18,6 +19,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
@@ -132,28 +134,39 @@ public final class MainActivity extends Activity {
         column.addView(header);
         space(column, 18);
 
-        // Accent hero with the principal one-tap operation.
-        LinearLayout hero = box(CARD, 24);
-        hero.setPadding(dp(20), dp(21), dp(20), dp(20));
-        hero.setBackground(gradientCard(0xFF243E80, 0xFF45246D, 24));
-        column.addView(hero);
-        TextView heroTag = text("✦  YOUR STORY, BOOSTED", 11, 0xFFD5E4FF, true);
-        heroTag.setLetterSpacing(0.12f);
-        hero.addView(heroTag);
-        space(hero, 12);
-        TextView heroTitle = text("Lebih jernih.\nLebih estetik.", 29, TEXT, true);
-        heroTitle.setLineSpacing(dp(2), 1.0f);
-        hero.addView(heroTitle);
-        space(hero, 9);
-        hero.addView(text("Foto & video dengan warna sinematik, rasio fleksibel, dan detail ekspor yang dijaga.", 13, 0xFFE0E4FF, false));
-        space(hero, 17);
-        selectButton = button("✦   Pilih Media & Enhance", true);
-        selectButton.setBackground(gradientCard(0xFFC0A7FF, 0xFF73CBFF, 16));
-        hero.addView(selectButton);
+        // Large real scenic artwork, rendered by Android Canvas (not a static mockup).
+        FrameLayout scenicHero = new FrameLayout(this);
+        scenicHero.setBackground(round(0xFF1C2450, 24));
+        scenicHero.setClipToOutline(true);
+        scenicHero.addView(new StudioHeroView(this),
+                new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout heroContent = new LinearLayout(this);
+        heroContent.setOrientation(LinearLayout.VERTICAL);
+        heroContent.setPadding(dp(19),dp(19),dp(19),dp(18));
+        TextView heroTag = text("✦  STUDIO EDITION  /  PRIVATE", 10, 0xFFD9E4FF, true);
+        heroTag.setLetterSpacing(.08f);
+        heroContent.addView(heroTag);
+        View heroSpace = new View(this);
+        heroContent.addView(heroSpace,new LinearLayout.LayoutParams(1,0,1));
+        heroContent.addView(text("Foto & Video\\nLebih Bercerita.", 26, TEXT, true));
+        space(heroContent, 8);
+        heroContent.addView(text("Warna sinematik • Rasio fleksibel\\nDetail dijaga sesuai media asli", 12, 0xFFE4E8FF, false));
+        space(heroContent, 13);
+        selectButton = button("✦   Auto Enhance Sekarang", true);
+        selectButton.setBackground(gradientCard(0xFFBE7BFF, 0xFF3BAEFA, 17));
+        selectButton.setTextColor(Color.WHITE);
+        heroContent.addView(selectButton);
         selectButton.setOnClickListener(v -> pick());
-        space(hero, 12);
-        hero.addView(text("✓  Tanpa upload server    ✓  Tanpa watermark", 11, 0xFFDAE7FF, false));
-        space(column, 20);
+        scenicHero.addView(heroContent, new FrameLayout.LayoutParams(-1,-1));
+        column.addView(scenicHero, new LinearLayout.LayoutParams(-1,dp(300)));
+        space(column, 12);
+        LinearLayout trustRow = new LinearLayout(this);
+        trustRow.setGravity(Gravity.CENTER_VERTICAL);
+        trustRow.addView(text("✓  Semua diproses di HP", 11, 0xFF8FE5C9, true));
+        TextView privacyEnd = text("   •   Tanpa watermark", 11, SOFT, false);
+        trustRow.addView(privacyEnd);
+        column.addView(trustRow);
+        space(column, 23);
 
         column.addView(text("QUICK STUDIO", 11, CYAN, true));
         space(column, 7);
@@ -180,6 +193,22 @@ public final class MainActivity extends Activity {
         batchLp.leftMargin = dp(10);
         toolsSecond.addView(batchTile, batchLp);
         column.addView(toolsSecond);
+        space(column, 10);
+        LinearLayout toolsThird = new LinearLayout(this);
+        toolsThird.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout looksTile = actionTile("✦", "Filter Premium", "Look estetik", 0xFFF1A8DC,
+                () -> scroll.smoothScrollTo(0, editorCardTop(column)));
+        toolsThird.addView(looksTile, new LinearLayout.LayoutParams(0,dp(125),1));
+        LinearLayout resultsTile = actionTile("▣", "Lihat Hasil", "Simpan & bagikan",0xFF7ED6C9,
+                () -> {
+                    for (int i=0;i<column.getChildCount();i++)
+                        if ("results".equals(column.getChildAt(i).getTag()))
+                            scroll.smoothScrollTo(0,column.getChildAt(i).getTop());
+                });
+        LinearLayout.LayoutParams resultsLp=new LinearLayout.LayoutParams(0,dp(125),1);
+        resultsLp.leftMargin=dp(10);
+        toolsThird.addView(resultsTile,resultsLp);
+        column.addView(toolsThird);
         space(column, 21);
 
         // The next two cards are direct children of column for navigation anchors.
@@ -189,24 +218,27 @@ public final class MainActivity extends Activity {
         column.addView(editCard);
         editCard.addView(text("01  /  EDITOR", 11, CYAN, true));
         space(editCard, 6);
-        editCard.addView(text("Sesuaikan gayamu", 22, TEXT, true));
-        editCard.addView(text("Preset warna, framing, dan pengaturan media", 12, SOFT, false));
+        editCard.addView(text("Creative Editor", 23, TEXT, true));
+        editCard.addView(text("Preset warna, framing, dan kontrol ekspor resolusi tinggi", 12, SOFT, false));
         space(editCard, 17);
 
         editCard.addView(text("COLOR LOOK", 11, CYAN, true));
         space(editCard, 7);
         presets = new RadioGroup(this);
         presets.setOrientation(RadioGroup.HORIZONTAL);
-        String[] looks = {"Natural", "Cinematic", "Vibrant", "Soft Night"};
+        String[] looks = {"Natural", "Cinematic", "Vibrant", "Soft Night", "Asli / No Edit"};
         for (int i = 0; i < looks.length; i++) {
             RadioButton radio = new RadioButton(this);
             radio.setId(1000 + i);
             radio.setText(looks[i]);
             radio.setTextColor(TEXT);
             radio.setTextSize(12);
-            radio.setButtonTintList(ColorStateList.valueOf(PURPLE));
-            radio.setBackground(round(INNER, 12));
-            radio.setPadding(dp(5), dp(12), dp(11), dp(12));
+            radio.setButtonDrawable((android.graphics.drawable.Drawable)null);
+            radio.setGravity(Gravity.CENTER);
+            radio.setBackground(round(INNER, 14));
+            radio.setMinWidth(dp(76));
+            radio.setMinimumHeight(dp(44));
+            radio.setPadding(dp(13), dp(10), dp(13), dp(10));
             RadioGroup.LayoutParams radioLp = new RadioGroup.LayoutParams(-2, -2);
             if (i > 0) radioLp.leftMargin = dp(8);
             presets.addView(radio, radioLp);
@@ -270,16 +302,23 @@ public final class MainActivity extends Activity {
         editCard.addView(focusYSeek);
         space(editCard, 13);
 
-        editCard.addView(text("OUTPUT QUALITY", 11, CYAN, true));
+        editCard.addView(text("RESOLUTION & QUALITY", 11, CYAN, true));
         space(editCard, 8);
         qualitySpinner = spinner(new String[]{
                 "HD · Hemat ruang", "Full HD · 1080p",
-                "Max Detail · hingga 4K sumber"
+                "Max Detail · resolusi asli, hingga 4K"
         });
         editCard.addView(qualitySpinner);
         space(editCard, 6);
         ratioHint = text("", 12, SOFT, false);
         editCard.addView(ratioHint);
+        space(editCard,10);
+        LinearLayout detailTip=box(0xFF252240,15);
+        detailTip.setPadding(dp(13),dp(12),dp(13),dp(12));
+        detailTip.addView(text("◈  SMART QUALITY PROTECTION",11,0xFFD9C0FF,true));
+        space(detailTip,5);
+        detailTip.addView(text("Crop ekstrem dapat menyisakan sedikit piksel. Aplikasi akan memberi peringatan dan menawarkan Blur sebelum ekspor.",12,0xFFD5D5E8,false));
+        editCard.addView(detailTip);
         space(editCard, 15);
         dualAspectSwitch = switcher("Ekspor dua rasio (9:16 + 16:9)", false);
         editCard.addView(dualAspectSwitch);
@@ -363,7 +402,7 @@ public final class MainActivity extends Activity {
         cancelButton.setOnClickListener(v -> cancelWork());
         results.addView(cancelButton);
         space(column, 17);
-        TextView footer = text("PRIVATE BY DESIGN  ·  Tanpa akun, tanpa server, tanpa watermark.\nKualitas unggahan WhatsApp tetap mengikuti kompresi platform.", 11, SOFT, false);
+        TextView footer = text("WFS STORYBOOST  •  PREMIUM CREATIVE STUDIO\\nPRIVATE BY DESIGN  ·  Tanpa akun, tanpa server, tanpa watermark.\nKualitas unggahan WhatsApp tetap mengikuti kompresi platform.", 11, SOFT, false);
         footer.setGravity(Gravity.CENTER_HORIZONTAL);
         column.addView(footer);
 
@@ -371,7 +410,22 @@ public final class MainActivity extends Activity {
         ratioSpinner.setSelection(Math.max(0, Math.min(4, prefs.getInt("ratio", 0))));
         frameSpinner.setSelection(Math.max(0, Math.min(2, prefs.getInt("frame", 0))));
         qualitySpinner.setSelection(Math.max(0, Math.min(2, prefs.getInt("quality", OutputProfile.MAX_DETAIL))));
-        presets.check(1000 + Math.max(0, Math.min(3, prefs.getInt("preset", 1))));
+        presets.check(1000 + Math.max(0, Math.min(4, prefs.getInt("preset", 1))));
+        presets.setOnCheckedChangeListener((group, checkedId) -> {
+            for(int i=0;i<group.getChildCount();i++){
+                RadioButton rb=(RadioButton)group.getChildAt(i);
+                boolean active=rb.getId()==checkedId;
+                rb.setBackground(gradientCard(active ? 0xFF7E49D4 : INNER,
+                        active ? 0xFF3559A1 : INNER,14));
+                rb.setTextColor(active?Color.WHITE:SOFT);
+            }
+        });
+        for(int i=0;i<presets.getChildCount();i++){
+            RadioButton rb=(RadioButton)presets.getChildAt(i);
+            boolean active=rb.getId()==presets.getCheckedRadioButtonId();
+            rb.setBackground(gradientCard(active?0xFF7E49D4:INNER,active?0xFF3559A1:INNER,14));
+            rb.setTextColor(active?Color.WHITE:SOFT);
+        }
         dualAspectSwitch.setChecked(prefs.getBoolean("dual_ratio", false));
         trimStartField.setText(prefs.getString("trim_start", ""));
         trimEndField.setText(prefs.getString("trim_end", ""));
@@ -430,11 +484,13 @@ public final class MainActivity extends Activity {
 
     private LinearLayout actionTile(String glyph, String title, String description,
                                     int accent, Runnable action) {
-        LinearLayout tile = box(CARD, 19);
-        tile.setPadding(dp(15), dp(13), dp(9), dp(12));
-        TextView glyphView = text(glyph, 25, accent, true);
-        tile.addView(glyphView);
-        space(tile, 6);
+        LinearLayout tile = box(0xFF17213A, 19);
+        tile.setPadding(dp(13), dp(11), dp(9), dp(9));
+        TextView glyphView = text(glyph, 24, Color.WHITE, true);
+        glyphView.setGravity(Gravity.CENTER);
+        glyphView.setBackground(gradientCard(accent,0xFF444D9B,13));
+        tile.addView(glyphView,new LinearLayout.LayoutParams(dp(43),dp(43)));
+        space(tile, 8);
         tile.addView(text(title, 15, TEXT, true));
         space(tile, 3);
         tile.addView(text(description, 11, SOFT, false));
@@ -559,13 +615,40 @@ public final class MainActivity extends Activity {
             chosen.add(data.getData());
         }
         if(chosen.isEmpty())return;
+        final ExportOptions selected;
         try{
-            queueOptions=new ExportOptions(Math.max(0,presets.getCheckedRadioButtonId()-1000),
+            selected=new ExportOptions(Math.max(0,presets.getCheckedRadioButtonId()-1000),
                 ratioSpinner.getSelectedItemPosition(),frameSpinner.getSelectedItemPosition(),
                 qualitySpinner.getSelectedItemPosition()!=OutputProfile.HD,secondsToMs(trimStartField),secondsToMs(trimEndField),
                 focusXSeek.getProgress()/100f,focusYSeek.getProgress()/100f)
                 .withQuality(qualitySpinner.getSelectedItemPosition());
         }catch(IllegalArgumentException e){status.setText(e.getMessage());return;}
+        if(selected.frameStyle==AspectRatioProfile.CROP){
+            try {
+                AspectRatioProfile.Size nativeSize=MediaDimensions.read(this,chosen.get(0));
+                AspectRatioProfile.Size target=AspectRatioProfile.resolve(selected.ratio,
+                    selected.qualityMode,nativeSize.width,nativeSize.height,selected.frameStyle);
+                QualityAdvisor.Report advice=QualityAdvisor.analyze(nativeSize.width,
+                        nativeSize.height,target.width,target.height,selected.frameStyle);
+                if(advice.severeLoss()){
+                    new AlertDialog.Builder(this)
+                        .setTitle("Perhatikan detail sumber")
+                        .setMessage(advice.description()+"\\n\\nUntuk menjaga semua detail, gunakan Blur. Pilih tetap Crop bila ingin layar penuh tanpa tepi.")
+                        .setPositiveButton("Tetap Crop",(d,w)->beginQueue(chosen,selected))
+                        .setNeutralButton("Gunakan Blur",(d,w)->{
+                            frameSpinner.setSelection(AspectRatioProfile.BLUR);
+                            beginQueue(chosen,selected.withFrameStyle(AspectRatioProfile.BLUR));
+                        })
+                        .setNegativeButton("Batal",null).show();
+                    return;
+                }
+            } catch(Exception ignored){ /* Failed metadata probe must not block valid media. */ }
+        }
+        beginQueue(chosen,selected);
+    }
+
+    private void beginQueue(java.util.ArrayList<Uri> chosen,ExportOptions settings){
+        queueOptions=settings;
         for(Uri uri:chosen){
             if(dualAspectSwitch.isChecked()){
                 pending.add(new ExportJob(uri,queueOptions.forRatio(AspectRatioProfile.PORTRAIT_9_16)));
@@ -649,6 +732,32 @@ public final class MainActivity extends Activity {
     }
 
     private void processVideo(Uri input, ExportOptions settings) {
+        // Explicit original/no-edit preset: never needlessly decode/re-encode
+        // an MP4 that already contains the final pixels and audio.
+        if(VideoPassthrough.allowed(settings,getContentResolver().getType(input))){
+            progress.setIndeterminate(true);
+            io.execute(()->{
+                try{
+                    if(!MediaProbe.inspect(this,input).video)
+                        throw new java.io.IOException("Sumber tidak memiliki track video");
+                    Uri saved=MediaSaver.copyOriginalMp4(this,input,filename("mp4"));
+                    runOnUiThread(()->{
+                        progress.setIndeterminate(false);
+                        progress.setProgress(100);done++;
+                        lastSaved=saved;lastType="video/mp4";
+                        preview.clearImages();preview.setVisibility(View.GONE);
+                        previewOriginalVideo=input;previewExportVideo=saved;
+                        originalVideoButton.setVisibility(View.VISIBLE);
+                        exportedVideoButton.setVisibility(View.VISIBLE);
+                        videoPreview.setVisibility(View.VISIBLE);
+                        videoPreview.setVideoURI(saved);
+                        outputLabel.setText("MP4 asli disimpan byte-for-byte tanpa penurunan kualitas.");
+                        updateShare();processNext();
+                    });
+                }catch(Exception ex){runOnUiThread(()->errorAndContinue(ex));}
+            });
+            return;
+        }
         videoActive = true;
         progress.setIndeterminate(false);
         try {

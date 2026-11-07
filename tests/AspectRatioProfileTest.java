@@ -94,6 +94,36 @@ public final class AspectRatioProfileTest {
         check(new ExportOptions(1,0,0,true).withQuality(OutputProfile.MAX_DETAIL).inHd().qualityMode==OutputProfile.HD,"fallback HD mode");
         try{OutputProfile.normalized(3);throw new AssertionError("invalid quality");}
         catch(IllegalArgumentException expected){passed++;}
+        QualityAdvisor.Report severe=QualityAdvisor.analyze(
+                1920,1080,1080,1920,AspectRatioProfile.CROP);
+        check(severe.severeLoss(),"landscape to portrait crop warns severe source loss");
+        check(severe.usableWidth>=600&&severe.usableWidth<=612,
+                "landscape to portrait crop has about 608 native width");
+        check(severe.retainedFraction<.35d,
+                "crop from landscape removes more than 65% source pixels");
+        QualityAdvisor.Report safe=QualityAdvisor.analyze(1920,1080,1080,1920,AspectRatioProfile.BLUR);
+        check(!safe.severeLoss()&&safe.retainedFraction==1d,
+                "Blur preserves source pixels");
+        check(QualityAdvisor.analyze(1080,1920,1080,1920,AspectRatioProfile.CROP)
+                .retainedFraction==1d,"matching aspect crop retains whole image");
+        check(QualityAdvisor.analyze(1080,1920,1920,1080,AspectRatioProfile.CROP)
+                .severeLoss(),"portrait to landscape crop warns");
+        check(new ExportOptions(1,0,1,true).withFrameStyle(2).frameStyle==2,
+                "export options preserve quality while choosing Blur");
+        ExportOptions unchanged=new ExportOptions(4,AspectRatioProfile.ORIGINAL,
+                AspectRatioProfile.FIT,true).withQuality(OutputProfile.MAX_DETAIL);
+        check(VideoPassthrough.allowed(unchanged,"video/mp4"),
+                "original mp4 can bypass lossy encoder");
+        check(!VideoPassthrough.allowed(unchanged,"video/quicktime"),
+                "quicktime source may not be relabeled as mp4");
+        check(!VideoPassthrough.allowed(unchanged.forRatio(0),"video/mp4"),
+                "ratio conversion must transcode video");
+        check(!VideoPassthrough.allowed(new ExportOptions(4,4,0,true,500,0)
+                .withQuality(OutputProfile.MAX_DETAIL),"video/mp4"),
+                "trimmed video must not be copied blindly");
+        check(!VideoPassthrough.allowed(new ExportOptions(1,4,0,true)
+                .withQuality(OutputProfile.MAX_DETAIL),"video/mp4"),
+                "enhanced video must not bypass processing");
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

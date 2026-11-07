@@ -36,4 +36,9 @@ public final class ExportOptions {
     public ExportOptions inHd(){
         return withQuality(OutputProfile.HD);
     }
+    public ExportOptions withFrameStyle(int style){
+        if(style<AspectRatioProfile.FIT||style>AspectRatioProfile.BLUR)
+            throw new IllegalArgumentException("Mode frame tidak dikenal");
+        return new ExportOptions(preset,ratio,style,qualityMode,trimStartMs,trimEndMs,focusX,focusY);
+    }
 }

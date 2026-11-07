@@ -32,6 +32,26 @@ public final class PhotoEngine {
     }
 
     public static Result process(Context context, Uri uri, ExportOptions settings) throws IOException {
+        // The exact-copy path is intentionally opt-in: Original preset + original
+        // aspect + Fit + Max Detail on JPEG. It preserves every original pixel
+        // and EXIF byte instead of recompressing an already compressed image.
+        if (settings.preset==4 && settings.ratio==AspectRatioProfile.ORIGINAL
+                && settings.frameStyle==AspectRatioProfile.FIT
+                && settings.qualityMode==OutputProfile.MAX_DETAIL
+                && "image/jpeg".equalsIgnoreCase(context.getContentResolver().getType(uri))) {
+            AspectRatioProfile.Size nativeSize=MediaDimensions.read(context,uri);
+            try(InputStream in=context.getContentResolver().openInputStream(uri)){
+                if(in==null)throw new IOException("Gambar tidak tersedia.");
+                ByteArrayOutputStream exact=new ByteArrayOutputStream();
+                byte[] buffer=new byte[64*1024];
+                int n;
+                while((n=in.read(buffer))!=-1){
+                    if(exact.size()+n>36*1024*1024){ exact=null;break; }
+                    exact.write(buffer,0,n);
+                }
+                if(exact!=null) return new Result(exact.toByteArray(),nativeSize);
+            }
+        }
         int maxSide = settings.qualityMode == OutputProfile.MAX_DETAIL
                 ? preferredDecodeLimit(context) : settings.fullHd ? 2880 : 1920;
         Bitmap source = decode(context, uri, maxSide);
@@ -49,7 +69,7 @@ public final class PhotoEngine {
                 canvas.drawColor(Color.rgb(14, 19, 29));
                 Paint photoPaint = new Paint(Paint.ANTI_ALIAS_FLAG
                         | Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
-                photoPaint.setColorFilter(colorFilter(settings.preset));
+                photoPaint.setColorFilter(settings.preset==4 ? null : colorFilter(settings.preset));
                 if (settings.frameStyle == AspectRatioProfile.BLUR) {
                     drawBlurredBackground(canvas, oriented, width, height);
                 }

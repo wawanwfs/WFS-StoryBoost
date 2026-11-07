@@ -122,9 +122,20 @@ jobs:
             adb shell pidof com.wfs.storyboost.studio
             adb shell screencap -p /sdcard/storyboost-home.png
             adb pull /sdcard/storyboost-home.png storyboost-home.png
+            # Bottom tabs at x=160 (Editor), x=267 (Hasil) on the 320x640 emulator.
+            adb shell input tap 160 570
+            sleep 2
+            adb shell pidof com.wfs.storyboost.studio
+            adb shell screencap -p /sdcard/storyboost-editor.png
+            adb pull /sdcard/storyboost-editor.png storyboost-editor.png
+            adb shell input tap 266 570
+            sleep 2
+            adb shell pidof com.wfs.storyboost.studio
+            adb shell screencap -p /sdcard/storyboost-results.png
+            adb pull /sdcard/storyboost-results.png storyboost-results.png
       - name: Upload real app screenshot for UI inspection
         uses: actions/upload-artifact@v4
         with:
           name: WFS-StoryBoost-v2.0.0-Emulator-Screenshot
-          path: storyboost-home.png
+          path: storyboost-*.png
           if-no-files-found: error

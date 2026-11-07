@@ -57,7 +57,7 @@ public final class VideoEngine {
         long expectedDuration=ClipWindow.expectedDuration(MediaProbe.duration(context,source),
                 settings.trimStartMs,settings.trimEndMs);
         final AspectRatioProfile.Size target = AspectRatioProfile.resolve(settings.ratio,
-                settings.fullHd, sourceSize.width, sourceSize.height);
+                settings.qualityMode, sourceSize.width, sourceSize.height, settings.frameStyle);
         temp = new File(context.getCacheDir(), "storyboost_" + System.nanoTime() + ".mp4");
         List<Effect> effects = new ArrayList<>();
         if (settings.preset > 0) {
@@ -97,7 +97,7 @@ public final class VideoEngine {
         EditedMediaItem item = new EditedMediaItem.Builder(mediaItem)
                 .setEffects(new Effects(Collections.emptyList(), effects)).build();
         float frameRate = sourceInfo.fps;
-        int bitrate = VideoBitrate.estimate(target.width, target.height, settings.fullHd, frameRate);
+        int bitrate = VideoBitrate.estimate(target.width, target.height, settings.qualityMode, frameRate);
         VideoEncoderSettings requested = new VideoEncoderSettings.Builder()
                 .setBitrate(bitrate).setiFrameIntervalSeconds(2f).build();
         transformer = new Transformer.Builder(context)
@@ -117,7 +117,7 @@ public final class VideoEngine {
                     @Override public void onError(Composition composition, ExportResult result,
                                                    ExportException e) {
                         if(cancelled)return;
-                        if(allowFallback&&settings.fullHd){
+                        if(allowFallback&&settings.qualityMode==OutputProfile.FULL_HD){
                             if(temp!=null)temp.delete();
                             try{startInternal(context,source,settings.inHd(),callback,false);return;}
                             catch(Exception problem){callback.onError("FHD/HD gagal: "+problem.getMessage());return;}

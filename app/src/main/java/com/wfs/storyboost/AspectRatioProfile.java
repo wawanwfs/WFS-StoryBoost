@@ -44,6 +44,39 @@ public final class AspectRatioProfile {
         }
     }
 
+    /**
+     * MAX_DETAIL adapts canvas size to the native source. With CROP it also
+     * reduces the requested canvas when covering it would enlarge source pixels.
+     * Thus it avoids claiming that a 1080p landscape crop is a native 4K Story.
+     */
+    public static Size resolve(int ratio, int quality, int sourceW, int sourceH, int frameStyle) {
+        OutputProfile.normalized(quality);
+        if (sourceW <= 0 || sourceH <= 0) throw new IllegalArgumentException("Dimensi media tidak valid.");
+        if (quality != OutputProfile.MAX_DETAIL) {
+            return resolve(ratio, quality == OutputProfile.FULL_HD, sourceW, sourceH);
+        }
+        int longest = OutputProfile.targetLongEdge(quality, sourceW, sourceH);
+        if (ratio == ORIGINAL) {
+            double factor = Math.min(1d, 3840d / Math.max(sourceW, sourceH));
+            return new Size(even(Math.max(2,(int)Math.round(sourceW*factor))),
+                            even(Math.max(2,(int)Math.round(sourceH*factor))));
+        }
+        int width,height;
+        switch (ratio) {
+            case PORTRAIT_9_16: width = (int)Math.round(longest * 9d/16d); height=longest; break;
+            case LANDSCAPE_16_9: width=longest; height=(int)Math.round(longest * 9d/16d); break;
+            case SQUARE_1_1: width=longest; height=longest; break;
+            case PORTRAIT_4_5: width=(int)Math.round(longest*4d/5d); height=longest; break;
+            default: throw new IllegalArgumentException("Rasio tidak dikenal: "+ratio);
+        }
+        if (frameStyle == CROP) {
+            double nativeLimit = Math.min(1d, Math.min((double)sourceW/width, (double)sourceH/height));
+            width=Math.max(2,(int)Math.floor(width*nativeLimit));
+            height=Math.max(2,(int)Math.floor(height*nativeLimit));
+        }
+        return new Size(even(width),even(height));
+    }
+
     private static int even(int x) { return Math.max(2, x - x % 2); }
 
     /** Reverse portrait/landscape; retain other selected aspect ratios. */

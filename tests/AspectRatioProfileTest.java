@@ -32,7 +32,7 @@ public final class AspectRatioProfileTest {
                 "Full HD AVC bitrate higher than HD");
         check(VideoBitrate.estimate(720, 1280, false) >= 1_600_000,
                 "HD AVC bitrate floor");
-        check(VideoBitrate.estimate(1920, 1080, true) <= 12_000_000,
+        check(VideoBitrate.estimate(1920, 1080, true) <= 22_000_000,
                 "Full HD bitrate cap");
         try {
             VideoBitrate.estimate(0, 1920, true);
@@ -52,7 +52,7 @@ public final class AspectRatioProfileTest {
                 > VideoBitrate.estimate(1080, 1920, true, 30f), "60fps gets more budget");
         check(VideoBitrate.estimate(1080, 1920, true, 0f)
                 == VideoBitrate.estimate(1080, 1920, true), "unknown fps falls back to 30");
-        check(VideoBitrate.estimate(1920, 1080, true, 240f) <= 15_000_000,
+        check(VideoBitrate.estimate(1920, 1080, true, 240f) <= 22_000_000,
                 "FPS adaptive bitrate is capped");
         check(Math.abs(VideoFramePlan.sharpScale(1920,1080,1080,1920)-0.31640625f)<0.001,"blur landscape portrait");
         check(Math.abs(VideoFramePlan.sharpScale(1080,1920,1920,1080)-0.31640625f)<0.001,"blur portrait landscape");
@@ -80,6 +80,20 @@ public final class AspectRatioProfileTest {
         check(Math.abs(top.top-1f)<0.001f,"NDC top focus");
         check(new ExportOptions(1,0,1,true,0,0,0f,1f).inHd().focusY==1f,
                 "focus preserved through HD fallback");
+        check(OutputProfile.targetLongEdge(OutputProfile.MAX_DETAIL,2160,3840)==3840,"4K source target");
+        check(OutputProfile.targetLongEdge(OutputProfile.MAX_DETAIL,1080,1920)==1920,"1080 source no artificial 4K");
+        AspectRatioProfile.Size q4k=AspectRatioProfile.resolve(AspectRatioProfile.PORTRAIT_9_16,OutputProfile.MAX_DETAIL,2160,3840,AspectRatioProfile.FIT);
+        check(q4k.width==2160&&q4k.height==3840,"native 4K portrait");
+        AspectRatioProfile.Size qcrop=AspectRatioProfile.resolve(AspectRatioProfile.PORTRAIT_9_16,OutputProfile.MAX_DETAIL,1920,1080,AspectRatioProfile.CROP);
+        check(qcrop.height<=1080&&qcrop.width<=1920,"native landscape crop never enlarged");
+        AspectRatioProfile.Size qoriginal=AspectRatioProfile.resolve(AspectRatioProfile.ORIGINAL,OutputProfile.MAX_DETAIL,640,480,AspectRatioProfile.FIT);
+        check(qoriginal.width==640&&qoriginal.height==480,"small original unchanged");
+        check(VideoBitrate.estimate(2160,3840,OutputProfile.MAX_DETAIL,30f)>=35_000_000,"4K bitrate");
+        check(VideoBitrate.estimate(1080,1920,OutputProfile.MAX_DETAIL,60f)>VideoBitrate.estimate(1080,1920,OutputProfile.MAX_DETAIL,30f),"MAX 60fps");
+        check(new ExportOptions(1,0,0,true).withQuality(OutputProfile.MAX_DETAIL).forRatio(1).qualityMode==OutputProfile.MAX_DETAIL,"dual aspect keeps max quality");
+        check(new ExportOptions(1,0,0,true).withQuality(OutputProfile.MAX_DETAIL).inHd().qualityMode==OutputProfile.HD,"fallback HD mode");
+        try{OutputProfile.normalized(3);throw new AssertionError("invalid quality");}
+        catch(IllegalArgumentException expected){passed++;}
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

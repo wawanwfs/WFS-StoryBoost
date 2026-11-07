@@ -4,6 +4,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 javac -d "$TMP" "$ROOT/app/src/main/java/com/wfs/storyboost/AspectRatioProfile.java" \
+  "$ROOT/app/src/main/java/com/wfs/storyboost/OutputProfile.java" \
   "$ROOT/app/src/main/java/com/wfs/storyboost/FrameMath.java" \
   "$ROOT/app/src/main/java/com/wfs/storyboost/VideoBitrate.java" \
   "$ROOT/app/src/main/java/com/wfs/storyboost/VideoFramePlan.java" \

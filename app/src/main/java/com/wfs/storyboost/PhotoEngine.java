@@ -31,14 +31,14 @@ public final class PhotoEngine {
     }
 
     public static Result process(Context context, Uri uri, ExportOptions settings) throws IOException {
-        Bitmap source = decode(context, uri, settings.fullHd ? 2880 : 1920);
+        Bitmap source = decode(context, uri, settings.qualityMode == OutputProfile.MAX_DETAIL ? 4096 : settings.fullHd ? 2880 : 1920);
         if (source == null) throw new IOException("Foto tidak bisa dibaca.");
         Bitmap oriented = orient(context, uri, source);
         if (oriented != source) source.recycle();
 
         try {
             AspectRatioProfile.Size size = AspectRatioProfile.resolve(settings.ratio,
-                    settings.fullHd, oriented.getWidth(), oriented.getHeight());
+                    settings.qualityMode, oriented.getWidth(), oriented.getHeight(), settings.frameStyle);
             int width = size.width, height = size.height;
             Bitmap output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             try {
@@ -56,9 +56,10 @@ public final class PhotoEngine {
                         new RectF(b.left, b.top, b.right, b.bottom), photoPaint);
 
                 // Avoid excessive halos and memory usage on large images.
-                sharpen(output, width, height, settings.preset == 0 ? 0.12f : settings.preset == 3 ? 0.11f : 0.17f);
+                // No destructive per-pixel sharpening: it created halos and memory
+                // spikes on 4K output. Bicubic/filtered scaling is done by Canvas.
                 try (ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
-                    if (!output.compress(Bitmap.CompressFormat.JPEG, 95, bytes)) {
+                    if (!output.compress(Bitmap.CompressFormat.JPEG, 98, bytes)) {
                         throw new IOException("Gagal mengenkode JPEG.");
                     }
                     return new Result(bytes.toByteArray(), size);
@@ -81,7 +82,7 @@ public final class PhotoEngine {
         if (oriented != source) source.recycle();
         try {
             AspectRatioProfile.Size resolved = AspectRatioProfile.resolve(settings.ratio,
-                    settings.fullHd, oriented.getWidth(), oriented.getHeight());
+                    settings.qualityMode, oriented.getWidth(), oriented.getHeight(), settings.frameStyle);
             float shrink = Math.min(1f, 800f / Math.max(resolved.width, resolved.height));
             int width = Math.max(2, Math.round(resolved.width * shrink));
             int height = Math.max(2, Math.round(resolved.height * shrink));

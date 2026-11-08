@@ -34,3 +34,9 @@ The source and output model documentation retain upstream attribution. The build
 Synthetic real TFLite DnCNN benchmark on Android 15 x86_64 emulator: 480×480 RGB with paired clean/noisy fixture, **four 256px overlapping tiles**, CPU inference **10.783 s**, full pipeline **12.028 s**, PSNR **20.307→28.801 dB**, SSIM **0.293→0.745**, process PSS snapshots **48,144→53,274 KB**. The RGB chroma-difference guard and overlap-boundary checks passed. [Green AI CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42501208561). Not a portrait, low-light camera, physical ARM64, peak-RAM or overall IQA benchmark; no new AI weights or models activated.
 
 The synthetic fixture is paired clean/noisy RGB, so PSNR/SSIM apply *only* to this test. For real portraits, chroma/compression noise or low-light without a clean ground truth, do not publish PSNR/SSIM as objective quality evidence. Retain DnCNN's 2.6 MP cap and state clearly: this is grayscale-sigma25 luminance denoise, not AI Deblur or Super Resolution.
+
+### Beta3 API29 emulator memory outlier (requires investigation)
+
+The [beta3 combined API29/API35 CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42502015377) shows a **memory-usage outlier** on Android 10 x86_64 emulator: DnCNN 480×480 four-tile synthetic image CPU inference **14.249 s**, total **15.573 s**, process PSS snapshots **41,790→365,138 KB**. In the same CI run Android 15 showed inference **14.805 s**, total **15.946 s**, PSS **48,004→41,105 KB**. These are process snapshots, not device peak RAM or a statistically representative benchmark; the cause of API29's high PSS remains unconfirmed. Do not certify low-RAM phones.
+
+Next: repeat 5+ fresh-process runs with post-GC and separate Java/native/graphics PSS, track peak memory while iterating tiles, compare 1 vs 2/3 TFLite CPU threads, and test on real Android 10 low-RAM ARM64 phones. Never infer a production RAM minimum from emulator-only snapshots.

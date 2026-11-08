@@ -221,3 +221,9 @@ Tests are not additional feature modules. Progress is 23/32.
 - [x] Real Qualcomm/KAIR MIT model loaded by TFLite CPU on API29/API35 and 480×480 paired synthetic RGB image processed across four overlapped 256px tiles; color-channel delta invariance and seam boundary guards. [Green CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42501208561).
 - [x] Reported API35 synthetic 4-tile values: inference 10.783 s, total 12.028 s; PSNR 20.307→28.801 dB, SSIM 0.293→0.745, PSS snapshots 48,144→53,274 KB. Not peak memory or physical device data.
 - [ ] Consented real portrait and low-light/chroma-seam visual evaluation remains incomplete. No module increase from 23/32.
+
+### Beta3 memory-risk follow-up
+
+- [x] Record the API29 outlier on the synthetic four-tile DnCNN run (PSS 41,790→365,138 KB), alongside the API35 snapshot (48,004→41,105 KB). [Source run](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42502015377).
+- [ ] Reproduce in at least five clean Android10 emulator runs, compare native/Java/graphics/peak allocations, tune TFLite thread count only after measuring, and check device stability.
+- [ ] Verify one low-RAM Android10 physical ARM64 and a physical Android15 ARM64; consented portrait/chroma/low-light data remain outstanding.

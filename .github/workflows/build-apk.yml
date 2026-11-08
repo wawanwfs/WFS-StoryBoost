@@ -216,6 +216,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
+            bash scripts/qa-video-fixtures.sh
             bash scripts/fetch-dncnn-model.sh
             gradle --no-daemon :app:connectedDebugAndroidTest
       - name: Publish Android instrumentation reports

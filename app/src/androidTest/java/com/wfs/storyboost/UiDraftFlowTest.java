@@ -4,6 +4,7 @@ import static androidx.test.espresso.intent.Intents.intending;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.action.ViewActions.click;
 import static org.junit.Assert.*;
 
@@ -242,7 +243,7 @@ public class UiDraftFlowTest {
             idle();
             assertNull("Deleted source must not open Editor",resumedEditor());
             home.onActivity(a->tap(a,"BERSIHKAN",false));
-            onView(withText("Bersihkan")).perform(click());
+            onView(withText("Bersihkan")).inRoot(isDialog()).perform(click());
             idle();
             assertEquals("",target.getSharedPreferences("studio-projects",Context.MODE_PRIVATE)
                     .getString("recent_0",""));

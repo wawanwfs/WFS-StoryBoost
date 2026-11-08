@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
-  echo 'ffmpeg/ffprobe required on GitHub Actions runner' >&2
-  exit 1
+  echo "Installing FFmpeg on this GitHub Actions runner for reproducible media QA"
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
 fi
+command -v ffmpeg
+command -v ffprobe
 # Public-domain procedural testsrc2 + sine tones. No copyrighted videos or
 # user gallery footage are used in automated media QA.
 ffmpeg -hide_banner -loglevel error -y -f lavfi \

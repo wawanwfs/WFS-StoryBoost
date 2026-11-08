@@ -112,6 +112,7 @@ public class ProcessDeathSafTest {
         values.put(MediaStore.Downloads.DISPLAY_NAME,filename);
         values.put(MediaStore.Downloads.MIME_TYPE,"image/jpeg");
         values.put(MediaStore.Downloads.RELATIVE_PATH,Environment.DIRECTORY_DOWNLOADS+"/");
+        values.put(MediaStore.Downloads.IS_PENDING,1);
         Uri uri=app().getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,values);
         assertNotNull("Cannot create synthetic DocumentsUI fixture in Downloads",uri);
         Bitmap image=Bitmap.createBitmap(640,960,Bitmap.Config.ARGB_8888);
@@ -123,6 +124,10 @@ public class ProcessDeathSafTest {
                 assertTrue(image.compress(Bitmap.CompressFormat.JPEG,94,out));
             }
         }finally{image.recycle();}
+        ContentValues published=new ContentValues();
+        published.put(MediaStore.Downloads.IS_PENDING,0);
+        assertEquals("Fixture did not publish into Downloads",1,
+                app().getContentResolver().update(uri,published,null,null));
         return uri;
     }
     private boolean clickStable(UiDevice device,androidx.test.uiautomator.BySelector match){
@@ -167,9 +172,11 @@ public class ProcessDeathSafTest {
         return text.toString();
     }
     private androidx.test.uiautomator.BySelector fixtureFile(){
-        // Some DocumentsUI releases render Downloads photos as a thumbnail grid.
-        // The accessible name is in contentDescription, not a TextView label.
-        return By.descContains(PREFIX);
+        // The row accessibility name begins with the filename:
+        // "wfs_beta3_picker_....jpg, 125 kB, ...". Do NOT match the
+        // "Preview the file ..." control, which opens a preview, not a URI.
+        return By.desc(java.util.regex.Pattern.compile(
+                "^"+PREFIX+"[^,]*[.]jpg(?:,.*)?$"));
     }
     private androidx.test.uiautomator.BySelector fixtureText(){
         return By.clazz("android.widget.TextView").text(
@@ -262,7 +269,8 @@ public class ProcessDeathSafTest {
         assertEquals(2,saved.options.preset);
         assertEquals(OutputProfile.FULL_HD,saved.options.qualityMode);
         assertEquals(original,sha(app(),picked));
-        assertTrue("Fixture original remains readable",SourceAccess.canRead(app(),synthetic));
+        // The picked DocumentsProvider URI (and its SHA256) is the contract
+        // under test. Its original MediaStore staging URI can be transient.
         assertTrue(app().getSharedPreferences(PREF,Context.MODE_PRIVATE).edit()
                 .putString("document",selected).putString("fixture",synthetic.toString())
                 .putString("sha",original).putInt("pid",Process.myPid())

@@ -196,7 +196,7 @@ The [successful candidate CI](https://github.com/wawanwfs/WFS-StoryBoost/actions
 - [x] Corrupt draft and missing/deleted URI safe rejection; Clear Recent cleanup.
 - [x] Generated H.264/AAC, silent, rotated and malformed MP4 inspection on Android.
 - [x] API35 Media3 trim encoder: actual 1080×1920 H.264/AAC output, A/V duration and drift assertions.
-- [x] API35 captured PNG screenshots at 320×640 and 1080×2400 with pixel dimension verification.
+- [x] Pixel 6 AVD captured PNG screenshots at 320×640 and 1080×2400 with pixel dimension verification ([smoke job passed in run 42493751785](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42493751785); overall run failed a separate flaky dialog test, subsequently hardened).
 - [ ] Actual Android DocumentsUI interaction, process death/force-stop/reopen and third-party URI revocation.
 - [ ] Repeated import versus explicit resume, physical gesture crop, Undo/Redo and before-after drag through real output.
 - [ ] Full split, merge, cancellation and unsupported/low-memory codec QA across physical devices.

@@ -58,13 +58,13 @@ jobs:
       - name: Publish optimized ARM64 APK
         uses: actions/upload-artifact@v4
         with:
-          name: WFS-StoryBoost-v2.8.0-ARM64-APK
+          name: WFS-StoryBoost-v2.8.1-ARM64-APK
           path: app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
           if-no-files-found: error
       - name: Publish Universal APK
         uses: actions/upload-artifact@v4
         with:
-          name: WFS-StoryBoost-v2.8.0-Universal-APK
+          name: WFS-StoryBoost-v2.8.1-Universal-APK
           path: app/build/outputs/apk/debug/app-universal-debug.apk
           if-no-files-found: error
       - name: Configure stable release signing if secrets exist
@@ -103,7 +103,7 @@ jobs:
         if: steps.signing.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: WFS-StoryBoost-v2.8.0-Release-Signed
+          name: WFS-StoryBoost-v2.8.1-Release-Signed
           path: |
             app/build/outputs/apk/release/app-arm64-v8a-release.apk
             app/build/outputs/apk/release/app-universal-release.apk
@@ -117,7 +117,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: WFS-StoryBoost-v2.8.0-Universal-APK
+          name: WFS-StoryBoost-v2.8.1-Universal-APK
           path: smoke-apk
       - name: Allow Android emulator KVM
         run: |
@@ -160,28 +160,13 @@ jobs:
             adb shell dumpsys activity activities | grep -q 'StudioEditorActivity'
             adb shell screencap -p /sdcard/storyboost-ai-photo.png
             adb pull /sdcard/storyboost-ai-photo.png storyboost-ai-photo.png
-            # Real Android JPEG processing, EXIF rotation, color changes,
-            # exact original copy, custom ratio and genuine no-person ML mask.
-            adb shell am force-stop com.wfs.storyboost.studio
-            adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity --ez qa_photo_export true
-            rm -f qa-photo-export.txt
-            for n in $(seq 1 90); do
-              if adb shell run-as com.wfs.storyboost.studio cat files/qa-photo-export.txt > qa-photo-export.txt 2>/dev/null; then
-                break
-              fi
-              sleep 2
-            done
-            test -s qa-photo-export.txt
-            cat qa-photo-export.txt
-            grep -q '^STATUS=PASS' qa-photo-export.txt
-            grep -q '^checks=' qa-photo-export.txt
-            adb shell dumpsys meminfo com.wfs.storyboost.studio > qa-photo-memory.txt
-            grep -q 'TOTAL' qa-photo-memory.txt
+            # Script is one command: emulator runner executes script lines separately.
+            bash scripts/qa-emulator-photo.sh
 
       - name: Upload real app screenshot for UI inspection
         uses: actions/upload-artifact@v4
         with:
-          name: WFS-StoryBoost-v2.8.0-Emulator-Screenshot
+          name: WFS-StoryBoost-v2.8.1-Emulator-Screenshot
           path: |
             storyboost-*.png
             qa-photo-export.txt

@@ -1,8 +1,12 @@
-# WFS StoryBoost — Creative Editing Studio v2.8.0
+# WFS StoryBoost — Creative Editing Studio v2.8.1
 
 **Android offline-first.** Antarmuka editor non-destruktif dengan workflow proyek, timeline satu media, filter, trim, split-export, konversi rasio, dan kualitas ekspor sumber-asli.
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
+
+## v2.8.1 — CI runner fix
+- Real JPEG emulator QA runs through `bash scripts/qa-emulator-photo.sh`, avoiding multiline shell loops split by android-emulator-runner.
+- Build, emulator install, and media QA have separate gates; failed QA must not be described as verified.
 
 ## Baru v2.8 — AI Bokeh reliability & real JPEG export QA
 
@@ -89,7 +93,7 @@ Lihat [PROGRESS.md](docs/PROGRESS.md) untuk estimasi capaian roadmap dan [NEXT_P
 UI ini menargetkan pengalaman aplikasi editor profesional, **bukan salinan CapCut**. V2.2 masih editor **satu media per proyek**, bukan timeline multi-layer dengan animasi keyframe, efek premium, green screen, penghilangan latar, musik multi-track, atau AI upscale. Fitur tersebut membutuhkan modul yang belum diterapkan. Mode ekspor tetap tergantung codec ponsel. Kompresi WhatsApp/Instagram setelah unggah tidak dapat dicegah aplikasi.
 
 ## Pasang
-Buka [Actions: Build and verify WFS StoryBoost APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml), pilih run sukses terbaru, unduh `WFS-StoryBoost-v2.8.0-ARM64-APK atau WFS-StoryBoost-v2.8.0-Universal-APK`, **ekstrak ZIP**, lalu instal `app-arm64-v8a-debug.apk atau app-universal-debug.apk`. Jika pemasangan update gagal karena kunci signing debug berbeda, hapus versi debug lama terlebih dahulu atau gunakan release signing stabil dengan GitHub Secrets.
+Buka [Actions: Build and verify WFS StoryBoost APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml), pilih run sukses terbaru, unduh `WFS-StoryBoost-v2.8.1-ARM64-APK atau WFS-StoryBoost-v2.8.1-Universal-APK`, **ekstrak ZIP**, lalu instal `app-arm64-v8a-debug.apk atau app-universal-debug.apk`. Jika pemasangan update gagal karena kunci signing debug berbeda, hapus versi debug lama terlebih dahulu atau gunakan release signing stabil dengan GitHub Secrets.
 
 ## Pengembangan / QA
 Aplikasi memakai Android Java 17 / Media3. Workflow menjalankan tes geometri, `assembleDebug`, `apksigner`, `zipalign`, lalu install & launch emulator. Untuk testing HP fisik, lihat `tests/TEST_PLAN.md`. Screenshot editor dari emulator bukan jaminan semua pemrosesan media lolos pengujian perangkat nyata.
@@ -100,7 +104,7 @@ Aplikasi memakai Android Java 17 / Media3. Workflow menjalankan tes geometri, `a
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
 
-> **v2.8.0 • Premium Studio UI + Source-Aware Quality Engine.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
+> **v2.8.1 • Premium Studio UI + Source-Aware Quality Engine.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
 
 ## ✨ Baru di v2.7.1
 - **Premium Visual Hero** memakai panorama matahari terbenam dan ilustrasi kota pada Canvas Android, tidak bergantung koneksi internet atau poster AI.
@@ -169,7 +173,7 @@ Workflow membangun APK, memvalidasi signature dan launcher, memasang APK di Andr
 1. Buka tab [**Actions**](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml).
 2. Pilih workflow **Build and verify WFS StoryBoost APK**.
 3. Buka run terbaru dengan status **Success** (atau klik **Run workflow** jika diperlukan).
-4. Unduh artifact **WFS-StoryBoost-v2.8.0-ARM64-APK atau WFS-StoryBoost-v2.8.0-Universal-APK** dan ekstrak ZIP-nya.
+4. Unduh artifact **WFS-StoryBoost-v2.8.1-ARM64-APK atau WFS-StoryBoost-v2.8.1-Universal-APK** dan ekstrak ZIP-nya.
 5. Instal `app-arm64-v8a-debug.apk atau app-universal-debug.apk` di Android 10 atau versi lebih baru (aktifkan izin pemasangan aplikasi dari sumber tersebut saat diminta).
 
 > Artifact tersedia **hanya setelah build sukses**. Debug APK ditandatangani kunci debug sementara; untuk update stabil gunakan signed release dengan GitHub Secrets. v1.7 memakai package baru untuk menghindari konflik dengan versi lama. Jangan mengunggah kunci signing atau password ke repository.

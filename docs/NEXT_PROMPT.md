@@ -1,4 +1,4 @@
-# WFS StoryBoost — Next execution prompt (after v2.8.0)
+# WFS StoryBoost — Next execution prompt (after v2.8.1)
 
 Continue development in https://github.com/wawanwfs/WFS-StoryBoost using the latest main branch (v2.7.1 or later). Audit README.md, docs/PROGRESS.md, tests/TEST_PLAN.md, CI build logs, and current Android source before editing. Make changes on an appropriate development branch or use safe fast-forward updates without overwriting concurrent work. Preserve commit attribution to the connected user's GitHub identity.
 

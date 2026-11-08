@@ -103,3 +103,13 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] Split + dual ratio retain text, color adjustments and mute settings for every output.
 - [ ] Copy original JPEG/MP4 is disabled when caption/adjustment/mute is requested.
 - [ ] Test UI on 320x640 display: Adjust, Text and Audio tabs can be scrolled horizontally and all controls remain interactive.
+
+## v2.4 Multi-clip merge QA
+- [ ] Add 2 or more videos using Android Storage Access Framework (no broad gallery permission).
+- [ ] Clips appear in the right order, can preview, reorder, and remove without modifying source files.
+- [ ] Merge 2 identical 1080p AVC/AAC clips; resulting MP4 duration equals sum (within encoder tolerance).
+- [ ] Mixed landscape and portrait clips: verify Fit letterboxing and correct final aspect.
+- [ ] Silent video + clip with audio: check expected audio behavior.
+- [ ] 4K/HDR/HEVC mixed inputs: fail gracefully with meaningful codec error; report unsupported device.
+- [ ] Cancel merge mid-export; no pending partial video saved to public gallery.
+- [ ] Android emulator opens real MultiClip screen without crash; capture UI screenshot.

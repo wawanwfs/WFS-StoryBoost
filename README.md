@@ -1,8 +1,15 @@
-# WFS StoryBoost — Creative Editing Studio v2.3
+# WFS StoryBoost — Creative Editing Studio v2.4
 
 **Android offline-first.** Antarmuka editor non-destruktif dengan workflow proyek, timeline satu media, filter, trim, split-export, konversi rasio, dan kualitas ekspor sumber-asli.
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
+
+## Tambahan v2.4: Multi-Clip Video Merge
+- **Gabung Banyak Klip:** proyek khusus untuk memilih hingga 10 video, mengubah urutan dengan tombol ↑/↓, menghapus klip, dan memutar preview klip.
+- **Ekspor satu MP4:** `VideoMergeEngine` memakai **Media3 Composition** dan `EditedMediaItemSequence` untuk konkatenasi video sesuai storyboard. Format output H.264 / AAC, kualitas HD, 1080p atau Native/Max Detail.
+- **Tanpa crop diam-diam:** output memakai ukuran frame pertama dengan mode Fit agar rasio tidak berganti secara paksa.
+- **QA emulator:** workflow memeriksa bahwa layar multi-clip dapat dibuka dari aplikasi nyata dan mengunggah screenshot.
+- **Batasan jujur:** belum ada crossfade antar klip, layer timeline berganda, penggabungan musik tersendiri, atau keyframe; perbedaan HDR/codec/audio channel antara media masukan dapat menyebabkan gabungan gagal pada perangkat tertentu. Pengujian ekspor gabungan dua video di ponsel fisik masih wajib.
 
 ## Fitur tambahan v2.3
 
@@ -29,7 +36,7 @@
 UI ini menargetkan pengalaman aplikasi editor profesional, **bukan salinan CapCut**. V2.2 masih editor **satu media per proyek**, bukan timeline multi-layer dengan animasi keyframe, efek premium, green screen, penghilangan latar, musik multi-track, atau AI upscale. Fitur tersebut membutuhkan modul yang belum diterapkan. Mode ekspor tetap tergantung codec ponsel. Kompresi WhatsApp/Instagram setelah unggah tidak dapat dicegah aplikasi.
 
 ## Pasang
-Buka [Actions: Build and verify WFS StoryBoost APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml), pilih run sukses terbaru, unduh `WFS-StoryBoost-v2.3.0-Debug-APK`, **ekstrak ZIP**, lalu instal `app-debug.apk`. Jika pemasangan update gagal karena kunci signing debug berbeda, hapus versi debug lama terlebih dahulu atau gunakan release signing stabil dengan GitHub Secrets.
+Buka [Actions: Build and verify WFS StoryBoost APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml), pilih run sukses terbaru, unduh `WFS-StoryBoost-v2.4.0-Debug-APK`, **ekstrak ZIP**, lalu instal `app-debug.apk`. Jika pemasangan update gagal karena kunci signing debug berbeda, hapus versi debug lama terlebih dahulu atau gunakan release signing stabil dengan GitHub Secrets.
 
 ## Pengembangan / QA
 Aplikasi memakai Android Java 17 / Media3. Workflow menjalankan tes geometri, `assembleDebug`, `apksigner`, `zipalign`, lalu install & launch emulator. Untuk testing HP fisik, lihat `tests/TEST_PLAN.md`. Screenshot editor dari emulator bukan jaminan semua pemrosesan media lolos pengujian perangkat nyata.
@@ -40,9 +47,9 @@ Aplikasi memakai Android Java 17 / Media3. Workflow menjalankan tes geometri, `a
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
 
-> **v2.3.0 • Premium Studio UI + Source-Aware Quality Engine.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
+> **v2.4.0 • Premium Studio UI + Source-Aware Quality Engine.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
 
-## ✨ Baru di v2.3.0
+## ✨ Baru di v2.4.0
 - **Premium Visual Hero** memakai panorama matahari terbenam dan ilustrasi kota pada Canvas Android, tidak bergantung koneksi internet atau poster AI.
 - **Quick Studio 6 menu**: Enhance Foto, Enhance Video, Ubah Rasio, Batch Export, Filter Premium, Lihat Hasil.
 - **Preset chip tanpa radio circle**; navigasi editor, hasil dan pilihan rasio tetap aktif.
@@ -102,14 +109,14 @@ Konversi rasio **tidak memutar** isi media. **Fit** menjaga seluruh foto/video d
 
 ## 🧪 Bukti pengujian UI & instalasi
 
-Workflow membangun APK, memvalidasi signature dan launcher, memasang APK di Android emulator API 35, meluncurkan MainActivity, lalu merekam **screenshot aktual home app** sebagai artifact `WFS-StoryBoost-v2.3.0-Emulator-Screenshot`. Screenshot adalah UI aplikasi nyata, bukan poster AI.
+Workflow membangun APK, memvalidasi signature dan launcher, memasang APK di Android emulator API 35, meluncurkan MainActivity, lalu merekam **screenshot aktual home app** sebagai artifact `WFS-StoryBoost-v2.4.0-Emulator-Screenshot`. Screenshot adalah UI aplikasi nyata, bukan poster AI.
 
 ## 📥 Download APK (via GitHub Actions)
 
 1. Buka tab [**Actions**](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml).
 2. Pilih workflow **Build and verify WFS StoryBoost APK**.
 3. Buka run terbaru dengan status **Success** (atau klik **Run workflow** jika diperlukan).
-4. Unduh artifact **WFS-StoryBoost-v2.3.0-Debug-APK** dan ekstrak ZIP-nya.
+4. Unduh artifact **WFS-StoryBoost-v2.4.0-Debug-APK** dan ekstrak ZIP-nya.
 5. Instal `app-debug.apk` di Android 10 atau versi lebih baru (aktifkan izin pemasangan aplikasi dari sumber tersebut saat diminta).
 
 > Artifact tersedia **hanya setelah build sukses**. Debug APK ditandatangani kunci debug sementara; untuk update stabil gunakan signed release dengan GitHub Secrets. v1.7 memakai package baru untuk menghindari konflik dengan versi lama. Jangan mengunggah kunci signing atau password ke repository.
@@ -122,7 +129,7 @@ Syarat: **JDK 17**, **Android SDK API 36 + Build Tools 35**, Android Studio atau
 powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
 ```
 
-Jika sukses, APK debug berada pada `dist/WFS-StoryBoost-v2.3.0-debug.apk`.
+Jika sukses, APK debug berada pada `dist/WFS-StoryBoost-v2.4.0-debug.apk`.
 
 ## ✅ Pengujian
 

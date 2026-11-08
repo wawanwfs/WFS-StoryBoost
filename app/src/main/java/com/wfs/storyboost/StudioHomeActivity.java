@@ -34,6 +34,9 @@ public final class StudioHomeActivity extends Activity {
         render();
         if(getIntent().getBooleanExtra("qa_demo",false)){
             new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this::tryDemo,650);
+        }else if(getIntent().getBooleanExtra("qa_merge",false)){
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(()->
+                    startActivity(new Intent(this,StudioMergeActivity.class)),650);
         }
     }
     private void render(){
@@ -46,7 +49,7 @@ public final class StudioHomeActivity extends Activity {
         ImageView logo=new ImageView(this);logo.setImageResource(R.mipmap.ic_launcher);
         header.addView(logo,new LinearLayout.LayoutParams(d(49),d(49)));
         LinearLayout identity=StudioUi.column(this);identity.addView(text("WFS StoryBoost",20,TEXT,true));
-        gap(identity,3);identity.addView(text("CREATIVE EDITING SUITE  /  v2.2",10,StudioUi.CYAN,true));
+        gap(identity,3);identity.addView(text("CREATIVE EDITING SUITE  /  v2.4",10,StudioUi.CYAN,true));
         LinearLayout.LayoutParams identityLp=new LinearLayout.LayoutParams(0,-2,1);
         identityLp.leftMargin=d(8);header.addView(identity,identityLp);
         TextView settings=text("⚙",23,StudioUi.LAVENDER,true);
@@ -91,7 +94,13 @@ public final class StudioHomeActivity extends Activity {
                 new LinearLayout.LayoutParams(0,d(112),1f));
         LinearLayout.LayoutParams lp2=new LinearLayout.LayoutParams(0,d(112),1f);lp2.leftMargin=d(10);
         second.addView(tile("◫","Coba Editor","Media demo offline",0xFF2D988F,()->tryDemo()),lp2);
-        content.addView(second);gap(content,19);
+        content.addView(second);gap(content,10);
+        LinearLayout third=StudioUi.row(this);
+        LinearLayout merge=tile("≡","Gabung Banyak Klip","Susun dan satukan sampai 10 video",0xFF4B96B8,
+                ()->startActivity(new Intent(this,StudioMergeActivity.class)));
+        third.addView(merge,new LinearLayout.LayoutParams(-1,d(111)));
+        content.addView(third);
+        gap(content,19);
 
         content.addView(text("Format Cepat",21,TEXT,true));gap(content,9);
         LinearLayout formats=StudioUi.row(this);

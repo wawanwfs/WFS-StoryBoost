@@ -90,12 +90,14 @@ public final class StudioDraftStore {
             int preset=j.getInt("preset"),ratio=j.getInt("ratio");
             if(preset<0||preset>=ColorLooks.count()||
                     ratio<0||ratio>=AspectRatioProfile.count())return null;
+            int frame=j.getInt("frame");
+            if(frame<AspectRatioProfile.FIT||frame>AspectRatioProfile.BLUR)return null;
             int customW=j.getInt("customW"),customH=j.getInt("customH");
             long start=j.getLong("trimStart"),end=j.getLong("trimEnd");
             long split=j.getLong("split");
             if(split < -1L || split > 24L*3600*1000) return null;
             int social=j.getInt("social");
-            ExportOptions o=new ExportOptions(preset,ratio,j.getInt("frame"),
+            ExportOptions o=new ExportOptions(preset,ratio,frame,
                     true,start,end,(float)j.getDouble("focusX"),
                     (float)j.getDouble("focusY"))
                     .withQuality(j.getInt("quality"))

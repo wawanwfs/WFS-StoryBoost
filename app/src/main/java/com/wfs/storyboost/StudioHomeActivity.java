@@ -54,7 +54,7 @@ public final class StudioHomeActivity extends Activity {
         ImageView logo=new ImageView(this);logo.setImageResource(R.mipmap.ic_launcher);
         header.addView(logo,new LinearLayout.LayoutParams(d(49),d(49)));
         LinearLayout identity=StudioUi.column(this);identity.addView(text("WFS StoryBoost",20,TEXT,true));
-        gap(identity,3);identity.addView(text("CREATIVE EDITING SUITE  /  v3.0 BETA",10,StudioUi.CYAN,true));
+        gap(identity,3);identity.addView(text("CREATIVE EDITING SUITE  /  v3.0 BETA 2",10,StudioUi.CYAN,true));
         LinearLayout.LayoutParams identityLp=new LinearLayout.LayoutParams(0,-2,1);
         identityLp.leftMargin=d(8);header.addView(identity,identityLp);
         TextView settings=text("⚙",23,StudioUi.LAVENDER,true);

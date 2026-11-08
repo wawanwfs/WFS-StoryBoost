@@ -10,6 +10,12 @@
 - Runtime: org.tensorflow:tensorflow-lite:2.17.0 CPU to cover Android 10+ without GPU/NPU requirement. Hard limit 2.6 MP and 120 neural tiles; larger images fail with an informative message, not hidden upscale or downscale.
 - Security: weights are embedded at CI build time (network used only to download public model at build). All user images stay on device. No INTERNET permission or external uploads.
 
+## v3 beta2 additional quality probes
+
+- Test procedurally generated 480×480 RGB-noise sample using actual on-device multi-tile DnCNN. Capture tiles, inference milliseconds, alpha-preserved RGB chroma fraction, and seam jump. This **does not** establish real-skin, portrait, chroma restoration or low-light improvement.
+- No new ML weights shipped. SHA-256 remains `59bc280342afd08357282232784d135c29a4ec64cd61b5172921e4d3d881d9fd`.
+- Still unverified: physical 3 GB RAM phones, rights-cleared real human portrait quality and low-light, non-Gaussian correlated noise, NAFNet/EPSRGAN feasibility.
+
 ## Evidence checklist (must be filled from run logs)
 - [x] Download artifact SHA verified and pinned
 - [x] TFLite model validated and packaged in ARM64/Universal (v2.9 CI build); verify on final pinned run

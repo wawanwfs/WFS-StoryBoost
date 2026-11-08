@@ -344,6 +344,50 @@ public final class PhotoExportQa {
         check(oversizedRejected,"preview also rejects oversized source before downsampling");
         report.append("over2_6MPGuard=PASS").append('\n');
         huge.delete();
+        // v3 beta2: real multi-tile model inference on synthetic RGB/chroma
+        // input, without claiming that synthetic noise represents real skin.
+        final int tileW=480,tileH=480;
+        Bitmap chromaSource=Bitmap.createBitmap(tileW,tileH,Bitmap.Config.ARGB_8888);
+        int[] chromaPixels=new int[tileW*tileH];
+        java.util.Random chromaRandom=new java.util.Random(301420L);
+        for(int cy=0;cy<tileH;cy++)for(int cx=0;cx<tileW;cx++){
+            int index=cy*tileW+cx;
+            int n=chromaRandom.nextInt(13)-6;
+            chromaPixels[index]=Color.rgb(72+cx/6+n,75+cy/6-n,100+(cx+cy)/13+n);
+        }
+        chromaSource.setPixels(chromaPixels,0,tileW,0,0,tileW,tileH);
+        AiDenoiseEngine.Result chromaResult=null;
+        try{
+            chromaResult=AiDenoiseEngine.process(app,chromaSource);
+            check(chromaResult.stats.tiles>1,"real DnCNN covers overlapping tiles");
+            check(chromaResult.bitmap.getWidth()==tileW&&
+                    chromaResult.bitmap.getHeight()==tileH,"tiled output keeps source size");
+            int[] enhancedPixels=new int[chromaPixels.length];
+            chromaResult.bitmap.getPixels(enhancedPixels,0,tileW,0,0,tileW,tileH);
+            int sameChroma=0;
+            long seamChange=0;
+            for(int cy=0;cy<tileH;cy++){
+                int seam=cy*tileW+224;
+                seamChange+=Math.abs(Color.red(enhancedPixels[seam])-
+                        Color.red(enhancedPixels[seam-1]));
+            }
+            for(int j=0;j<chromaPixels.length;j++){
+                int originalRG=Color.red(chromaPixels[j])-Color.green(chromaPixels[j]);
+                int enhancedRG=Color.red(enhancedPixels[j])-Color.green(enhancedPixels[j]);
+                if(Math.abs(originalRG-enhancedRG)<=1)sameChroma++;
+            }
+            check(sameChroma>=chromaPixels.length*.98,
+                    "luminance-only neural correction preserves 98% RGB chroma");
+            report.append("dncnnMultiTileCount=").append(chromaResult.stats.tiles).append('\n');
+            report.append("dncnnMultiTileMs=").append(chromaResult.stats.inferenceMs).append('\n');
+            report.append("dncnnSeamMeanAbsRedJump=")
+                    .append(seamChange/(double)tileH).append('\n');
+            report.append("dncnnChromaPreservationFraction=")
+                    .append(sameChroma/(double)chromaPixels.length).append('\n');
+        }finally{
+            if(chromaResult!=null)chromaResult.bitmap.recycle();
+            chromaSource.recycle();
+        }
         colored.delete();rotated.delete();empty.delete();
     }
 }

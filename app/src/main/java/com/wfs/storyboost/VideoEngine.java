@@ -149,6 +149,8 @@ public final class VideoEngine {
                             validateOutput(temp,target,sourceInfo,expectedDuration,settings.muteAudio);
                             if(!cancelled)callback.onSuccess(temp,target);
                         } catch (Exception invalid) {
+                            // Never leave an invalid MP4 in the app cache.
+                            if(temp!=null&&temp.exists())temp.delete();
                             if(!cancelled)callback.onError("Validasi MP4 gagal: "+invalid.getMessage());
                         }
                     }
@@ -160,6 +162,7 @@ public final class VideoEngine {
                             try{startInternal(context,source,settings.inHd(),callback,false);return;}
                             catch(Exception problem){callback.onError("FHD/HD gagal: "+problem.getMessage());return;}
                         }
+                        if(temp!=null&&temp.exists())temp.delete();
                         callback.onError(e.getMessage()==null?"Video gagal diekspor.":e.getMessage());
                     }
                 })

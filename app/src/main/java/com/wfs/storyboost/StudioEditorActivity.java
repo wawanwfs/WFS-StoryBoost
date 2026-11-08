@@ -81,7 +81,7 @@ public final class StudioEditorActivity extends Activity {
     private String caption="";
     private int captionColor=Color.WHITE;
     private boolean muteAudio=false;
-    private boolean portraitBokeh=false;
+    private boolean portraitBokeh=false,aiDenoise=false;
     private TextView captionView;
     private Bitmap imagePreviewBitmap;
     private Runnable playTicker;
@@ -340,14 +340,14 @@ public final class StudioEditorActivity extends Activity {
         final int token=++renderToken;
         ExportOptions options=options();
         previewWorker.getQueue().clear();
-        if(options.portraitBokeh&&!compareOriginal)
-            previewLabel.setText("AI PORTRAIT • Memproses mask offline...");
+        if((options.portraitBokeh||options.aiDenoise)&&!compareOriginal)
+            previewLabel.setText("AI • Menjalankan model offline...");
         previewWorker.execute(()->{
             Bitmap rendered=null;
             String failure=null;
             try{
-                rendered=options.portraitBokeh&&!compareOriginal?
-                        PhotoEngine.portraitPreview(this,mediaUri,options):
+                rendered=(options.portraitBokeh||options.aiDenoise)&&!compareOriginal?
+                        PhotoEngine.enhancedPreview(this,mediaUri,options):
                         PhotoEngine.originalPreview(this,mediaUri,options);
             }catch(Exception ex){failure=ex.getMessage();}
             Bitmap finalBitmap=rendered;
@@ -356,16 +356,16 @@ public final class StudioEditorActivity extends Activity {
                 if(destroyed||token!=renderToken){if(finalBitmap!=null)finalBitmap.recycle();return;}
                 if(finalBitmap==null){
                     previewLabel.setText(errorMessage==null?"Gambar tidak bisa ditampilkan":
-                            "AI Portrait gagal: "+errorMessage);
+                            "Preview AI gagal: "+errorMessage);
                     return;
                 }
-                previewLabel.setText(options.portraitBokeh&&!compareOriginal?
-                        "AI PORTRAIT BOKEH • PREVIEW":"LIVE PHOTO PREVIEW");
+                previewLabel.setText((options.portraitBokeh||options.aiDenoise)&&!compareOriginal?
+                        (options.aiDenoise?"AI DENOISE • TFLITE":"AI PORTRAIT BOKEH"):"LIVE PHOTO PREVIEW");
                 Bitmap oldBitmap=imagePreviewBitmap;
                 photo.setImageBitmap(finalBitmap);
                 imagePreviewBitmap=finalBitmap;
                 // The same color matrix is used for the photo export engine.
-                photo.setColorFilter(compareOriginal||options.portraitBokeh?
+                photo.setColorFilter(compareOriginal||options.portraitBokeh||options.aiDenoise?
                         null:PhotoEngine.colorFilter(options));
                 photo.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 for(int i=0;i<thumbStrip.getChildCount();i++){
@@ -413,7 +413,7 @@ public final class StudioEditorActivity extends Activity {
         compareOriginal=!compareOriginal;
         compareButton.setText(compareOriginal?"✦ Sesudah":"↔ Sebelum");
         if(!isVideo){
-            if(portraitBokeh)refreshImagePreview();
+            if(portraitBokeh||aiDenoise)refreshImagePreview();
             else{
                 photo.setColorFilter(compareOriginal?null:PhotoEngine.colorFilter(options()));
                 previewLabel.setText(compareOriginal?"SEBELUM • ASLI":"PRATINJAU FILTER");
@@ -428,7 +428,8 @@ public final class StudioEditorActivity extends Activity {
                 .withAdjustments(brightness,contrast,saturation)
                 .withCaption(caption,captionColor).withMute(muteAudio)
                 .withSocialProfile(socialProfile)
-                .withPortraitBokeh(!isVideo&&portraitBokeh));
+                .withPortraitBokeh(!isVideo&&portraitBokeh)
+                .withAiDenoise(!isVideo&&aiDenoise));
     }
     private ExportOptions withCustomIfRequired(ExportOptions o){
         return o.ratio==AspectRatioProfile.CUSTOM?
@@ -754,6 +755,29 @@ public final class StudioEditorActivity extends Activity {
         portraitLine.addView(portraitSwitch);
         toolPane.addView(portraitLine);
         toolPane.addView(txt("Pakai model segmentasi sungguhan; tepi rambut bisa kurang akurat.",
+                10,MUTED,false));
+        gap(toolPane,9);
+        LinearLayout denoiseRow=row();
+        denoiseRow.addView(txt("AI Denoise • noise luminance",12,TEXT,true),
+                new LinearLayout.LayoutParams(0,dp(42),1f));
+        Switch denoiseSwitch=new Switch(this);
+        denoiseSwitch.setContentDescription("Aktifkan AI Denoise DnCNN");
+        denoiseSwitch.setChecked(aiDenoise);
+        denoiseSwitch.setOnCheckedChangeListener((view,on)->{
+            if(on&&!AiDenoiseEngine.included(this)){
+                denoiseSwitch.setChecked(false);
+                toast("Bobot model DnCNN tidak tersedia");
+                return;
+            }
+            aiDenoise=on;
+            if(on)compareOriginal=false;
+            compareButton.setText("↔ Sebelum");
+            refreshImagePreview();
+        });
+        denoiseRow.addView(denoiseSwitch);
+        toolPane.addView(denoiseRow);
+        toolPane.addView(txt("Model neural TFLite CPU • untuk noise Gaussian; bukan AI deblur/upscale. "+
+                "Foto di atas 2,6 MP akan ditolak, bukan diturunkan diam-diam.",
                 10,MUTED,false));
         gap(toolPane,8);
         LinearLayout commands=row();

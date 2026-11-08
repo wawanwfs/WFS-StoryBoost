@@ -11,7 +11,7 @@ public final class ExportOptions {
     public final boolean muteAudio;
     public final int socialProfile;
     public final int customWidth,customHeight;
-    public final boolean portraitBokeh;
+    public final boolean portraitBokeh,aiDenoise;
 
     public ExportOptions(int preset,int ratio,int frameStyle,boolean fullHd){
         this(preset,ratio,frameStyle,fullHd,0,0,0.5f,0.5f);
@@ -22,11 +22,11 @@ public final class ExportOptions {
     public ExportOptions(int preset,int ratio,int frameStyle,boolean fullHd,long start,long end,
                          float focusX,float focusY){
         this(preset,ratio,frameStyle,fullHd?OutputProfile.FULL_HD:OutputProfile.HD,
-                start,end,focusX,focusY,0f,0f,0f,"",0xFFFFFFFF,false,SocialExportProfile.CUSTOM,0,0,false);
+                start,end,focusX,focusY,0f,0f,0f,"",0xFFFFFFFF,false,SocialExportProfile.CUSTOM,0,0,false,false);
     }
     private ExportOptions(int preset,int ratio,int frameStyle,int quality,long start,long end,
                           float focusX,float focusY,float brightness,float contrast,
-                          float saturation,String caption,int captionColor,boolean mute,int socialProfile,int customWidth,int customHeight,boolean portraitBokeh){
+                          float saturation,String caption,int captionColor,boolean mute,int socialProfile,int customWidth,int customHeight,boolean portraitBokeh,boolean aiDenoise){
         ClipWindow.validate(start,end);
         OutputProfile.normalized(quality);
         if(!Float.isFinite(focusX)||!Float.isFinite(focusY)||focusX<0||focusX>1||focusY<0||focusY>1)
@@ -43,13 +43,13 @@ public final class ExportOptions {
         SocialExportProfile.get(socialProfile);
         this.socialProfile=socialProfile;
         this.customWidth=customWidth;this.customHeight=customHeight;
-        this.portraitBokeh=portraitBokeh;
+        this.portraitBokeh=portraitBokeh;this.aiDenoise=aiDenoise;
     }
     private static boolean valid(float x){return Float.isFinite(x)&&x>=-1f&&x<=1f;}
     private ExportOptions copy(int ratio,int style,int quality,float brightness,float contrast,
                                float saturation,String caption,int captionColor,boolean mute){
         return new ExportOptions(preset,ratio,style,quality,trimStartMs,trimEndMs,focusX,focusY,
-                brightness,contrast,saturation,caption,captionColor,mute,socialProfile,customWidth,customHeight,portraitBokeh);
+                brightness,contrast,saturation,caption,captionColor,mute,socialProfile,customWidth,customHeight,portraitBokeh,aiDenoise);
     }
     public ExportOptions withQuality(int quality){
         return copy(ratio,frameStyle,quality,brightness,contrast,saturation,caption,captionColor,muteAudio);
@@ -80,20 +80,26 @@ public final class ExportOptions {
         int nextQuality=profile==SocialExportProfile.CUSTOM?qualityMode:OutputProfile.FULL_HD;
         return new ExportOptions(preset,nextRatio,frameStyle,nextQuality,
                 trimStartMs,trimEndMs,focusX,focusY,brightness,contrast,saturation,
-                caption,captionColor,muteAudio,profile,customWidth,customHeight,portraitBokeh);
+                caption,captionColor,muteAudio,profile,customWidth,customHeight,portraitBokeh,aiDenoise);
     }
     /** Explicit custom width/height; copied through all derived variants. */
     public ExportOptions withCustomSize(int width,int height){
         AspectRatioProfile.validateCustom(width,height);
         return new ExportOptions(preset,AspectRatioProfile.CUSTOM,frameStyle,qualityMode,
                 trimStartMs,trimEndMs,focusX,focusY,brightness,contrast,saturation,
-                caption,captionColor,muteAudio,SocialExportProfile.CUSTOM,width,height,portraitBokeh);
+                caption,captionColor,muteAudio,SocialExportProfile.CUSTOM,width,height,portraitBokeh,aiDenoise);
     }
     /** Machine-learning portrait cutout and background blur, for photographs only. */
     public ExportOptions withPortraitBokeh(boolean enabled){
         return new ExportOptions(preset,ratio,frameStyle,qualityMode,trimStartMs,trimEndMs,
                 focusX,focusY,brightness,contrast,saturation,caption,captionColor,muteAudio,
-                socialProfile,customWidth,customHeight,enabled);
+                socialProfile,customWidth,customHeight,enabled,aiDenoise);
+    }
+    /** DnCNN on-device grayscale luminance denoiser for still photos only. */
+    public ExportOptions withAiDenoise(boolean enabled){
+        return new ExportOptions(preset,ratio,frameStyle,qualityMode,trimStartMs,trimEndMs,
+                focusX,focusY,brightness,contrast,saturation,caption,captionColor,muteAudio,
+                socialProfile,customWidth,customHeight,portraitBokeh,enabled);
     }
     public boolean hasColorAdjustments(){
         return brightness!=0f || contrast!=0f || saturation!=0f;

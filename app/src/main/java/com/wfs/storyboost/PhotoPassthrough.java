@@ -9,7 +9,7 @@ public final class PhotoPassthrough {
                 && options.frameStyle==AspectRatioProfile.FIT
                 && options.qualityMode==OutputProfile.MAX_DETAIL
                 && !options.hasText() && !options.hasColorAdjustments()
-                && !options.portraitBokeh
+                && !options.portraitBokeh && !options.aiDenoise
                 && "image/jpeg".equalsIgnoreCase(mime);
     }
 }

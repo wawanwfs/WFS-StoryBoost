@@ -158,3 +158,14 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] Check model segmentation accuracy using consented/rights-cleared images only, never commit private face photographs.
 - [ ] Test Android 10 low memory and arm64 physical phone. Verify HDR/HEIC and odd EXIF orientation.
 - [ ] Integrate no unlicensed restoration weights. Report measured denoise/deblur/4x-SR only if a working on-device inference model exists.
+
+## v2.9 DnCNN neural denoise and image quality
+- [ ] CI pins and verifies SHA256 of Qualcomm DnCNN float TFLite asset (MIT, grayscale sigma=25), confirms asset inside ABI APK.
+- [ ] Real TFLite `Interpreter` runs on CPU, validates float32 256×256 tensors; no mocked neural output.
+- [ ] Compare PSNR and global SSIM of deterministic noise versus DnCNN output. Report actual times and RAM, no invented values.
+- [ ] Test inference on low-end Android 10 ARM64 and x86 emulator with CPU fallback and real photos, portrait details and noisy dusk scenes.
+- [ ] Reject images >2.6 MP clearly. Validate that the original source remains unchanged.
+- [ ] Check denoise only applies to luminance; no accidental chroma saturation or face shape changes.
+- [ ] Check 256 tile overlaps on image borders and 1000×1200 images; no visible seams.
+- [ ] AI Denoise and Portrait Bokeh combined, before/after preview and actual saved JPEG, original-copy guard.
+- [ ] Continue real-portrait Bokeh QA with consented human samples, glasses/hair/night/EXIF.

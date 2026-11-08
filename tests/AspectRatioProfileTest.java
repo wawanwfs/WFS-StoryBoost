@@ -288,6 +288,32 @@ public final class AspectRatioProfileTest {
                 "alpha increases monotonically toward foreground");
         check(PortraitMaskMath.usable(.015f),"minimum foreground coverage allowed");
         check(!PortraitMaskMath.usable(Float.NaN),"invalid foreground coverage rejected");
+        // v2.9 metrics and immutable neural export options.
+        int[] m1={0,12,128,220,255},m2={0,12,128,220,255},m3={6,20,141,204,241};
+        check(Double.isInfinite(ImageQualityMetrics.psnr(m1,m2)),
+                "PSNR of identical image is positive infinity");
+        check(ImageQualityMetrics.psnr(m1,m3)<60,
+                "PSNR detects changed image");
+        check(Math.abs(ImageQualityMetrics.ssim(m1,m2)-1d)<.0001,
+                "SSIM of identical samples is one");
+        check(ImageQualityMetrics.ssim(m1,m3)<1d,
+                "SSIM detects changed image");
+        ExportOptions neural=portraitEdit.withAiDenoise(true);
+        check(neural.aiDenoise,"model-denoise flag stored");
+        check(!PhotoPassthrough.allowed(neural,"image/jpeg"),
+                "denoise prohibits unchanged JPEG fast-path");
+        check(neural.forRatio(AspectRatioProfile.PORTRAIT_9_16).aiDenoise,
+                "denoise survives ratio changes");
+        check(neural.withQuality(OutputProfile.HD).aiDenoise,
+                "denoise survives quality changes");
+        check(neural.withSocialProfile(SocialExportProfile.INSTAGRAM_STORY).aiDenoise,
+                "denoise survives social export");
+        check(neural.withCustomSize(1000,1200).aiDenoise,
+                "denoise survives custom dimensions");
+        check(neural.withPortraitBokeh(false).aiDenoise,
+                "denoise survives portrait toggle");
+        check(!neural.withAiDenoise(false).aiDenoise,
+                "denoise can be disabled safely");
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

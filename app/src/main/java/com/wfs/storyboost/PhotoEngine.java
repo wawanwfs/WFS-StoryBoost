@@ -58,6 +58,11 @@ public final class PhotoEngine {
         if (oriented != source) source.recycle();
 
         try {
+            if(settings.aiDenoise){
+                Bitmap restored=AiDenoiseEngine.process(context,oriented).bitmap;
+                oriented.recycle();
+                oriented=restored;
+            }
             AspectRatioProfile.Size size = AspectRatioProfile.resolve(settings.ratio,
                     settings.qualityMode, oriented.getWidth(), oriented.getHeight(), settings.frameStyle,
                     settings.customWidth,settings.customHeight);
@@ -148,12 +153,23 @@ public final class PhotoEngine {
      */
     public static Bitmap portraitPreview(Context context,Uri uri,ExportOptions settings)
             throws IOException {
-        Bitmap source=decode(context,uri,1200);
+        return enhancedPreview(context,uri,settings);
+    }
+
+    /** Uses the exact same real model and framing/color operations as JPEG export. */
+    public static Bitmap enhancedPreview(Context context,Uri uri,ExportOptions settings)
+            throws IOException {
+        Bitmap source=decode(context,uri,settings.aiDenoise?720:1200);
         if(source==null)throw new IOException("Foto tidak dapat dibaca");
         Bitmap oriented=orient(context,uri,source);
         if(oriented!=source)source.recycle();
         Bitmap output=null;
         try{
+            if(settings.aiDenoise){
+                Bitmap restored=AiDenoiseEngine.process(context,oriented).bitmap;
+                oriented.recycle();
+                oriented=restored;
+            }
             AspectRatioProfile.Size target=AspectRatioProfile.resolve(settings.ratio,
                     settings.qualityMode,oriented.getWidth(),oriented.getHeight(),
                     settings.frameStyle,settings.customWidth,settings.customHeight);
@@ -166,7 +182,10 @@ public final class PhotoEngine {
             p.setColorFilter(colorFilter(settings));
             FrameMath.Bounds b=FrameMath.center(oriented.getWidth(),oriented.getHeight(),
                     w,h,settings.frameStyle,settings.focusX,settings.focusY);
-            AiPortraitCompositor.draw(canvas,oriented,w,h,b,p);
+            if(settings.portraitBokeh)
+                AiPortraitCompositor.draw(canvas,oriented,w,h,b,p);
+            else
+                canvas.drawBitmap(oriented,null,new RectF(b.left,b.top,b.right,b.bottom),p);
             // Caption remains a separate live overlay in StudioEditorActivity.
             return output;
         }catch(IOException|RuntimeException e){
@@ -174,7 +193,7 @@ public final class PhotoEngine {
             throw e;
         }catch(OutOfMemoryError oom){
             if(output!=null)output.recycle();
-            throw new IOException("RAM tidak cukup untuk preview AI Portrait. Gunakan resolusi HD.",oom);
+            throw new IOException("RAM tidak cukup untuk preview AI. Gunakan resolusi HD.",oom);
         }finally{oriented.recycle();}
     }
 

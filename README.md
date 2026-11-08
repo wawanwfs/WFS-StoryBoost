@@ -1,8 +1,20 @@
-# WFS StoryBoost — Creative Editing Studio v2.8.1
+# WFS StoryBoost — Creative Editing Studio v2.9.0
 
 **Android offline-first.** Antarmuka editor non-destruktif dengan workflow proyek, timeline satu media, filter, trim, split-export, konversi rasio, dan kualitas ekspor sumber-asli.
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
+
+## v2.9.0 — Neural AI Denoise (DnCNN)
+
+- Menambahkan **inference DnCNN nyata** via TensorFlow Lite CPU (model `DnCNN-25`, MIT, bobot ~2 MB). Model dibundel pada APK saat CI build; foto pengguna diproses sepenuhnya di Android **tanpa upload**.
+- Model bawaan dirancang untuk **denoise Gaussian pada grayscale**. Untuk foto berwarna, engine menjalankannya pada luminance dan menerapkan koreksi terang-gelap terbatas ke RGB tanpa mengubah geometri wajah. **Ini bukan AI deblur atau super-resolution** dan hasil bisa tidak menguntungkan pada kompresi JPEG/motion blur.
+- Input sumber maksimal **2,6 MP** untuk menjaga memori dan waktu; pada foto lebih besar, AI Denoise menghasilkan pesan error, **tidak menurunkan resolusi diam-diam**.
+- Fitur AI Denoise tersedia pada tab **AI Photo** untuk foto; video tidak diproses dengan model ini.
+- Pemrosesan foto menggunakan tile 256×256 dengan overlap 32 piksel, blending untuk mengurangi sambungan, dan pembatasan luminance shift guna menjaga warna.
+- Preview Denoise memakai jalur model sama dengan ekspor JPEG; antrean preview memakai worker terpisah dan dapat membuang pekerjaan lama.
+- Emulator CI memuat dan menjalankan **model yang sama** pada uji gambar grayscale Gaussian sigma 25, mengukur **PSNR/SSIM sebelum-sesudah** dan menolak build jika tidak ada peningkatan.
+- Kompatibilitas CPU pada Android 10+ ditargetkan dengan TensorFlow Lite; kinerja GPU dan perangkat fisik **belum diklaim lulus**.
+- Detail asal bobot/lisensi serta batasan ada di [docs/MODEL_RESEARCH_V29.md](docs/MODEL_RESEARCH_V29.md).
 
 ## v2.8.1 — CI runner fix
 - Real JPEG emulator QA runs through `bash scripts/qa-emulator-photo.sh`, avoiding multiline shell loops split by android-emulator-runner.
@@ -93,7 +105,7 @@ Lihat [PROGRESS.md](docs/PROGRESS.md) untuk estimasi capaian roadmap dan [NEXT_P
 UI ini menargetkan pengalaman aplikasi editor profesional, **bukan salinan CapCut**. V2.2 masih editor **satu media per proyek**, bukan timeline multi-layer dengan animasi keyframe, efek premium, green screen, penghilangan latar, musik multi-track, atau AI upscale. Fitur tersebut membutuhkan modul yang belum diterapkan. Mode ekspor tetap tergantung codec ponsel. Kompresi WhatsApp/Instagram setelah unggah tidak dapat dicegah aplikasi.
 
 ## Pasang
-Buka [Actions: Build and verify WFS StoryBoost APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml), pilih run sukses terbaru, unduh `WFS-StoryBoost-v2.8.1-ARM64-APK atau WFS-StoryBoost-v2.8.1-Universal-APK`, **ekstrak ZIP**, lalu instal `app-arm64-v8a-debug.apk atau app-universal-debug.apk`. Jika pemasangan update gagal karena kunci signing debug berbeda, hapus versi debug lama terlebih dahulu atau gunakan release signing stabil dengan GitHub Secrets.
+Buka [Actions: Build and verify WFS StoryBoost APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml), pilih run sukses terbaru, unduh `WFS-StoryBoost-v2.9.0-ARM64-APK atau WFS-StoryBoost-v2.9.0-Universal-APK`, **ekstrak ZIP**, lalu instal `app-arm64-v8a-debug.apk atau app-universal-debug.apk`. Jika pemasangan update gagal karena kunci signing debug berbeda, hapus versi debug lama terlebih dahulu atau gunakan release signing stabil dengan GitHub Secrets.
 
 ## Pengembangan / QA
 Aplikasi memakai Android Java 17 / Media3. Workflow menjalankan tes geometri, `assembleDebug`, `apksigner`, `zipalign`, lalu install & launch emulator. Untuk testing HP fisik, lihat `tests/TEST_PLAN.md`. Screenshot editor dari emulator bukan jaminan semua pemrosesan media lolos pengujian perangkat nyata.
@@ -104,7 +116,7 @@ Aplikasi memakai Android Java 17 / Media3. Workflow menjalankan tes geometri, `a
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
 
-> **v2.8.1 • Premium Studio UI + Source-Aware Quality Engine.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
+> **v2.9.0 • Premium Studio UI + Source-Aware Quality Engine.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
 
 ## ✨ Baru di v2.7.1
 - **Premium Visual Hero** memakai panorama matahari terbenam dan ilustrasi kota pada Canvas Android, tidak bergantung koneksi internet atau poster AI.
@@ -173,7 +185,7 @@ Workflow membangun APK, memvalidasi signature dan launcher, memasang APK di Andr
 1. Buka tab [**Actions**](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml).
 2. Pilih workflow **Build and verify WFS StoryBoost APK**.
 3. Buka run terbaru dengan status **Success** (atau klik **Run workflow** jika diperlukan).
-4. Unduh artifact **WFS-StoryBoost-v2.8.1-ARM64-APK atau WFS-StoryBoost-v2.8.1-Universal-APK** dan ekstrak ZIP-nya.
+4. Unduh artifact **WFS-StoryBoost-v2.9.0-ARM64-APK atau WFS-StoryBoost-v2.9.0-Universal-APK** dan ekstrak ZIP-nya.
 5. Instal `app-arm64-v8a-debug.apk atau app-universal-debug.apk` di Android 10 atau versi lebih baru (aktifkan izin pemasangan aplikasi dari sumber tersebut saat diminta).
 
 > Artifact tersedia **hanya setelah build sukses**. Debug APK ditandatangani kunci debug sementara; untuk update stabil gunakan signed release dengan GitHub Secrets. v1.7 memakai package baru untuk menghindari konflik dengan versi lama. Jangan mengunggah kunci signing atau password ke repository.

@@ -9,7 +9,7 @@ public final class VideoPassthrough {
                 && o.qualityMode==OutputProfile.MAX_DETAIL
                 && o.trimStartMs==0L&&o.trimEndMs==0L
                 && !o.muteAudio && !o.hasText() && !o.hasColorAdjustments()
-                && !o.portraitBokeh
+                && !o.portraitBokeh && !o.aiDenoise
                 &&"video/mp4".equalsIgnoreCase(mime);
     }
 }

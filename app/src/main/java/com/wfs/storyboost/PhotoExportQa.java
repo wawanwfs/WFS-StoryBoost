@@ -192,6 +192,60 @@ public final class PhotoExportQa {
         }
         check(rejected,"ML model must not silently export portrait on uniform no-person image");
         report.append("noPersonAiMs=").append(SystemClock.elapsedRealtime()-aiStarted).append('\n');
+        // Real neural inference: feed synthetic sigma-25 Gaussian noise to the
+        // actual bundled Qualcomm DnCNN model, compare to known clean ground truth.
+        int side=256;int[] cleanGray=new int[side*side],noisyGray=new int[side*side];
+        int[] noisyArgb=new int[side*side];
+        java.util.Random random=new java.util.Random(291122L);
+        for(int py=0;py<side;py++)for(int px=0;px<side;px++){
+            int idx=py*side+px;
+            int cleanValue=Math.max(0,Math.min(255,Math.round(
+                    72+94f*px/(side-1)+26f*(float)Math.sin(py/24f))));
+            int corrupted=Math.max(0,Math.min(255,
+                    (int)Math.round(cleanValue+random.nextGaussian()*25)));
+            cleanGray[idx]=cleanValue;
+            noisyGray[idx]=corrupted;
+            noisyArgb[idx]=Color.rgb(corrupted,corrupted,corrupted);
+        }
+        check(AiDenoiseEngine.included(app),"real DnCNN weights packaged in APK");
+        Bitmap noisyBitmap=Bitmap.createBitmap(noisyArgb,side,side,Bitmap.Config.ARGB_8888);
+        AiDenoiseEngine.Result enhanced=null;
+        try{
+            enhanced=AiDenoiseEngine.process(app,noisyBitmap);
+            check(enhanced.stats.tiles==1,"neural model executed on one full 256 tile");
+            int[] resultRgb=new int[side*side];
+            enhanced.bitmap.getPixels(resultRgb,0,side,0,0,side,side);
+            int[] denoisedGray=new int[side*side];
+            long difference=0;
+            for(int i=0;i<resultRgb.length;i++){
+                denoisedGray[i]=Color.red(resultRgb[i]);
+                difference+=Math.abs(denoisedGray[i]-noisyGray[i]);
+            }
+            check(difference>0,"neural denoise changed actual pixels");
+            double psnrBefore=ImageQualityMetrics.psnr(cleanGray,noisyGray);
+            double psnrAfter=ImageQualityMetrics.psnr(cleanGray,denoisedGray);
+            double ssimBefore=ImageQualityMetrics.ssim(cleanGray,noisyGray);
+            double ssimAfter=ImageQualityMetrics.ssim(cleanGray,denoisedGray);
+            report.append("dncnnInferenceMs=").append(enhanced.stats.inferenceMs).append('\n');
+            report.append("dncnnTotalMs=").append(enhanced.stats.totalMs).append('\n');
+            report.append("dncnnPsnrBefore=").append(psnrBefore).append('\n');
+            report.append("dncnnPsnrAfter=").append(psnrAfter).append('\n');
+            report.append("dncnnSsimBefore=").append(ssimBefore).append('\n');
+            report.append("dncnnSsimAfter=").append(ssimAfter).append('\n');
+            check(Double.isFinite(psnrBefore)&&Double.isFinite(psnrAfter),
+                    "finite neural restoration PSNR metrics");
+            check(psnrAfter>psnrBefore+.25d,
+                    "actual DnCNN must improve PSNR by at least 0.25 dB");
+            check(ssimAfter>ssimBefore,
+                    "actual DnCNN must improve global SSIM");
+            check(!PhotoPassthrough.allowed(new ExportOptions(ColorLooks.ORIGINAL,
+                    AspectRatioProfile.ORIGINAL,AspectRatioProfile.FIT,true)
+                    .withQuality(OutputProfile.MAX_DETAIL).withAiDenoise(true),
+                    "image/jpeg"),"neural photo export never copies original JPEG");
+        }finally{
+            if(enhanced!=null)enhanced.bitmap.recycle();
+            noisyBitmap.recycle();
+        }
         colored.delete();rotated.delete();empty.delete();
     }
 }

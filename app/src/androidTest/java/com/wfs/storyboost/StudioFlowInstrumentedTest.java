@@ -164,6 +164,11 @@ public final class StudioFlowInstrumentedTest {
                 assertEquals(AspectRatioProfile.CROP,persisted.options.frameStyle);
                 assertEquals("WFS QA persist",persisted.options.caption);
                 assertTrue(persisted.options.aiDenoise);
+                // waitForMonitorWithTimeout consumes/removes its monitor once
+                // it detects the first Activity. Register a fresh monitor for
+                // the *second* launch from Recent Projects.
+                Instrumentation.ActivityMonitor recentMonitor=instrumentation.addMonitor(
+                        StudioEditorActivity.class.getName(),null,false);
                 home.onActivity(h->{
                     View recent=find(h.getWindow().getDecorView(),
                             "Buka draft edit tersimpan",false);
@@ -171,8 +176,8 @@ public final class StudioFlowInstrumentedTest {
                     assertTrue(recent.getParent() instanceof View);
                     assertTrue(((View)((View)recent.getParent()).getParent()).performClick());
                 });
-                Activity reopened=instrumentation.waitForMonitorWithTimeout(monitor,12000);
-                assertTrue(reopened instanceof StudioEditorActivity);
+                Activity reopened=instrumentation.waitForMonitorWithTimeout(recentMonitor,12000);
+                assertTrue("Recent Projects must reopen the Editor",reopened instanceof StudioEditorActivity);
                 StudioEditorActivity restored=(StudioEditorActivity)reopened;
                 final ExportOptions[] options=new ExportOptions[1];
                 instrumentation.runOnMainSync(()->{

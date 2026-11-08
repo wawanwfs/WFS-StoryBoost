@@ -185,6 +185,10 @@ public final class StudioHomeActivity extends Activity {
         Uri uri=data.getData();
         try{getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}
         catch(Exception ignored){}
+        if(!SourceAccess.canRead(this,uri)){
+            toast("Media tidak dapat dibaca. Pilih foto/video lain dari penyimpanan lokal.");
+            return;
+        }
         saveRecent(uri);openEditor(uri,requestedRatio,false,requestedAi);
     }
     private void tryDemo(){
@@ -239,7 +243,13 @@ public final class StudioHomeActivity extends Activity {
             labelParams.leftMargin=d(12);row.addView(labels,labelParams);
             row.addView(text("›",25,MUTED,true));
             recentCard.addView(row);gap(recentCard,12);count++;
-            row.setOnClickListener(v->openEditor(uri,0,false,false,true));
+            row.setOnClickListener(v->{
+                if(!SourceAccess.canRead(this,uri)){
+                    toast("Media tidak tersedia atau izin akses dicabut. Impor ulang sumber melalui galeri.");
+                    return;
+                }
+                openEditor(uri,0,false,false,true);
+            });
         }
         if(count==0)recentCard.addView(emptyRecent);
     }

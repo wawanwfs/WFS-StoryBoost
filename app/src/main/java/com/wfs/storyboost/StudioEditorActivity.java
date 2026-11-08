@@ -209,7 +209,18 @@ public final class StudioEditorActivity extends Activity {
         String from=getIntent().getStringExtra("media_uri");
         if(from==null||from.isEmpty()){finish();return;}
         mediaUri=Uri.parse(from);isDemo=getIntent().getBooleanExtra("demo",false);
-        String mime=getContentResolver().getType(mediaUri);
+        if(!SourceAccess.canRead(this,mediaUri)){
+            Toast.makeText(this,"Media tidak tersedia atau izin baca telah dicabut. Impor ulang dari galeri.",Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+        String mime;
+        try{mime=getContentResolver().getType(mediaUri);}
+        catch(RuntimeException unavailable){
+            Toast.makeText(this,"Tipe media tidak dapat dibaca. Impor ulang sumber.",Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
         isVideo=(mime!=null&&mime.startsWith("video/"))
                 ||from.toLowerCase(Locale.US).matches(".*\\.(mp4|mov|m4v|webm)(\\?.*)?$");
         ratio=getIntent().getIntExtra("ratio",0);

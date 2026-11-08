@@ -2,10 +2,6 @@ package com.wfs.storyboost;
 
 import static androidx.test.espresso.intent.Intents.intending;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
-import static androidx.test.espresso.Espresso.onView;
-import static androidx.test.espresso.matcher.ViewMatchers.withText;
-import static androidx.test.espresso.matcher.RootMatchers.isDialog;
-import static androidx.test.espresso.action.ViewActions.click;
 import static org.junit.Assert.*;
 
 import android.app.Activity;
@@ -26,6 +22,10 @@ import android.widget.TextView;
 
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.espresso.intent.Intents;
+import androidx.test.uiautomator.By;
+import androidx.test.uiautomator.UiDevice;
+import androidx.test.uiautomator.UiObject2;
+import androidx.test.uiautomator.Until;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
@@ -261,7 +261,12 @@ public class UiDraftFlowTest {
             idle();
             assertNull("Deleted source must not open Editor",resumedEditor());
             freshHome.onActivity(a->tap(a,"BERSIHKAN",false));
-            onView(withText("Bersihkan")).inRoot(isDialog()).perform(click());
+            UiDevice device=UiDevice.getInstance(instrument);
+            assertTrue("Clear-history confirmation dialog did not appear",
+                device.wait(Until.hasObject(By.text("Bersihkan")),10000));
+            UiObject2 confirm=device.findObject(By.text("Bersihkan"));
+            assertNotNull("Clear-history confirmation button missing",confirm);
+            confirm.click();
             idle();
             assertEquals("",target.getSharedPreferences("studio-projects",Context.MODE_PRIVATE)
                     .getString("recent_0",""));

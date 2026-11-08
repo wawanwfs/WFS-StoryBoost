@@ -27,7 +27,16 @@ CLASS=com.wfs.storyboost.ProcessDeathSafTest
 # use the platform DocumentsUI provider rather than a Photos viewer.
 # This deliberately does NOT certify the Google Photos integration path.
 PHOTOS_DISABLED=0
-if adb shell pm list packages | grep -q '^package:com.google.android.apps.photos
+if adb shell pm list packages | grep -Fq 'com.google.android.apps.photos'; then
+  disable_output="$(adb shell pm disable-user --user 0 com.google.android.apps.photos 2>&1 || true)"
+  if [[ "$disable_output" == *disabled-user* ]]; then
+    PHOTOS_DISABLED=1
+    echo "Isolated native DocumentsUI: Google Photos disabled only for emulator QA"
+  else
+    echo "Could not isolate DocumentsUI from Google Photos: $disable_output" >&2
+    exit 1
+  fi
+fi
 adb install -r app/build/outputs/apk/debug/app-universal-debug.apk >/dev/null
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
 

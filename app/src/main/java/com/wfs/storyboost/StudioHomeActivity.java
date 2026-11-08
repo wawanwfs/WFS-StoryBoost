@@ -21,6 +21,10 @@ public final class StudioHomeActivity extends Activity {
     private static final int PICK=802;
     private int requestedRatio=0;
     private boolean requestedAi=false;
+    private AlertDialog activeClearHistoryDialog;
+    // Package-visible for instrumentation: checks the actual AlertDialog shown by
+    // clicking BERSIHKAN, rather than querying a stale emulator accessibility root.
+    AlertDialog clearHistoryDialogForTest(){ return activeClearHistoryDialog; }
     private LinearLayout recentCard;
     private TextView emptyRecent;
     private ScrollView mainScroll;
@@ -127,13 +131,17 @@ public final class StudioHomeActivity extends Activity {
         recentHeading.addView(text("Proyek Terakhir",21,TEXT,true),new LinearLayout.LayoutParams(0,-2,1f));
         TextView clear=text("BERSIHKAN",10,StudioUi.MUTED,true);
         clear.setPadding(d(9),d(7),0,d(7));recentHeading.addView(clear);
-        clear.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Bersihkan riwayat?")
-                .setMessage("Hanya menghapus daftar proyek dalam aplikasi. Media asli dan file ekspor tidak dihapus.")
-                .setNegativeButton("Batal",null).setPositiveButton("Bersihkan",(a,b)->{
-                    getSharedPreferences("studio-projects",MODE_PRIVATE).edit().clear().apply();
-                    StudioDraftStore.clearAll(this);
-                    populateRecent();
-                }).show());
+        clear.setOnClickListener(v->{
+            activeClearHistoryDialog=new AlertDialog.Builder(this).setTitle("Bersihkan riwayat?")
+                    .setMessage("Hanya menghapus daftar proyek dalam aplikasi. Media asli dan file ekspor tidak dihapus.")
+                    .setNegativeButton("Batal",null).setPositiveButton("Bersihkan",(a,b)->{
+                        getSharedPreferences("studio-projects",MODE_PRIVATE).edit().clear().apply();
+                        StudioDraftStore.clearAll(this);
+                        populateRecent();
+                    }).create();
+            activeClearHistoryDialog.setOnDismissListener(d->activeClearHistoryDialog=null);
+            activeClearHistoryDialog.show();
+        });
         content.addView(recentHeading);gap(content,11);
         recentCard=card(13);content.addView(recentCard);
         emptyRecent=text("Belum ada proyek. Impor foto atau video, atau coba demo.",12,MUTED,false);

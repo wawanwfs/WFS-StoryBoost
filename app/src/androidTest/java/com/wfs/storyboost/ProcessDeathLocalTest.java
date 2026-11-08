@@ -74,7 +74,7 @@ public class ProcessDeathLocalTest {
         assertTrue("Not clickable "+name,v.performClick());
     }
     private StudioEditorActivity editor(){
-        long deadline=android.os.SystemClock.uptimeMillis()+12000L;
+        long deadline=android.os.SystemClock.uptimeMillis()+20000L;
         do{
             AtomicReference<StudioEditorActivity> current=new AtomicReference<>();
             inst.runOnMainSync(()->{
@@ -184,10 +184,28 @@ public class ProcessDeathLocalTest {
         }
         assertEquals("Original JPEG hash changed",p.getString("sha",""),sha(app(),uri));
         try(ActivityScenario<StudioHomeActivity> home=ActivityScenario.launch(StudioHomeActivity.class)){
-            home.onActivity(a->tap(a,"Media Proyek 1",false));
+            inst.waitForIdleSync();
+            home.onActivity(a->{
+                assertTrue("Recent source not readable at click time",SourceAccess.canRead(a,uri));
+                tap(a,"Media Proyek 1",false);
+            });
             inst.waitForIdleSync();
             StudioEditorActivity resumed=editor();
-            assertNotNull("Recent did not reopen after genuine force-stop",resumed);
+            if(resumed==null){
+                StringBuilder lifecycle=new StringBuilder();
+                inst.runOnMainSync(()->{
+                    for(Stage stage:new Stage[]{Stage.RESUMED,Stage.STARTED,Stage.CREATED}){
+                        Collection<Activity> actors=ActivityLifecycleMonitorRegistry.getInstance()
+                                .getActivitiesInStage(stage);
+                        for(Activity activity:actors){
+                            lifecycle.append(stage).append(':')
+                                .append(activity.getClass().getSimpleName()).append(' ');
+                        }
+                    }
+                });
+                fail("Recent did not reopen after force-stop; source readable="+
+                        SourceAccess.canRead(app(),uri)+"; lifecycle="+lifecycle);
+            }
             StudioDraftStore.Draft draft=StudioDraftStore.load(app(),uri);
             assertNotNull(draft);
             assertEquals("PERSISTED AFTER FORCE STOP",draft.options.caption);

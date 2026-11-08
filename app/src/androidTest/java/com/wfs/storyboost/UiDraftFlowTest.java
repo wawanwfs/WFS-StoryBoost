@@ -272,16 +272,17 @@ public class UiDraftFlowTest {
         // the confirmation dialog. Launch a brand-new foreground Home Activity.
         try(ActivityScenario<StudioHomeActivity> cleanHome=
                 ActivityScenario.launch(StudioHomeActivity.class)){
-            cleanHome.onActivity(a->tap(a,"BERSIHKAN",false));
-            idle();
-            UiDevice device=UiDevice.getInstance(instrument);
-            androidx.test.uiautomator.BySelector affirmative=
-                By.clazz("android.widget.Button").text(java.util.regex.Pattern.compile("(?i)^bersihkan$"));
-            assertTrue("Clear-history dialog button not visible",
-                device.wait(Until.hasObject(affirmative),10000));
-            UiObject2 confirm=device.findObject(affirmative);
-            assertNotNull("Clear-history confirmation button missing",confirm);
-            confirm.click();
+            cleanHome.onActivity(a->{
+                tap(a,"BERSIHKAN",false);
+                android.app.AlertDialog dialog=a.clearHistoryDialogForTest();
+                assertNotNull("Click did not create the clear-history dialog",dialog);
+                assertTrue("Clear-history dialog must be visible",dialog.isShowing());
+                android.widget.Button confirm=dialog.getButton(
+                        android.content.DialogInterface.BUTTON_POSITIVE);
+                assertNotNull("Clear-history confirm action missing",confirm);
+                assertEquals("Bersihkan",confirm.getText().toString());
+                assertTrue("Clear-history confirmation did not click",confirm.performClick());
+            });
             idle();
         }
         assertEquals("",target.getSharedPreferences("studio-projects",Context.MODE_PRIVATE)

@@ -190,7 +190,9 @@ public class UiDraftFlowTest {
     }
 
     @Test public void editedPhotoRestoresFromRecentAndExportsWithoutMutatingSource() throws Exception {
-        try(ActivityScenario<StudioHomeActivity> home=importWithSafResult()){
+        // Close the original Home Activity too: Recent is exercised from a newly
+        // launched Home, rather than invoking an old background Activity instance.
+        try(ActivityScenario<StudioHomeActivity> first=importWithSafResult()){
             act(a->{
                 tap(a,"Color Look: Vibrant",true);
                 tap(a,"Frame",false);
@@ -207,17 +209,21 @@ public class UiDraftFlowTest {
                 bokeh.setChecked(false);
             });
             back();
-            StudioDraftStore.Draft saved=StudioDraftStore.load(target,source);
-            assertNotNull("onPause did not commit draft",saved);
-            assertEquals(2,saved.options.preset);
-            assertEquals(AspectRatioProfile.CROP,saved.options.frameStyle);
-            assertEquals(OutputProfile.FULL_HD,saved.options.qualityMode);
-            assertEquals("DRAFT 29-35",saved.options.caption);
-            assertFalse(saved.options.portraitBokeh);
-            assertTrue("Original source must remain readable",SourceAccess.canRead(target,source));
-            home.onActivity(a->tap(a,"Media Proyek 1",false));
+        }
+        StudioDraftStore.Draft saved=StudioDraftStore.load(target,source);
+        assertNotNull("onPause did not commit draft",saved);
+        assertEquals(2,saved.options.preset);
+        assertEquals(AspectRatioProfile.CROP,saved.options.frameStyle);
+        assertEquals(OutputProfile.FULL_HD,saved.options.qualityMode);
+        assertEquals("DRAFT 29-35",saved.options.caption);
+        assertFalse(saved.options.portraitBokeh);
+        assertTrue("Original source must remain readable",SourceAccess.canRead(target,source));
+
+        try(ActivityScenario<StudioHomeActivity> freshHome=
+                ActivityScenario.launch(StudioHomeActivity.class)){
+            freshHome.onActivity(a->tap(a,"Media Proyek 1",false));
             idle();
-            assertNotNull("Recent must launch Editor",resumedEditor());
+            assertNotNull("Recent must launch Editor from new Home Activity",resumedEditor());
             StudioDraftStore.Draft restored=StudioDraftStore.load(target,source);
             assertNotNull(restored);
             assertEquals(saved.options.caption,restored.options.caption);
@@ -236,20 +242,25 @@ public class UiDraftFlowTest {
     }
 
     @Test public void corruptDraftDeletedSourceAndClearRecentDoNotCrash() throws Exception {
-        try(ActivityScenario<StudioHomeActivity> home=importWithSafResult()){
+        try(ActivityScenario<StudioHomeActivity> first=importWithSafResult()){
             back();
-            target.getSharedPreferences("studio-drafts",Context.MODE_PRIVATE).edit()
-                    .putString(StudioDraftStore.keyFor(source),"{broken-json").commit();
-            assertNull("Corrupt state must not restore",StudioDraftStore.load(target,source));
-            home.onActivity(a->tap(a,"Media Proyek 1",false));
+        }
+        target.getSharedPreferences("studio-drafts",Context.MODE_PRIVATE).edit()
+                .putString(StudioDraftStore.keyFor(source),"{broken-json").commit();
+        assertNull("Corrupt state must not restore",StudioDraftStore.load(target,source));
+        assertTrue("Local fixture must be accessible before deletion",SourceAccess.canRead(target,source));
+        try(ActivityScenario<StudioHomeActivity> freshHome=
+                ActivityScenario.launch(StudioHomeActivity.class)){
+            freshHome.onActivity(a->tap(a,"Media Proyek 1",false));
             idle();
-            assertNotNull("Corrupt draft must still allow new Editor",resumedEditor());
+            assertNotNull("Corrupt draft must still allow Editor",resumedEditor());
             back();
             assertTrue("Delete fixture from MediaStore",target.getContentResolver().delete(source,null,null)>0);
-            home.onActivity(a->tap(a,"Media Proyek 1",false));
+            assertFalse("Deleted source must be unreadable",SourceAccess.canRead(target,source));
+            freshHome.onActivity(a->tap(a,"Media Proyek 1",false));
             idle();
             assertNull("Deleted source must not open Editor",resumedEditor());
-            home.onActivity(a->tap(a,"BERSIHKAN",false));
+            freshHome.onActivity(a->tap(a,"BERSIHKAN",false));
             onView(withText("Bersihkan")).inRoot(isDialog()).perform(click());
             idle();
             assertEquals("",target.getSharedPreferences("studio-projects",Context.MODE_PRIVATE)

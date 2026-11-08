@@ -246,6 +246,30 @@ public final class PhotoExportQa {
             if(enhanced!=null)enhanced.bitmap.recycle();
             noisyBitmap.recycle();
         }
+        // End-to-end JPEG render with neural option: verifies that the export
+        // pipeline (not only model unit inference) actually invokes DnCNN.
+        File noisyJpeg=new File(app.getCacheDir(),"qa_v29_dncnn.jpg");
+        Bitmap noisyFixture=Bitmap.createBitmap(noisyArgb,side,side,Bitmap.Config.ARGB_8888);
+        try(FileOutputStream out=new FileOutputStream(noisyJpeg)){
+            check(noisyFixture.compress(Bitmap.CompressFormat.JPEG,95,out),
+                    "neural end-to-end JPEG fixture");
+        }finally{noisyFixture.recycle();}
+        Uri noisyUri=Uri.fromFile(noisyJpeg);
+        ExportOptions denoiseOptions=new ExportOptions(ColorLooks.ORIGINAL,
+                AspectRatioProfile.ORIGINAL,AspectRatioProfile.FIT,true)
+                .withQuality(OutputProfile.HD).withAiDenoise(true);
+        PhotoEngine.Result jpegWithAi=PhotoEngine.process(app,noisyUri,denoiseOptions);
+        PhotoEngine.Result jpegNoAi=PhotoEngine.process(app,noisyUri,
+                denoiseOptions.withAiDenoise(false));
+        check(jpegWithAi.size.width==256&&jpegWithAi.size.height==256,
+                "real neural JPEG export preserves source dimensions");
+        check(!Arrays.equals(jpegWithAi.jpeg,jpegNoAi.jpeg),
+                "neural flag changes actual exported JPEG bytes");
+        Bitmap verified=BitmapFactory.decodeByteArray(jpegWithAi.jpeg,0,jpegWithAi.jpeg.length);
+        check(verified!=null,"neural JPEG output decodable");
+        if(verified!=null)verified.recycle();
+        report.append("dncnnExportJpegBytes=").append(jpegWithAi.jpeg.length).append('\n');
+        noisyJpeg.delete();
         colored.delete();rotated.delete();empty.delete();
     }
 }

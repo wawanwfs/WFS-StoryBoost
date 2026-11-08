@@ -284,9 +284,14 @@ public class UiDraftFlowTest {
 
     @Test public void gestureCropUndoRedoAndComparisonSliderStayConsistent() throws Exception {
         try(ActivityScenario<StudioHomeActivity> home=importWithSafResult()){
+            // The canvas is relaid out asynchronously after changing framing.
+            // Finish the UI event before inspecting measured touch coordinates.
             act(a->{
                 tap(a,"Frame",false);
                 tap(a,"Crop",false);
+            });
+            idle();
+            act(a->{
                 View touch=require(a,"Drag to reposition image crop focus",true);
                 assertEquals(View.VISIBLE,touch.getVisibility());
                 assertTrue("Crop viewport has no measured width",touch.getWidth()>40);

@@ -40,3 +40,8 @@ The synthetic fixture is paired clean/noisy RGB, so PSNR/SSIM apply *only* to th
 The [beta3 combined API29/API35 CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42502015377) shows a **memory-usage outlier** on Android 10 x86_64 emulator: DnCNN 480×480 four-tile synthetic image CPU inference **14.249 s**, total **15.573 s**, process PSS snapshots **41,790→365,138 KB**. In the same CI run Android 15 showed inference **14.805 s**, total **15.946 s**, PSS **48,004→41,105 KB**. These are process snapshots, not device peak RAM or a statistically representative benchmark; the cause of API29's high PSS remains unconfirmed. Do not certify low-RAM phones.
 
 Next: repeat 5+ fresh-process runs with post-GC and separate Java/native/graphics PSS, track peak memory while iterating tiles, compare 1 vs 2/3 TFLite CPU threads, and test on real Android 10 low-RAM ARM64 phones. Never infer a production RAM minimum from emulator-only snapshots.
+
+
+### Beta4 emulator diagnostic candidate
+
+The qa-dncnn-memory.sh script executes the pinned real DnCNN four-tile RGB fixture twice with different Android process IDs, collecting sampled live PSS, Java/native/graphics categories, native allocated heap, CPU inference duration and thread counts. These are emulator process measurements, not device-level peak RAM. No beta4 numeric memory result is asserted until its exact GitHub CI artifact is inspected. Repeat 5+ independent Android10 processes and compare controlled TFLite thread counts and physical low-RAM ARM64 before treating the prior API29 365,138 KB outlier as explained. Do not silently lower neural output resolution or weights to make memory appear better.

@@ -46,6 +46,16 @@ This is a **feature roadmap coverage estimate** for the target v3.0, not a claim
 
 **Total: 8 + 6 + 5 + 4 = 23 of 32 = 71.875%, rounded to 72%, only if CI inference benchmark passes.**
 
+## Beta4 QA candidate — not accepted until all four CI jobs pass
+
+- [ ] Real foreground Editor edits persisted before onPause; external adb force-stop during blocked test, new PID reopens Recent, decoded 1080x1920 JPEG and source SHA unchanged on API29/35.
+- [ ] Native DocumentsUI tests still green with Photos isolated and separately Photos enabled (coexistence only, NOT Google Photos URI).
+- [ ] Real DnCNN TFLite CPU test repeated in two independent processes per API; inspect sampled PSS, Java/native/graphics and threads, and investigate prior API29 365,138 KB snapshot.
+- [ ] Preserve full Media3 video QA and all 24 Color Looks, no source mutations.
+- [ ] Independent revocable DocumentsProvider, actual persistent-grant revocation and provider deletion/recovery, physical Android10 ARM64 low-RAM, real portrait benchmarks and owner-signed update remain unverified.
+- [ ] Measure low-end UI response during synchronous small draft commits; two emulator memory repeats are not enough to certify the memory risk.
+- **Feature ledger remains 23/32 = 71.875%.**
+
 ## v3.0 beta3 — evidence vs remaining blockers
 
 [All four CI jobs passed](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42499169024) on `5757f76c5d4bd473306c9afd6ebd8244fe5e3186`: API29/API35 local MediaStore state persisted over genuine external `adb am force-stop`, independent instrumentation processes and PID check, Recent resume, decoded 1080×1920 JPEG and original SHA-256. Native DocumentsUI was subsequently proven in [run 42506941662](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42506941662), but externally revoked third-party grants remain unverified.

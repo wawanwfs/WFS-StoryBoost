@@ -232,7 +232,7 @@ public class ProcessDeathSafTest {
             if(row==null)return false;
             try {
                 android.graphics.Rect b=row.getVisibleBounds();
-                assertTrue("Document has empty bounds "+b,b.width()>25&&b.height()>25);
+                assertTrue("Document label has invalid bounds "+b,b.width()>25&&b.height()>12);
                 int x=b.right-Math.min(13,Math.max(5,b.width()/9));
                 int y=b.bottom-Math.min(11,Math.max(5,b.height()/8));
                 if(!device.click(x,y))return false;

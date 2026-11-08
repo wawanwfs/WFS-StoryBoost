@@ -125,6 +125,21 @@ public class ProcessDeathSafTest {
         }finally{image.recycle();}
         return uri;
     }
+    private boolean clickStable(UiDevice device,androidx.test.uiautomator.BySelector match){
+        for(int attempt=0;attempt<5;attempt++){
+            try{
+                UiObject2 object=device.wait(Until.findObject(match),2000);
+                if(object!=null){
+                    object.click();
+                    return true;
+                }
+            }catch(androidx.test.uiautomator.StaleObjectException stale){
+                // DocumentsUI may replace its accessibility tree while opening roots.
+            }
+            SystemClock.sleep(350);
+        }
+        return false;
+    }
     private String pickerDiagnostics(UiDevice device){
         StringBuilder text=new StringBuilder();
         for(UiObject2 item:device.findObjects(By.clazz("android.widget.TextView"))){
@@ -143,16 +158,16 @@ public class ProcessDeathSafTest {
         // Real DocumentsUI may open on Recent or Photos. Select Downloads.
         UiObject2 nav=device.findObject(By.descContains("Show roots"));
         if(nav==null)nav=device.findObject(By.descContains("Show navigation drawer"));
-        if(nav!=null)nav.click();
-        UiObject2 downloads=device.wait(Until.findObject(By.text("Downloads")),7000);
-        if(downloads==null)downloads=device.findObject(By.text("Download"));
-        assertNotNull("DocumentsUI Downloads root not visible. UI: "+pickerDiagnostics(device),downloads);
-        downloads.click();
+        if(nav!=null)clickStable(device,By.descContains("Show roots"));
+        boolean downloads=clickStable(device,By.text("Downloads"));
+        if(!downloads)downloads=clickStable(device,By.text("Download"));
+        assertTrue("DocumentsUI Downloads root not clickable. UI: "+
+                pickerDiagnostics(device),downloads);
         file=device.wait(Until.findObject(By.textContains(PREFIX)),9000);
         if(file==null){
             UiObject2 search=device.findObject(By.descContains("Search"));
             if(search!=null){
-                search.click();
+                clickStable(device,By.descContains("Search"));
                 UiObject2 input=device.wait(Until.findObject(By.clazz("android.widget.EditText")),4500);
                 if(input!=null){
                     input.setText(PREFIX);
@@ -179,14 +194,14 @@ public class ProcessDeathSafTest {
                     ||device.wait(Until.hasObject(By.text("Recent")),5000));
             UiObject2 target=locateDownload(device,file);
             assertNotNull("Synthetic JPEG not visible in real DocumentsUI",target);
-            target.click();
+            assertTrue("DocumentsUI file selection was not clickable",clickStable(device,
+                    By.textContains(PREFIX)));
             inst.waitForIdleSync();
             StudioEditorActivity editor=waitForEditor();
             assertNotNull("Real picker result did not launch app Editor",editor);
             inst.runOnMainSync(()->{
                 tap(editor,"Color Look: Vibrant",true);
                 tap(editor,"Teks",false);
-                View field=find(editor.getWindow().getDecorView(),"",false);
                 EditText input=null;
                 java.util.ArrayDeque<View> queue=new java.util.ArrayDeque<>();
                 queue.add(editor.getWindow().getDecorView());

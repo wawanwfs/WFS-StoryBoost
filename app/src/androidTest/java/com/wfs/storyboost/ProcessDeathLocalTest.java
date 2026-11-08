@@ -150,6 +150,60 @@ public class ProcessDeathLocalTest {
                 .putString("uri",uri.toString()).putString("sha",hash)
                 .putInt("pid",Process.myPid()).commit());
     }
+    /**
+     * The shell runner MUST kill this foreground process while the method is
+     * still asleep. Closing ActivityScenario or returning from this method
+     * would call onPause and invalidate the no-lifecycle-save assertion.
+     */
+    @Test(timeout=145000)
+    public void stageForegroundEditAwaitAbruptForceStop()throws Exception{
+        phase("stageLive");
+        Uri uri=createPhoto();
+        String original=sha(app(),uri);
+        assertTrue(app().getSharedPreferences("studio-projects",Context.MODE_PRIVATE).edit()
+                .putString("recent_0",uri.toString()).commit());
+        Intent open=new Intent(app(),StudioEditorActivity.class);
+        open.putExtra("media_uri",uri.toString());
+        open.putExtra("resume_project",false);
+        // Do NOT use try-with-resources: stage will be terminated externally.
+        ActivityScenario<StudioEditorActivity> activity=ActivityScenario.launch(open);
+        activity.onActivity(editor->{
+            tap(editor,"Color Look: Vibrant",true);
+            tap(editor,"Teks",false);
+            EditText field=null;
+            java.util.ArrayDeque<View> queue=new java.util.ArrayDeque<>();
+            queue.add(editor.getWindow().getDecorView());
+            while(!queue.isEmpty()){
+                View view=queue.removeFirst();
+                if(view instanceof EditText){field=(EditText)view;break;}
+                if(view instanceof ViewGroup){
+                    ViewGroup group=(ViewGroup)view;
+                    for(int i=0;i<group.getChildCount();i++)queue.addLast(group.getChildAt(i));
+                }
+            }
+            assertNotNull("Foreground caption field absent",field);
+            field.setText("PERSISTED AFTER FORCE STOP");
+            tap(editor,"☷  Ekspor",false);
+            tap(editor,"1080p",false);
+        });
+        inst.waitForIdleSync();
+        StudioDraftStore.Draft committed=StudioDraftStore.load(app(),uri);
+        assertNotNull("Draft must be written BEFORE onPause",committed);
+        assertEquals(2,committed.options.preset);
+        assertEquals("PERSISTED AFTER FORCE STOP",committed.options.caption);
+        assertEquals(OutputProfile.FULL_HD,committed.options.qualityMode);
+        assertEquals(original,sha(app(),uri));
+        assertTrue(app().getSharedPreferences(PREF,Context.MODE_PRIVATE).edit()
+                .putString("uri",uri.toString()).putString("sha",original)
+                .putInt("pid",Process.myPid()).commit());
+        android.util.Log.i("WfsAutosaveCutQA",
+                "READY pid="+Process.myPid()+" draft=committed while editor RESUMED");
+        // If this resumes, the external kill never occurred: fail rather than
+        // claiming process-death acceptance on a normal activity finish.
+        Thread.sleep(120000L);
+        activity.close();
+        fail("External force-stop never interrupted foreground editor");
+    }
     @Test public void verifyReopenAfterExternalForceStop()throws Exception{
         phase("verify");
         android.content.SharedPreferences p=app().getSharedPreferences(PREF,Context.MODE_PRIVATE);

@@ -269,7 +269,7 @@ public class UiDraftFlowTest {
             idle();
             UiDevice device=UiDevice.getInstance(instrument);
             androidx.test.uiautomator.BySelector affirmative=
-                By.clazz("android.widget.Button").textMatches("(?i)^bersihkan$");
+                By.clazz("android.widget.Button").textMatches(java.util.regex.Pattern.compile("(?i)^bersihkan$"));
             assertTrue("Clear-history dialog button not visible",
                 device.wait(Until.hasObject(affirmative),10000));
             UiObject2 confirm=device.findObject(affirmative);

@@ -23,7 +23,12 @@ for attempt in 1 2; do
   # a single instantaneous sample is the true peak RSS or process RAM.
   while kill -0 "$instrument_pid" 2>/dev/null; do
     meminfo="$(adb shell dumpsys meminfo "$APP" 2>/dev/null || true)"
-    pss="$(printf '%s\n' "$meminfo" | awk '/TOTAL PSS:/ {if ($3 ~ /^[0-9]+$/) print $3; exit}')"
+    # Android 10 prints "TOTAL: 12345" under App Summary, while newer
+    # releases print "TOTAL PSS: 12345". Both refer to process PSS in KB.
+    pss="$(printf '%s\n' "$meminfo" | awk '
+      /TOTAL PSS:/ { if ($3 ~ /^[0-9]+$/) {print $3; exit} }
+      $1 == "TOTAL:" && $2 ~ /^[0-9]+$/ {print $2; exit}
+    ')"
     if [[ "$pss" =~ ^[0-9]+$ && "$pss" -gt 0 ]]; then
       printf '%s sampledPssKB=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$pss" >> "$samples"
       ((samples_count+=1))
@@ -59,7 +64,10 @@ for attempt in 1 2; do
   echo "attempt=$attempt android_pid=$current_pid samples=$samples_count sampled_peak_pss_kb=$peak_pss" |
     tee "qa-memory/dncnn-process-$attempt-summary.txt"
   echo "$report" >> "qa-memory/dncnn-process-$attempt-summary.txt"
-  (( samples_count > 0 )) || echo "WARNING: meminfo polling captured no live sample; test snapshot remains" |
-    tee -a "qa-memory/dncnn-process-$attempt-summary.txt"
+  echo "$report"
+  if (( samples_count == 0 )); then
+    echo "ERROR: no live meminfo PSS samples on Android (sampling parser must be fixed)" >&2
+    exit 1
+  fi
 done
 echo "PASS: two DnCNN inference runs in separate process IDs, with memory category snapshots"

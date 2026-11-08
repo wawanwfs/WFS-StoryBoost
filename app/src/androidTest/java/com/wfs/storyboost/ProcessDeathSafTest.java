@@ -125,19 +125,45 @@ public class ProcessDeathSafTest {
         }finally{image.recycle();}
         return uri;
     }
+    private String pickerDiagnostics(UiDevice device){
+        StringBuilder text=new StringBuilder();
+        for(UiObject2 item:device.findObjects(By.clazz("android.widget.TextView"))){
+            String value=item.getText();
+            if(value!=null&&text.length()<1600)text.append('[').append(value).append(']');
+        }
+        for(UiObject2 item:device.findObjects(By.clazz("android.widget.Button"))){
+            String value=item.getText();
+            if(value!=null&&text.length()<2000)text.append('{').append(value).append('}');
+        }
+        return text.toString();
+    }
     private UiObject2 locateDownload(UiDevice device,String filename) {
-        UiObject2 file=device.wait(Until.findObject(By.text(filename)),5000);
+        UiObject2 file=device.wait(Until.findObject(By.textContains(PREFIX)),4000);
         if(file!=null)return file;
-        // Real DocumentsUI may open on "Recent", "Images" or "Browse".
+        // Real DocumentsUI may open on Recent or Photos. Select Downloads.
         UiObject2 nav=device.findObject(By.descContains("Show roots"));
-        if(nav==null)nav=device.findObject(By.descContains("Navigate up"));
         if(nav==null)nav=device.findObject(By.descContains("Show navigation drawer"));
         if(nav!=null)nav.click();
-        UiObject2 downloads=device.wait(Until.findObject(By.text("Downloads")),5000);
+        UiObject2 downloads=device.wait(Until.findObject(By.text("Downloads")),7000);
         if(downloads==null)downloads=device.findObject(By.text("Download"));
-        assertNotNull("DocumentsUI Downloads root not visible",downloads);
+        assertNotNull("DocumentsUI Downloads root not visible. UI: "+pickerDiagnostics(device),downloads);
         downloads.click();
-        return device.wait(Until.findObject(By.text(filename)),11000);
+        file=device.wait(Until.findObject(By.textContains(PREFIX)),9000);
+        if(file==null){
+            UiObject2 search=device.findObject(By.descContains("Search"));
+            if(search!=null){
+                search.click();
+                UiObject2 input=device.wait(Until.findObject(By.clazz("android.widget.EditText")),4500);
+                if(input!=null){
+                    input.setText(PREFIX);
+                    device.pressEnter();
+                    file=device.wait(Until.findObject(By.textContains(PREFIX)),8000);
+                }
+            }
+        }
+        assertNotNull("Synthetic JPEG "+filename+" missing. DocumentsUI: "+
+                pickerDiagnostics(device),file);
+        return file;
     }
     @Test public void stageRealDocumentsUiImportAndDraft() throws Exception {
         phase("stage");

@@ -36,7 +36,9 @@ public class VideoMediaQaTest {
     private Context ctx;
     private Uri av,silent,rotated;
     private VideoEngine engine;
+    private VideoMergeEngine mergeEngine;
     private File result;
+    private final List<File> outputFiles=new ArrayList<>();
 
     @Before public void setup() throws Exception {
         ctx=inst.getTargetContext();
@@ -73,7 +75,9 @@ public class VideoMediaQaTest {
     }
     @After public void cleanup(){
         if(engine!=null)inst.runOnMainSync(engine::cancel);
+        if(mergeEngine!=null)inst.runOnMainSync(mergeEngine::cancel);
         if(result!=null)result.delete();
+        for(File f:outputFiles)if(f!=null)f.delete();
         for(Uri uri:sources)try{ctx.getContentResolver().delete(uri,null,null);}catch(Exception ignored){}
     }
 
@@ -142,5 +146,149 @@ public class VideoMediaQaTest {
                 fail("MediaExtractor must reject corrupted MP4");
             }catch(java.io.IOException|IllegalArgumentException expected){}
         }finally{bad.delete();}
+    }
+
+    private File realExport(Uri source, ExportOptions options) throws Exception {
+        CountDownLatch completed=new CountDownLatch(1);
+        AtomicReference<File> file=new AtomicReference<>();
+        AtomicReference<String> fail=new AtomicReference<>();
+        engine=new VideoEngine();
+        inst.runOnMainSync(()->{
+            try{
+                engine.start(ctx,source,options,new VideoEngine.Listener(){
+                    @Override public void onSuccess(File output,AspectRatioProfile.Size dimensions){
+                        file.set(output);completed.countDown();
+                    }
+                    @Override public void onError(String reason){fail.set(reason);completed.countDown();}
+                });
+            }catch(Exception ex){fail.set(ex.toString());completed.countDown();}
+        });
+        assertTrue("Actual encoder did not finish",completed.await(170,TimeUnit.SECONDS));
+        assertNull("VideoEngine failed: "+fail.get(),fail.get());
+        File output=file.get();
+        assertNotNull("No encoded video returned",output);
+        assertTrue("Encoded MP4 unexpectedly short",output.length()>1024);
+        outputFiles.add(output);
+        return output;
+    }
+
+    @Test(timeout=350000)
+    @SdkSuppress(minSdkVersion=35)
+    public void splitExportProducesTwoIndependentTimedH264AacSegments() throws Exception {
+        ExportOptions first=new ExportOptions(ColorLooks.ORIGINAL,
+                AspectRatioProfile.PORTRAIT_9_16,AspectRatioProfile.FIT,true,0,1000)
+                .withQuality(OutputProfile.FULL_HD);
+        ExportOptions second=new ExportOptions(ColorLooks.ORIGINAL,
+                AspectRatioProfile.PORTRAIT_9_16,AspectRatioProfile.FIT,true,1000,2000)
+                .withQuality(OutputProfile.FULL_HD);
+        File p1=realExport(av,first);
+        File p2=realExport(av,second);
+        for(File f:new File[]{p1,p2}){
+            MediaProbe.Info info=MediaProbe.inspect(f);
+            assertTrue(info.video);
+            assertTrue(info.audio);
+            assertTrue(containsCodec(f,"video/avc"));
+            assertTrue(containsCodec(f,"audio/mp4a-latm"));
+            assertTrue("Split output expected ~1000ms, actual="+info.durationMs,
+                    Math.abs(info.durationMs-1000)<420);
+        }
+        assertNotEquals("Two split exports must be distinct files",
+                p1.getAbsolutePath(),p2.getAbsolutePath());
+    }
+
+    @Test(timeout=240000)
+    @SdkSuppress(minSdkVersion=35)
+    public void media3MergeConcatenatesTwoClipsIntoOneMp4() throws Exception {
+        CountDownLatch done=new CountDownLatch(1);
+        AtomicReference<File> produced=new AtomicReference<>();
+        AtomicReference<String> error=new AtomicReference<>();
+        mergeEngine=new VideoMergeEngine();
+        inst.runOnMainSync(()->{
+            try{
+                mergeEngine.start(ctx,java.util.Arrays.asList(av,av),
+                        OutputProfile.FULL_HD,new VideoMergeEngine.Listener(){
+                    @Override public void onCompleted(File file){
+                        produced.set(file);done.countDown();
+                    }
+                    @Override public void onFailure(String message){
+                        error.set(message);done.countDown();
+                    }
+                });
+            }catch(Exception ex){error.set(ex.toString());done.countDown();}
+        });
+        assertTrue("Media3 merge did not finish",done.await(175,TimeUnit.SECONDS));
+        assertNull("Merge failed: "+error.get(),error.get());
+        File merged=produced.get();
+        assertNotNull(merged);
+        outputFiles.add(merged);
+        MediaProbe.Info info=MediaProbe.inspect(merged);
+        assertTrue(info.video);assertTrue(info.audio);
+        assertTrue(containsCodec(merged,"video/avc"));
+        assertTrue(containsCodec(merged,"audio/mp4a-latm"));
+        assertTrue("Two 2-second clips should produce ~4s, got "+info.durationMs,
+                Math.abs(info.durationMs-4000)<750);
+        assertTrue("Merged A/V drift too large",
+                Math.abs(info.audioDurationMs-info.videoDurationMs)<450);
+    }
+
+    @Test(timeout=350000)
+    @SdkSuppress(minSdkVersion=35)
+    public void silentAndRotatedSourcesExportWithoutInventingAudio() throws Exception {
+        ExportOptions options=new ExportOptions(ColorLooks.ORIGINAL,
+                AspectRatioProfile.PORTRAIT_9_16,AspectRatioProfile.FIT,true,0,1800)
+                .withQuality(OutputProfile.FULL_HD);
+        File noAudio=realExport(silent,options);
+        MediaProbe.Info output=MediaProbe.inspect(noAudio);
+        assertTrue(output.video);
+        assertFalse("Silent fixture must stay silent",output.audio);
+        assertTrue(containsCodec(noAudio,"video/avc"));
+        File upright=realExport(rotated,options);
+        MediaProbe.Info rotatedOutput=MediaProbe.inspect(upright);
+        assertTrue(rotatedOutput.video);
+        assertTrue(rotatedOutput.audio);
+        android.media.MediaMetadataRetriever md=new android.media.MediaMetadataRetriever();
+        try{
+            md.setDataSource(upright.getAbsolutePath());
+            int width=Integer.parseInt(md.extractMetadata(
+                    android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+            int height=Integer.parseInt(md.extractMetadata(
+                    android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+            String angle=md.extractMetadata(
+                    android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
+            if(angle!=null&&Integer.parseInt(angle)%180!=0){
+                int swap=width;width=height;height=swap;
+            }
+            assertEquals(1080,width);
+            assertEquals(1920,height);
+        }finally{md.release();}
+    }
+
+    @Test(timeout=50000)
+    @SdkSuppress(minSdkVersion=35)
+    public void cancellationOfRunningEncoderDeletesItsTemporaryOutput() throws Exception {
+        String[] before=ctx.getCacheDir().list((folder,name)->name.startsWith("storyboost_")
+                &&name.endsWith(".mp4"));
+        final java.util.concurrent.atomic.AtomicInteger callbacks=
+                new java.util.concurrent.atomic.AtomicInteger();
+        engine=new VideoEngine();
+        ExportOptions options=new ExportOptions(ColorLooks.ORIGINAL,
+                AspectRatioProfile.PORTRAIT_9_16,AspectRatioProfile.FIT,true,0,2000)
+                .withQuality(OutputProfile.FULL_HD);
+        inst.runOnMainSync(()->engine.start(ctx,av,options,new VideoEngine.Listener(){
+            @Override public void onSuccess(File file,AspectRatioProfile.Size size){
+                callbacks.incrementAndGet();outputFiles.add(file);
+            }
+            @Override public void onError(String message){callbacks.incrementAndGet();}
+        }));
+        // start() has returned after Media3 begins the asynchronous transform.
+        inst.runOnMainSync(engine::cancel);
+        android.os.SystemClock.sleep(1100);
+        assertEquals("Cancellation must not report successful export",0,callbacks.get());
+        String[] after=ctx.getCacheDir().list((folder,name)->name.startsWith("storyboost_")
+                &&name.endsWith(".mp4"));
+        java.util.Set<String> prior=new java.util.HashSet<>(java.util.Arrays.asList(
+                before==null?new String[0]:before));
+        for(String name:after==null?new String[0]:after)
+            assertTrue("Cancel leaked cache MP4: "+name,prior.contains(name));
     }
 }

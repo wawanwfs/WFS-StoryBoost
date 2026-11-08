@@ -227,6 +227,9 @@ jobs:
             gradle --no-daemon :app:connectedDebugAndroidTest
             bash scripts/qa-process-death-local.sh
             bash scripts/qa-process-death-saf.sh
+            # A distinct acceptance pass keeps Photos installed/enabled; it
+            # verifies DocumentsUI coexistence, NOT Photo-provider URI grants.
+            WFS_PHOTOS_ENABLED=1 bash scripts/qa-process-death-saf.sh
             bash scripts/qa-dncnn-memory.sh
       - name: Publish real DocumentsUI picker failure diagnostics
         if: failure()

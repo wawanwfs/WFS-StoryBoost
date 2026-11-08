@@ -263,6 +263,44 @@ public class VideoMediaQaTest {
         }finally{md.release();}
     }
 
+    @Test(timeout=245000)
+    @SdkSuppress(minSdkVersion=35)
+    public void mixedSoundAndSilentClipMergeDoesNotLoseVideoFrames() throws Exception {
+        CountDownLatch done=new CountDownLatch(1);
+        AtomicReference<File> produced=new AtomicReference<>();
+        AtomicReference<String> failure=new AtomicReference<>();
+        mergeEngine=new VideoMergeEngine();
+        inst.runOnMainSync(()->{
+            try{
+                mergeEngine.start(ctx,java.util.Arrays.asList(av,silent),
+                        OutputProfile.FULL_HD,new VideoMergeEngine.Listener(){
+                    @Override public void onCompleted(File file){
+                        produced.set(file);done.countDown();
+                    }
+                    @Override public void onFailure(String msg){
+                        failure.set(msg);done.countDown();
+                    }
+                });
+            }catch(Exception e){failure.set(e.toString());done.countDown();}
+        });
+        assertTrue("Mixed audio/silent merge timeout",done.await(185,TimeUnit.SECONDS));
+        assertNull("Mixed clip merge failure: "+failure.get(),failure.get());
+        File merged=produced.get();
+        assertNotNull("Merge callback returned no MP4",merged);
+        outputFiles.add(merged);
+        assertTrue("Merged output empty",merged.length()>1024);
+        MediaProbe.Info info=MediaProbe.inspect(merged);
+        assertTrue("Mixed composition must retain video",info.video);
+        assertTrue("Mixed composition must retain first clip audio",info.audio);
+        assertTrue("No silent leg should truncate the second clip: "+info.durationMs,
+                Math.abs(info.durationMs-4000)<850);
+        assertTrue(containsCodec(merged,"video/avc"));
+        assertTrue(containsCodec(merged,"audio/mp4a-latm"));
+        assertTrue("A/V track should cover sequence within 500ms: "+
+                info.audioDurationMs+"/"+info.videoDurationMs,
+                Math.abs(info.audioDurationMs-info.videoDurationMs)<500);
+    }
+
     @Test(timeout=50000)
     @SdkSuppress(minSdkVersion=35)
     public void cancellationOfRunningEncoderDeletesItsTemporaryOutput() throws Exception {

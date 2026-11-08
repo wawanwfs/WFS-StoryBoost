@@ -210,7 +210,8 @@ Do not count tests as new roadmap modules. Current ledger remains 23 of 32 uniqu
 - [x] Two independent `adb am instrument` processes separated by **external** `adb am force-stop` on API29/35; PID changes, MediaStore Recent/draft persists, 1080×1920 JPEG and original SHA-256 unchanged. [CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42499169024).
 - [x] API35 synthetic video: actual H.264/AAC split/merge, silent and rotated transformations, active cancellation and no new cache temp files.
 - [x] Android Activity crop gesture focus, Undo/Redo, before-after control, repeated same-URI import starts a fresh project, not Recent.
-- [ ] Real system DocumentsUI picker selection, persistable third-party URI grants/revocation: **exploratory CI failed**, not merged ([evidence](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42499028171)).
+- [x] Native `ACTION_OPEN_DOCUMENT` through real DocumentsUI selection on API29 and 35, persisted read grant checked, external force-stop/new-PID Recent restore and source SHA-256 intact ([4/4 CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42506941662)). Google Photos was disabled temporarily during this isolated emulator test.
+- [ ] Actual Google Photos and third-party DocumentsProvider compatibility, revoked persistable URI grants and missing/deleted provider recovery **remain unverified**.
 - [ ] Forced death during **pending autosave**, real-device benchmark/gesture QA, consented real-human bokeh, real low-light chroma/tile-seam DnCNN benchmark.
 - [ ] Owner release keystore, two same-certificate signed APKs and actual `adb install -r` preserving project state.
 

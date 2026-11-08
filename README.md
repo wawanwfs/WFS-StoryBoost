@@ -10,7 +10,9 @@
 
 On API35, synthetic H.264/AAC sources undergo real Media3 split (two independent MP4s), 2-clip merge, silent/rotated transforms and active cancellation with cache-file checks. Activity tests cover touch crop, Undo/Redo, comparison and fresh import vs Recent. Failed transformer validation/error paths now delete broken temporary files.
 
-**Unverified P0:** the separate real DocumentsUI picker UI test still fails ([failed exploratory run](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42499028171)); no proven revoked third-party URI grants, process kill during pending autosave or physical-device matrix. DnCNN is **only** luminance denoise; no legally sourced real-portrait hair/glasses, low-light/chroma/tile-seam benchmark and no new AI model. The two APK variants are **debug-signed**, not stable owner-signed release builds; no proven `adb install -r` across two official releases. Social platforms may recompress uploads.
+**Verified native picker:** [4/4 green API29/API35 acceptance](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42506941662) now runs the actual Android DocumentsUI picker, selects a synthetic JPEG in Downloads, verifies `takePersistableUriPermission` via Android's persisted read-grant list, then performs external `adb am force-stop` and resumes Recent in a fresh process. Original SHA-256, draft Color Look/caption and decoded 1080×1920 export are checked. Google Photos is **temporarily disabled in CI only** to isolate native DocumentsUI; this does not validate Google Photos, all third-party providers or revoked grants.
+
+**Remaining P0:** no proven revoked third-party URI grants, process kill during pending autosave or physical-device matrix. DnCNN is **only** luminance denoise; no legally sourced real-portrait hair/glasses, low-light/chroma/tile-seam benchmark and no new AI model. The two APK variants are **debug-signed**, not stable owner-signed release builds; no proven `adb install -r` across two official releases. Social platforms may recompress uploads.
 
 Exactly **23/32 unique modules = 71.875%**. Repeated tests do not add modules. Not full CapCut parity or lossless WA/IG status.
 

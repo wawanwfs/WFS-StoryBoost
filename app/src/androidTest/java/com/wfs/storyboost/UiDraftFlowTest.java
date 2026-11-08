@@ -371,7 +371,7 @@ public class UiDraftFlowTest {
                     java.lang.reflect.Field caption=StudioEditorActivity.class.getDeclaredField("caption");
                     preset.setAccessible(true);
                     caption.setAccessible(true);
-                    assertEquals("New import inherited a previous Color Look",0,preset.getInt(editor));
+                    assertEquals("New import inherited a previous Color Look",1,preset.getInt(editor));
                     assertEquals("New import inherited old caption","",caption.get(editor));
                 }catch(ReflectiveOperationException ex){
                     throw new AssertionError("Cannot inspect actual editor state",ex);

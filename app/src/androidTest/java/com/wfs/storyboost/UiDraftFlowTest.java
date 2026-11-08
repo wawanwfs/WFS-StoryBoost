@@ -281,4 +281,60 @@ public class UiDraftFlowTest {
                 .getString("recent_0",""));
         assertNull(StudioDraftStore.load(target,source));
     }
+
+    @Test public void gestureCropUndoRedoAndComparisonSliderStayConsistent() throws Exception {
+        try(ActivityScenario<StudioHomeActivity> home=importWithSafResult()){
+            act(a->{
+                tap(a,"Frame",false);
+                tap(a,"Crop",false);
+                View touch=require(a,"Drag to reposition image crop focus",true);
+                assertEquals(View.VISIBLE,touch.getVisibility());
+                assertTrue("Crop viewport has no measured width",touch.getWidth()>40);
+                assertTrue("Crop viewport has no measured height",touch.getHeight()>40);
+                long now=android.os.SystemClock.uptimeMillis();
+                float y=touch.getHeight()*.5f;
+                android.view.MotionEvent down=android.view.MotionEvent.obtain(now,now,
+                        android.view.MotionEvent.ACTION_DOWN,touch.getWidth()*.80f,y,0);
+                android.view.MotionEvent move=android.view.MotionEvent.obtain(now,now+50,
+                        android.view.MotionEvent.ACTION_MOVE,touch.getWidth()*.25f,y,0);
+                android.view.MotionEvent up=android.view.MotionEvent.obtain(now,now+90,
+                        android.view.MotionEvent.ACTION_UP,touch.getWidth()*.25f,y,0);
+                try{
+                    assertTrue(touch.dispatchTouchEvent(down));
+                    assertTrue(touch.dispatchTouchEvent(move));
+                    assertTrue(touch.dispatchTouchEvent(up));
+                }finally{down.recycle();move.recycle();up.recycle();}
+            });
+            android.os.SystemClock.sleep(1250);
+            StudioDraftStore.Draft moved=StudioDraftStore.load(target,source);
+            assertNotNull("Crop focus not autosaved",moved);
+            assertTrue("Drag must change persisted focus X",moved.options.focusX>.70f);
+            assertEquals(AspectRatioProfile.CROP,moved.options.frameStyle);
+            act(a->tap(a,"Undo perubahan terakhir",true));
+            android.os.SystemClock.sleep(950);
+            StudioDraftStore.Draft undo=StudioDraftStore.load(target,source);
+            assertNotNull(undo);
+            assertEquals("Undo restored original crop focus",.5f,undo.options.focusX,.09f);
+            act(a->tap(a,"Redo perubahan",true));
+            android.os.SystemClock.sleep(950);
+            StudioDraftStore.Draft redo=StudioDraftStore.load(target,source);
+            assertNotNull(redo);
+            assertEquals("Redo restored gesture focus",moved.options.focusX,redo.options.focusX,.02f);
+            act(a->{
+                tap(a,"↔ Sebelum",false);
+                assertNotNull("Before/after button must toggle to After",
+                        locate(a.getWindow().getDecorView(),"✦ Sesudah",false));
+                tap(a,"✦ Sesudah",false);
+                assertNotNull("Comparison button should return to Before",
+                        locate(a.getWindow().getDecorView(),"↔ Sebelum",false));
+            });
+            PhotoEngine.Result first=PhotoEngine.process(target,source,
+                    redo.options);
+            PhotoEngine.Result second=PhotoEngine.process(target,source,
+                    redo.options.withFrameStyle(AspectRatioProfile.FIT));
+            assertFalse("Crop and Fit exports must have different pixels",
+                    java.util.Arrays.equals(first.jpeg,second.jpeg));
+            back();
+        }
+    }
 }

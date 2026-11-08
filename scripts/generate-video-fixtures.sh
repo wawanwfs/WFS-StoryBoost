@@ -7,10 +7,12 @@ if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
 fi
 command -v ffmpeg
 command -v ffprobe
+# Small 2-second 1080p source at 8fps keeps the emulator CPU encode bounded.
+# This proves real 1080p dimension/audio output, NOT 30fps device performance.
 # Public-domain procedural testsrc2 + sine tones. No copyrighted videos or
 # user gallery footage are used in automated media QA.
 ffmpeg -hide_banner -loglevel error -y -f lavfi \
-  -i 'testsrc2=size=1920x1080:rate=24' \
+  -i 'testsrc2=size=1920x1080:rate=8' \
   -f lavfi -i 'sine=frequency=440:sample_rate=48000' \
   -t 2 -c:v libx264 -preset ultrafast -crf 24 -pix_fmt yuv420p \
   -threads 2 -c:a aac -b:a 96k -shortest qa-video.mp4

@@ -172,6 +172,9 @@ public final class PhotoEngine {
         }catch(IOException|RuntimeException e){
             if(output!=null)output.recycle();
             throw e;
+        }catch(OutOfMemoryError oom){
+            if(output!=null)output.recycle();
+            throw new IOException("RAM tidak cukup untuk preview AI Portrait. Gunakan resolusi HD.",oom);
         }finally{oriented.recycle();}
     }
 
@@ -208,6 +211,31 @@ public final class PhotoEngine {
         } finally {
             low.recycle();
         }
+    }
+
+    /** Blur follows the same fitted/cropped rectangle as the sharp subject mask.
+     * The full-frame soft fill is intentional only outside a FIT letterbox.
+     */
+    static void drawPortraitBlurredBackground(Canvas canvas,Bitmap source,
+            int width,int height,FrameMath.Bounds bounds,Paint colorPaint){
+        drawBlurredBackground(canvas,source,width,height);
+        int smallW=Math.min(144,Math.max(64,source.getWidth()/5));
+        int smallH=Math.max(24,Math.round(smallW*(float)source.getHeight()/source.getWidth()));
+        Bitmap small=Bitmap.createScaledBitmap(source,smallW,smallH,true);
+        try{
+            int[] px=new int[smallW*smallH];
+            small.getPixels(px,0,smallW,0,0,smallW,smallH);
+            blur(px,smallW,smallH,5);
+            blur(px,smallW,smallH,5);
+            small.setPixels(px,0,smallW,0,0,smallW,smallH);
+            Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+            paint.setColorFilter(colorPaint.getColorFilter());
+            canvas.save();
+            canvas.clipRect(0,0,width,height);
+            canvas.drawBitmap(small,null,
+                    new RectF(bounds.left,bounds.top,bounds.right,bounds.bottom),paint);
+            canvas.restore();
+        }finally{small.recycle();}
     }
 
     private static void blur(int[] px, int w, int h, int radius) {

@@ -149,3 +149,12 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] EXIF-rotated person image: foreground mask stays correctly aligned with upright subject.
 - [ ] AI preview after rapidly changing Look/Ratio doesn't show an outdated result or recycled bitmap.
 - [ ] Validate original vs. export on phone and WhatsApp Status; server-side recompression remains outside app control.
+
+## v2.8 real-image automated and human QA
+- [ ] GitHub Actions reports all real *synthetic JPEG* tests: 9:16 pixel dimensions, color adjustment, 3:4 custom export, EXIF rotation, MediaStore exact-copy and blank-photo AI rejection.
+- [ ] Inspect machine-readable artifact `qa-photo-export.txt` and `qa-photo-memory.txt`; do not mark real device benchmarking complete.
+- [ ] Verify preview cancellation on repeated filter taps and ratio changes while Portrait Bokeh runs on an actual photograph.
+- [ ] Human single subject, multiple subjects, strands of hair, glasses, dark backgrounds, partial face, and no-person picture: compare export to preview and source; protect original face geometry.
+- [ ] Check model segmentation accuracy using consented/rights-cleared images only, never commit private face photographs.
+- [ ] Test Android 10 low memory and arm64 physical phone. Verify HDR/HEIC and odd EXIF orientation.
+- [ ] Integrate no unlicensed restoration weights. Report measured denoise/deblur/4x-SR only if a working on-device inference model exists.

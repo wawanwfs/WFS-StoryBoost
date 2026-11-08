@@ -34,6 +34,9 @@ import java.util.ArrayList;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A real single-source timeline editor with playback, frame thumbnails, trim, split-export,
@@ -44,6 +47,9 @@ public final class StudioEditorActivity extends Activity {
     private static final int BG=StudioUi.BG,TEXT=StudioUi.TEXT,MUTED=StudioUi.MUTED;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final ExecutorService io=Executors.newSingleThreadExecutor();
+    // Cancel only outdated image previews. Never discard export or metadata work.
+    private final ThreadPoolExecutor previewWorker=new ThreadPoolExecutor(
+            1,1,0L,TimeUnit.MILLISECONDS,new LinkedBlockingQueue<Runnable>());
     private final ArrayDeque<RenderJob> exports=new ArrayDeque<>();
     private VideoEngine activeVideoEngine;
     private Uri mediaUri,lastExport;
@@ -333,7 +339,10 @@ public final class StudioEditorActivity extends Activity {
         if(isVideo)return;
         final int token=++renderToken;
         ExportOptions options=options();
-        io.execute(()->{
+        previewWorker.getQueue().clear();
+        if(options.portraitBokeh&&!compareOriginal)
+            previewLabel.setText("AI PORTRAIT • Memproses mask offline...");
+        previewWorker.execute(()->{
             Bitmap rendered=null;
             String failure=null;
             try{
@@ -996,6 +1005,7 @@ public final class StudioEditorActivity extends Activity {
         if(video!=null)video.stopPlayback();
         if(photo!=null)photo.setImageDrawable(null);
         if(imagePreviewBitmap!=null)imagePreviewBitmap.recycle();
+        previewWorker.shutdownNow();
         io.shutdownNow();
         super.onDestroy();
     }

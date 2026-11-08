@@ -48,6 +48,7 @@ public final class AiPortraitCompositor {
         try {
             segmenter=Segmentation.getClient(new SelfieSegmenterOptions.Builder()
                     .setDetectorMode(SelfieSegmenterOptions.SINGLE_IMAGE_MODE)
+                    .enableRawSizeMask()
                     .build());
             SegmentationMask segmentation=Tasks.await(segmenter.process(
                     InputImage.fromBitmap(analysis,0)),25,TimeUnit.SECONDS);
@@ -79,6 +80,8 @@ public final class AiPortraitCompositor {
             throw new IOException("Model AI terlalu lama merespons",e);
         }catch(java.util.concurrent.ExecutionException e){
             throw new IOException("Model segmentasi gagal: "+e.getCause(),e);
+        }catch(OutOfMemoryError oom){
+            throw new IOException("RAM tidak cukup menjalankan AI Portrait; gunakan foto lebih kecil",oom);
         }finally{
             if(segmenter!=null)segmenter.close();
             if(analysis!=source)analysis.recycle();
@@ -93,7 +96,8 @@ public final class AiPortraitCompositor {
                              FrameMath.Bounds bounds,Paint foregroundPaint)throws IOException{
         Bitmap mask=maskFor(original);
         try{
-            PhotoEngine.drawBlurredBackground(canvas,original,width,height);
+            PhotoEngine.drawPortraitBlurredBackground(canvas,original,
+                    width,height,bounds,foregroundPaint);
             RectF destination=new RectF(bounds.left,bounds.top,bounds.right,bounds.bottom);
             int save=canvas.saveLayer(0f,0f,(float)width,(float)height,null);
             try{

@@ -277,6 +277,17 @@ public final class AspectRatioProfileTest {
                 "AI portrait effect survives manual color adjustments");
         check(PhotoPassthrough.allowed(portraitEdit.withPortraitBokeh(false),"image/jpeg"),
                 "disabling portrait effect restores original copy eligibility");
+        // v2.8 mask feather shape/threshold regression.
+        check(PortraitMaskMath.alpha(.31f)>25 && PortraitMaskMath.alpha(.31f)<65,
+                "feathered alpha lower shoulder remains semi-transparent");
+        check(PortraitMaskMath.alpha(.69f)>190 && PortraitMaskMath.alpha(.69f)<236,
+                "feathered alpha upper shoulder remains semi-transparent");
+        check(PortraitMaskMath.alpha(.31f)<PortraitMaskMath.alpha(.50f),
+                "alpha increases monotonically below foreground");
+        check(PortraitMaskMath.alpha(.50f)<PortraitMaskMath.alpha(.69f),
+                "alpha increases monotonically toward foreground");
+        check(PortraitMaskMath.usable(.015f),"minimum foreground coverage allowed");
+        check(!PortraitMaskMath.usable(Float.NaN),"invalid foreground coverage rejected");
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

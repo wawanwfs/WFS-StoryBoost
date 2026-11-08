@@ -25,7 +25,8 @@ fi
 HASH="$(sha256sum "$MODEL" | cut -d' ' -f1)"
 echo "DNCNN_ASSET_SHA256=$HASH"
 echo "DNCNN_ASSET_BYTES=$SIZE"
-if [[ -n "${DNCNN_TFLITE_SHA256:-}" && "$HASH" != "$DNCNN_TFLITE_SHA256" ]]; then
+EXPECTED_SHA256="59bc280342afd08357282232784d135c29a4ec64cd61b5172921e4d3d881d9fd"
+if [[ "$HASH" != "$EXPECTED_SHA256" ]]; then
   echo "Denoiser model SHA256 mismatch" >&2
   exit 1
 fi

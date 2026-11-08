@@ -337,4 +337,43 @@ public class UiDraftFlowTest {
             back();
         }
     }
+
+    @Test public void repeatedImportOfSameUriStartsFreshRatherThanResumingDraft() throws Exception {
+        try(ActivityScenario<StudioHomeActivity> first=importWithSafResult()){
+            act(editor->{
+                tap(editor,"Color Look: Vibrant",true);
+                tap(editor,"Teks",false);
+                EditText caption=(EditText)input(editor.getWindow().getDecorView());
+                assertNotNull(caption);
+                caption.setText("OLD SAVED EDIT");
+            });
+            back();
+        }
+        StudioDraftStore.Draft before=StudioDraftStore.load(target,source);
+        assertNotNull(before);
+        assertEquals(2,before.options.preset);
+        assertEquals("OLD SAVED EDIT",before.options.caption);
+        // A second ACTION_OPEN_DOCUMENT result points to the SAME source URI,
+        // but it is explicitly a fresh import, not a Recent-project action.
+        Intents.release();
+        intentsInitialized=false;
+        try(ActivityScenario<StudioHomeActivity> second=importWithSafResult()){
+            act(editor->{
+                assertFalse("Fresh import must not opt into saved draft",
+                        editor.getIntent().getBooleanExtra("resume_project",true));
+                try{
+                    java.lang.reflect.Field preset=StudioEditorActivity.class.getDeclaredField("preset");
+                    java.lang.reflect.Field caption=StudioEditorActivity.class.getDeclaredField("caption");
+                    preset.setAccessible(true);
+                    caption.setAccessible(true);
+                    assertEquals("New import inherited a previous Color Look",0,preset.getInt(editor));
+                    assertEquals("New import inherited old caption","",caption.get(editor));
+                }catch(ReflectiveOperationException ex){
+                    throw new AssertionError("Cannot inspect actual editor state",ex);
+                }
+            });
+            back();
+        }
+        assertArrayEquals("Reimport changed original bytes",originalDigest,digest(source));
+    }
 }

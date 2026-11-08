@@ -43,5 +43,5 @@ PY
   echo "ERROR: emulator did not render requested screenshot dimensions ${w}x${h}" >&2
   return 1
 }
-capture 320 640 320
+capture 320 640 160
 capture 1080 2400 440

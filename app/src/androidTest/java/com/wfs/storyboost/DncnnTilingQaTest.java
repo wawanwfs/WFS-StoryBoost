@@ -1,0 +1,114 @@
+package com.wfs.storyboost;
+
+import static org.junit.Assert.*;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.os.Debug;
+import android.util.Log;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import java.util.Random;
+
+/**
+ * Deterministic, fully synthetic, paired clean/noisy color fixture with 4+
+ * neural tiles. No human subject; not a portrait-bokeh accuracy benchmark.
+ * Real Qualcomm/KAIR DnCNN-25 weights are loaded by AiDenoiseEngine in CI.
+ * Records rather than exaggerates chroma-noise quality or memory results.
+ */
+@RunWith(AndroidJUnit4.class)
+public final class DncnnTilingQaTest {
+    private static final String TAG="WfsDncnnTileQA";
+    private static final int W=480,H=480;
+    private static int clamp(int v){return Math.max(0,Math.min(255,v));}
+    private static int gray(int rgb){
+        return Math.round(.299f*Color.red(rgb)+.587f*Color.green(rgb)+.114f*Color.blue(rgb));
+    }
+    private static double boundaryDifference(int[] pixels,int x){
+        double total=0;
+        for(int y=0;y<H;y++)
+            total+=Math.abs(gray(pixels[y*W+x])-gray(pixels[y*W+x-1]));
+        return total/H;
+    }
+    @Test(timeout=160000)
+    public void colorNoiseTiledDenoiseReportsPairedQualityAndSeamContinuity() throws Exception {
+        Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
+        assertTrue("Pinned DnCNN TFLite weights missing",AiDenoiseEngine.included(context));
+        final int[] clean=new int[W*H],noisy=new int[W*H];
+        Random random=new Random(3031141L);
+        for(int y=0;y<H;y++)for(int x=0;x<W;x++){
+            // Spatially smooth luminance and non-grey chroma, no identifiable face.
+            int r=94+x/12+y/40,g=102+x/24+y/18,b=91+x/35+y/15;
+            int k=y*W+x;
+            clean[k]=Color.argb(255,r,g,b);
+            int shared=(int)Math.round(random.nextGaussian()*24.5);
+            int chroma=(int)Math.round(random.nextGaussian()*10);
+            noisy[k]=Color.argb(255,clamp(r+shared+chroma),
+                    clamp(g+shared-chroma),clamp(b+shared));
+        }
+        Bitmap input=Bitmap.createBitmap(noisy,W,H,Bitmap.Config.ARGB_8888);
+        Bitmap processed=null;
+        try {
+            Debug.MemoryInfo beforeMemory=new Debug.MemoryInfo();
+            Debug.getMemoryInfo(beforeMemory);
+            long start=android.os.SystemClock.elapsedRealtime();
+            AiDenoiseEngine.Result result=AiDenoiseEngine.process(context,input);
+            processed=result.bitmap;
+            long elapsed=android.os.SystemClock.elapsedRealtime()-start;
+            assertNotNull(processed);
+            assertEquals(W,processed.getWidth());
+            assertEquals(H,processed.getHeight());
+            assertTrue("Expected overlapping 256px tiles",result.stats.tiles>=4);
+            assertTrue(result.stats.inferenceMs>=0);
+            assertTrue(result.stats.totalMs>=result.stats.inferenceMs);
+
+            int[] out=new int[W*H],a=new int[W*H],n=new int[W*H],o=new int[W*H];
+            processed.getPixels(out,0,W,0,0,W,H);
+            long chromaChanged=0;
+            for(int k=0;k<out.length;k++){
+                a[k]=gray(clean[k]);n[k]=gray(noisy[k]);o[k]=gray(out[k]);
+                assertEquals("Alpha must remain unchanged",Color.alpha(noisy[k]),Color.alpha(out[k]));
+                int oldRG=Color.red(noisy[k])-Color.green(noisy[k]);
+                int newRG=Color.red(out[k])-Color.green(out[k]);
+                if(Math.abs(oldRG-newRG)>2)chromaChanged++;
+            }
+            double beforePsnr=ImageQualityMetrics.psnr(a,n);
+            double afterPsnr=ImageQualityMetrics.psnr(a,o);
+            double beforeSsim=ImageQualityMetrics.ssim(a,n);
+            double afterSsim=ImageQualityMetrics.ssim(a,o);
+            // The clean/noisy pair is an actual pixel-aligned ground truth, so
+            // PSNR/SSIM are justified here, but not for unpaired real photos.
+            assertTrue(Double.isFinite(beforePsnr));
+            assertTrue(Double.isFinite(afterPsnr));
+            assertTrue(Double.isFinite(beforeSsim));
+            assertTrue(Double.isFinite(afterSsim));
+            assertEquals("Bounded luminance correction must keep RGB channel differences",
+                    0,chromaChanged);
+            // Tile 0 starts at x=0, tile 1 at x=224. Check that edges of the
+            // 32px overlap are not sharp seams on a smooth paired gradient.
+            double seamLeft=boundaryDifference(out,224);
+            double seamRight=boundaryDifference(out,256);
+            double contextEdge=(boundaryDifference(out,206)+boundaryDifference(out,274))*.5;
+            assertTrue("Visible discontinuity around x=224: "+seamLeft,
+                    seamLeft<=contextEdge*4+16);
+            assertTrue("Visible discontinuity around x=256: "+seamRight,
+                    seamRight<=contextEdge*4+16);
+            Debug.MemoryInfo afterMemory=new Debug.MemoryInfo();
+            Debug.getMemoryInfo(afterMemory);
+            String measurements="syntheticRGB480x480 tiles="+result.stats.tiles+
+                " inferMs="+result.stats.inferenceMs+" pipelineMs="+result.stats.totalMs+
+                " elapsedMs="+elapsed+" pssBeforeKB="+beforeMemory.getTotalPss()+
+                " pssAfterKB="+afterMemory.getTotalPss()+
+                " psnr="+beforePsnr+"->"+afterPsnr+
+                " ssim="+beforeSsim+"->"+afterSsim+
+                " seam224="+seamLeft+" seam256="+seamRight;
+            Log.i(TAG,measurements);
+            System.out.println("DN CNN TILE QA "+measurements);
+        }finally {
+            if(processed!=null)processed.recycle();
+            input.recycle();
+        }
+    }
+}

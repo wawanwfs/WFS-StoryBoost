@@ -1,8 +1,18 @@
-# WFS StoryBoost — Creative Editing Studio v3.0.0-beta2
+# WFS StoryBoost — Creative Editing Studio v3.0.0-beta3
 
 **Android offline-first.** Antarmuka editor non-destruktif dengan workflow proyek, timeline satu media, filter, trim, split-export, konversi rasio, dan kualitas ekspor sumber-asli.
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
+
+## v3.0.0-beta3 — Process-death and media acceptance (partial beta)
+
+[Verified all-green CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42499169024) at `5757f76c5d4bd473306c9afd6ebd8244fe5e3186`: debug build, Pixel 6 install/smoke, Android API29 and API35 instrumentation. Both APIs use **two separate instrumentation invocations** with an external `adb am force-stop` between them; a new PID resumes a locally generated MediaStore JPEG from Recent, restores Color Look/caption/FHD and decodes 1080×1920 JPEG; SHA-256 proves originals unchanged. This is **not** an actual DocumentsUI picker test.
+
+On API35, synthetic H.264/AAC sources undergo real Media3 split (two independent MP4s), 2-clip merge, silent/rotated transforms and active cancellation with cache-file checks. Activity tests cover touch crop, Undo/Redo, comparison and fresh import vs Recent. Failed transformer validation/error paths now delete broken temporary files.
+
+**Unverified P0:** the separate real DocumentsUI picker UI test still fails ([failed exploratory run](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42499028171)); no proven revoked third-party URI grants, process kill during pending autosave or physical-device matrix. DnCNN is **only** luminance denoise; no legally sourced real-portrait hair/glasses, low-light/chroma/tile-seam benchmark and no new AI model. The two APK variants are **debug-signed**, not stable owner-signed release builds; no proven `adb install -r` across two official releases. Social platforms may recompress uploads.
+
+Exactly **23/32 unique modules = 71.875%**. Repeated tests do not add modules. Not full CapCut parity or lossless WA/IG status.
 
 ## v3.0.0-beta2 — Verified Android QA (still beta)
 
@@ -133,7 +143,7 @@ Lihat [PROGRESS.md](docs/PROGRESS.md) untuk estimasi capaian roadmap dan [NEXT_P
 UI ini menargetkan pengalaman aplikasi editor profesional, **bukan salinan CapCut**. V2.2 masih editor **satu media per proyek**, bukan timeline multi-layer dengan animasi keyframe, efek premium, green screen, penghilangan latar, musik multi-track, atau AI upscale. Fitur tersebut membutuhkan modul yang belum diterapkan. Mode ekspor tetap tergantung codec ponsel. Kompresi WhatsApp/Instagram setelah unggah tidak dapat dicegah aplikasi.
 
 ## Pasang
-Buka [Actions: Build and verify WFS StoryBoost APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml), pilih run sukses terbaru, unduh `WFS-StoryBoost-v3.0.0-beta1-ARM64-APK atau WFS-StoryBoost-v3.0.0-beta1-Universal-APK`, **ekstrak ZIP**, lalu instal `app-arm64-v8a-debug.apk atau app-universal-debug.apk`. Jika pemasangan update gagal karena kunci signing debug berbeda, hapus versi debug lama terlebih dahulu atau gunakan release signing stabil dengan GitHub Secrets.
+Buka [Actions: Build and verify WFS StoryBoost APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml), pilih run sukses terbaru, unduh `WFS-StoryBoost-v3.0.0-beta3-ARM64-APK atau WFS-StoryBoost-v3.0.0-beta3-Universal-APK`, **ekstrak ZIP**, lalu instal `app-arm64-v8a-debug.apk atau app-universal-debug.apk`. Jika pemasangan update gagal karena kunci signing debug berbeda, hapus versi debug lama terlebih dahulu atau gunakan release signing stabil dengan GitHub Secrets.
 
 ## Pengembangan / QA
 Aplikasi memakai Android Java 17 / Media3. Workflow menjalankan tes geometri, `assembleDebug`, `apksigner`, `zipalign`, lalu install & launch emulator. Untuk testing HP fisik, lihat `tests/TEST_PLAN.md`. Screenshot editor dari emulator bukan jaminan semua pemrosesan media lolos pengujian perangkat nyata.
@@ -213,7 +223,7 @@ Workflow membangun APK, memvalidasi signature dan launcher, memasang APK di Andr
 1. Buka tab [**Actions**](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml).
 2. Pilih workflow **Build and verify WFS StoryBoost APK**.
 3. Buka run terbaru dengan status **Success** (atau klik **Run workflow** jika diperlukan).
-4. Unduh artifact **WFS-StoryBoost-v3.0.0-beta1-ARM64-APK atau WFS-StoryBoost-v3.0.0-beta1-Universal-APK** dan ekstrak ZIP-nya.
+4. Unduh artifact **WFS-StoryBoost-v3.0.0-beta3-ARM64-APK atau WFS-StoryBoost-v3.0.0-beta3-Universal-APK** dan ekstrak ZIP-nya.
 5. Instal `app-arm64-v8a-debug.apk atau app-universal-debug.apk` di Android 10 atau versi lebih baru (aktifkan izin pemasangan aplikasi dari sumber tersebut saat diminta).
 
 > Artifact tersedia **hanya setelah build sukses**. Debug APK ditandatangani kunci debug sementara; untuk update stabil gunakan signed release dengan GitHub Secrets. v1.7 memakai package baru untuk menghindari konflik dengan versi lama. Jangan mengunggah kunci signing atau password ke repository.

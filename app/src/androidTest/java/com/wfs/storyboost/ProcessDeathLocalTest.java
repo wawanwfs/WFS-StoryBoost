@@ -74,14 +74,19 @@ public class ProcessDeathLocalTest {
         assertTrue("Not clickable "+name,v.performClick());
     }
     private StudioEditorActivity editor(){
-        AtomicReference<StudioEditorActivity> current=new AtomicReference<>();
-        inst.runOnMainSync(()->{
-            Collection<Activity> activities=ActivityLifecycleMonitorRegistry.getInstance()
-                    .getActivitiesInStage(Stage.RESUMED);
-            for(Activity a:activities)if(a instanceof StudioEditorActivity)
-                current.set((StudioEditorActivity)a);
-        });
-        return current.get();
+        long deadline=android.os.SystemClock.uptimeMillis()+12000L;
+        do{
+            AtomicReference<StudioEditorActivity> current=new AtomicReference<>();
+            inst.runOnMainSync(()->{
+                Collection<Activity> activities=ActivityLifecycleMonitorRegistry.getInstance()
+                        .getActivitiesInStage(Stage.RESUMED);
+                for(Activity a:activities)if(a instanceof StudioEditorActivity)
+                    current.set((StudioEditorActivity)a);
+            });
+            if(current.get()!=null)return current.get();
+            android.os.SystemClock.sleep(180);
+        }while(android.os.SystemClock.uptimeMillis()<deadline);
+        return null;
     }
     private Uri createPhoto()throws Exception{
         ContentValues cv=new ContentValues();

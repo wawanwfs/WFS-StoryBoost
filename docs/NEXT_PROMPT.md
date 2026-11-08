@@ -1,6 +1,6 @@
 # WFS StoryBoost — Next execution prompt (after v2.9.0)
 
-Continue development in https://github.com/wawanwfs/WFS-StoryBoost using the latest main branch (v2.7.1 or later). Audit README.md, docs/PROGRESS.md, tests/TEST_PLAN.md, CI build logs, and current Android source before editing. Make changes on an appropriate development branch or use safe fast-forward updates without overwriting concurrent work. Preserve commit attribution to the connected user's GitHub identity.
+Continue development in https://github.com/wawanwfs/WFS-StoryBoost using the latest main branch (v2.9.0 or later). Audit README.md, docs/PROGRESS.md, tests/TEST_PLAN.md, CI build logs, and current Android source before editing. Make changes on an appropriate development branch or use safe fast-forward updates without overwriting concurrent work. Preserve commit attribution to the connected user's GitHub identity.
 
 **Priority 1 — image quality & real AI models**
 - Recheck DnCNN TFLite asset SHA, licensing and all emulator PSNR/SSIM/latency reports. On physical Android 10+ ARM64 phones, test CPU speed, memory, JPEG export, and ensure model preserves face texture. Never treat synthetic-only metrics as real-image results.

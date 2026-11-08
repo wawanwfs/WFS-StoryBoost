@@ -82,6 +82,12 @@ public final class StudioEditorActivity extends Activity {
     private int captionColor=Color.WHITE;
     private boolean muteAudio=false;
     private boolean portraitBokeh=false,aiDenoise=false;
+    private final ArrayDeque<EditState> undoStates=new ArrayDeque<>();
+    private final ArrayDeque<EditState> redoStates=new ArrayDeque<>();
+    private EditState lastState;
+    private boolean restoringHistory=false;
+    private Button undoButton,redoButton;
+    private int activeTool=2;
     private TextView captionView;
     private Bitmap imagePreviewBitmap;
     private Runnable playTicker;
@@ -93,6 +99,67 @@ public final class StudioEditorActivity extends Activity {
     private LinearLayout row(){return StudioUi.row(this);}
     private LinearLayout column(){return StudioUi.column(this);}
     private LinearLayout card(int padding){return StudioUi.card(this,padding);}
+    private static final class EditState {
+        final ExportOptions options;
+        final long splitAt;
+        final boolean dual;
+        final String signature;
+        EditState(ExportOptions opts,long splitAt,boolean dual){
+            this.options=opts;this.splitAt=splitAt;this.dual=dual;
+            signature=opts.preset+"|"+opts.ratio+"|"+opts.frameStyle+"|"+opts.qualityMode+"|"+
+                    opts.focusX+"|"+opts.focusY+"|"+opts.brightness+"|"+opts.contrast+"|"+
+                    opts.saturation+"|"+opts.caption+"|"+opts.captionColor+"|"+opts.muteAudio+
+                    "|"+opts.socialProfile+"|"+opts.customWidth+"|"+opts.customHeight+
+                    "|"+opts.portraitBokeh+"|"+opts.aiDenoise+"|"+opts.trimStartMs+
+                    "|"+opts.trimEndMs+"|"+splitAt+"|"+dual;
+        }
+    }
+    private EditState captureEdit(){
+        return new EditState(options(),splitMs,dualOutput);
+    }
+    private void rememberEdit(){
+        if(restoringHistory||destroyed||isDemo&&mediaUri==null)return;
+        EditState next;
+        try{next=captureEdit();}catch(Exception ignored){return;}
+        if(lastState!=null&&!lastState.signature.equals(next.signature)){
+            undoStates.addLast(lastState);
+            while(undoStates.size()>35)undoStates.removeFirst();
+            redoStates.clear();
+        }
+        lastState=next;
+        updateUndoButtons();
+    }
+    private void updateUndoButtons(){
+        if(undoButton!=null){
+            undoButton.setEnabled(!undoStates.isEmpty());
+            undoButton.setAlpha(undoStates.isEmpty()?.45f:1f);
+        }
+        if(redoButton!=null){
+            redoButton.setEnabled(!redoStates.isEmpty());
+            redoButton.setAlpha(redoStates.isEmpty()?.45f:1f);
+        }
+    }
+    private void historyNavigate(boolean undo){
+        ArrayDeque<EditState> source=undo?undoStates:redoStates;
+        ArrayDeque<EditState> destination=undo?redoStates:undoStates;
+        if(source.isEmpty()||exportBusy)return;
+        EditState state=source.removeLast();
+        destination.addLast(captureEdit());
+        restoringHistory=true;
+        try{
+            ExportOptions o=state.options;
+            preset=o.preset;ratio=o.ratio;framing=o.frameStyle;quality=o.qualityMode;
+            focusX=o.focusX;focusY=o.focusY;brightness=o.brightness;contrast=o.contrast;
+            saturation=o.saturation;caption=o.caption;captionColor=o.captionColor;
+            muteAudio=o.muteAudio;socialProfile=o.socialProfile;
+            customWidth=o.customWidth;customHeight=o.customHeight;
+            portraitBokeh=o.portraitBokeh;aiDenoise=o.aiDenoise;
+            trimStartMs=o.trimStartMs;trimEndMs=o.trimEndMs;
+            splitMs=state.splitAt;dualOutput=state.dual;
+            lastState=captureEdit();
+            showTool(activeTool);refreshSettings();updateCaptionPreview();
+        }finally{restoringHistory=false;updateUndoButtons();}
+    }
     private static final class RenderJob {
         final ExportOptions options;
         final String title;
@@ -116,6 +183,8 @@ public final class StudioEditorActivity extends Activity {
             if(durationMs<=0)durationMs=30000;
         }
         build();
+        lastState=captureEdit();
+        updateUndoButtons();
         if(isVideo){renderThumbnails();startTicker();}
         else{
             refreshImagePreview();
@@ -137,6 +206,18 @@ public final class StudioEditorActivity extends Activity {
         title.addView(txt(isVideo?"VIDEO PROJECT":"PHOTO PROJECT",10,StudioUi.CYAN,true));
         LinearLayout.LayoutParams titleLp=new LinearLayout.LayoutParams(0,-2,1f);titleLp.leftMargin=dp(8);
         header.addView(title,titleLp);
+        undoButton=btn("↶",false);
+        undoButton.setContentDescription("Undo perubahan terakhir");
+        undoButton.setTextSize(22);
+        header.addView(undoButton,new LinearLayout.LayoutParams(dp(37),dp(42)));
+        undoButton.setOnClickListener(v->historyNavigate(true));
+        redoButton=btn("↷",false);
+        redoButton.setContentDescription("Redo perubahan");
+        redoButton.setTextSize(22);
+        LinearLayout.LayoutParams redoLp=new LinearLayout.LayoutParams(dp(37),dp(42));
+        redoLp.leftMargin=dp(4);
+        header.addView(redoButton,redoLp);
+        redoButton.setOnClickListener(v->historyNavigate(false));
         exportButton=btn("Ekspor  ↗",true);
         header.addView(exportButton,new LinearLayout.LayoutParams(dp(100),dp(44)));
         exportButton.setOnClickListener(v->confirmExport());
@@ -436,10 +517,12 @@ public final class StudioEditorActivity extends Activity {
                 o.withCustomSize(customWidth,customHeight):o;
     }
     private void refreshSettings(){
+        rememberEdit();
         layoutPreviewCanvas();
         if(!isVideo)refreshImagePreview();
     }
     private void showTool(int which){
+        activeTool=which;
         toolPane.removeAllViews();
         switch(which){
             case 0:toolTrim();break;
@@ -618,7 +701,7 @@ public final class StudioEditorActivity extends Activity {
                 label.setText("Mulai  "+clock(trimStartMs));endLabel.setText("Akhir  "+clock(trimEndMs));
             }
             @Override public void onStartTrackingTouch(SeekBar s){}
-            @Override public void onStopTrackingTouch(SeekBar s){}
+            @Override public void onStopTrackingTouch(SeekBar s){rememberEdit();}
         };
         start.setOnSeekBarChangeListener(listener);end.setOnSeekBarChangeListener(listener);
         LinearLayout bottom=row();
@@ -633,11 +716,11 @@ public final class StudioEditorActivity extends Activity {
             if(play<=trimStartMs+500||play>=upper-500){
                 toast("Geser playhead ke tengah rentang sebelum Split.");return;
             }
-            splitMs=play;split.setText("✂ Split: "+clock(splitMs));
+            splitMs=play;rememberEdit();split.setText("✂ Split: "+clock(splitMs));
             toast("Ekspor akan menghasilkan dua segmen video.");
         });
         reset.setOnClickListener(v->{
-            splitMs=-1;trimStartMs=0;trimEndMs=0;showTool(0);
+            splitMs=-1;trimStartMs=0;trimEndMs=0;rememberEdit();showTool(0);
         });
         toolPane.addView(bottom);
     }
@@ -649,8 +732,9 @@ public final class StudioEditorActivity extends Activity {
         captionView.setTextColor(captionColor);
     }
     private void updateLiveAdjust(){
-        if(!isVideo&&!compareOriginal)
-            photo.setColorFilter(PhotoEngine.colorFilter(options()));
+        if(isVideo||compareOriginal)return;
+        if(aiDenoise||portraitBokeh)refreshImagePreview();
+        else photo.setColorFilter(PhotoEngine.colorFilter(options()));
     }
     private void toolAdjust(){
         toolbarTitle("Color Adjust","Atur warna sebelum mengekspor. Nilai 0 = netral.");
@@ -676,7 +760,7 @@ public final class StudioEditorActivity extends Activity {
                 changed.accept(value);
             }
             @Override public void onStartTrackingTouch(SeekBar s){}
-            @Override public void onStopTrackingTouch(SeekBar s){}
+            @Override public void onStopTrackingTouch(SeekBar s){rememberEdit();}
         });
         toolPane.addView(row);
     }
@@ -694,7 +778,7 @@ public final class StudioEditorActivity extends Activity {
         field.addTextChangedListener(new TextWatcher(){
             @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
             @Override public void onTextChanged(CharSequence s,int start,int before,int count){
-                caption=s.toString();updateCaptionPreview();
+                caption=s.toString();updateCaptionPreview();rememberEdit();
             }
             @Override public void afterTextChanged(Editable e){}
         });
@@ -707,8 +791,8 @@ public final class StudioEditorActivity extends Activity {
         Button yellow=btn("● Emas",captionColor!=Color.WHITE);
         LinearLayout.LayoutParams second=new LinearLayout.LayoutParams(dp(93),dp(35));
         second.leftMargin=dp(8);colors.addView(yellow,second);
-        white.setOnClickListener(v->{captionColor=Color.WHITE;updateCaptionPreview();showTool(5);});
-        yellow.setOnClickListener(v->{captionColor=0xFFFFD786;updateCaptionPreview();showTool(5);});
+        white.setOnClickListener(v->{captionColor=Color.WHITE;rememberEdit();updateCaptionPreview();showTool(5);});
+        yellow.setOnClickListener(v->{captionColor=0xFFFFD786;rememberEdit();updateCaptionPreview();showTool(5);});
         toolPane.addView(colors);
     }
     private void toolAudio(){
@@ -721,7 +805,7 @@ public final class StudioEditorActivity extends Activity {
         toggle.addView(txt("Hapus audio dari hasil ekspor",12,TEXT,true),
                 new LinearLayout.LayoutParams(0,dp(42),1f));
         Switch muteSwitch=new Switch(this);muteSwitch.setChecked(muteAudio);
-        muteSwitch.setOnCheckedChangeListener((v,checked)->muteAudio=checked);
+        muteSwitch.setOnCheckedChangeListener((v,checked)->{muteAudio=checked;rememberEdit();});
         toggle.addView(muteSwitch);
         toolPane.addView(toggle);gap(toolPane,8);
         toolPane.addView(txt("Mode mute menghilangkan track audio output. Preview tetap memutar audio asli.",11,MUTED,false));
@@ -748,6 +832,7 @@ public final class StudioEditorActivity extends Activity {
         portraitSwitch.setChecked(portraitBokeh);
         portraitSwitch.setOnCheckedChangeListener((v,checked)->{
             portraitBokeh=checked;
+            rememberEdit();
             if(checked)compareOriginal=false;
             compareButton.setText("↔ Sebelum");
             refreshImagePreview();
@@ -770,6 +855,7 @@ public final class StudioEditorActivity extends Activity {
                 return;
             }
             aiDenoise=on;
+            rememberEdit();
             if(on)compareOriginal=false;
             compareButton.setText("↔ Sebelum");
             refreshImagePreview();
@@ -865,7 +951,7 @@ public final class StudioEditorActivity extends Activity {
                 new LinearLayout.LayoutParams(0,-1,1f));
         if(socialProfile==SocialExportProfile.CUSTOM){
             Switch dualSwitch=new Switch(this);dualSwitch.setChecked(dualOutput);
-            dualSwitch.setOnCheckedChangeListener((v,b)->dualOutput=b);
+            dualSwitch.setOnCheckedChangeListener((v,b)->{dualOutput=b;rememberEdit();});
             dual.addView(dualSwitch);
         }
         toolPane.addView(dual);

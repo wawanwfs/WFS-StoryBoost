@@ -48,7 +48,7 @@ This is a **feature roadmap coverage estimate** for the target v3.0, not a claim
 
 ## v2.9 neural inference evidence and limitations
 - Candidate model: Qualcomm DnCNN-25 float TFLite (MIT / KAIR), grayscale Gaussian denoise trained for sigma=25. App projects luminance only and preserves chroma.
-- CI must verify model SHA256, package actual weights, run interpreter, measure improved PSNR/SSIM on deterministic synthetic noise, and enforce source pixel/time caps. This is not a clinical measure or real-photo blind IQA.
+- CI verifies SHA256 `59bc2803…1d9fd`, packages actual weights and runs real TensorFlow Lite CPU inference. Initial successful unpinned v2.9 CI: PSNR 20.18→28.49 dB, global SSIM 0.7764→0.9591 on deterministic Gaussian noise; model inference 1.526 seconds for one 256×256 tile on emulator. Final pinned build is checked separately. This is not a clinical measure or real-photo blind IQA.
 - Full-resolution images >2.6 MP intentionally return an error; true 4K denoise is **not** supported. Do not claim deblur, super-resolution, detail recovery or identical result on social platforms.
 - Physical devices, real portrait QA, stable signing and multi-track are still pending.
 

@@ -166,6 +166,8 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] Test inference on low-end Android 10 ARM64 and x86 emulator with CPU fallback and real photos, portrait details and noisy dusk scenes.
 - [ ] Reject images >2.6 MP clearly. Validate that the original source remains unchanged.
 - [ ] Check denoise only applies to luminance; no accidental chroma saturation or face shape changes.
+- [ ] Undo/Redo 35-snapshot history: preset, caption, framing, AI toggles, custom ratio and trim. Verify toolbar accessibility and persistence within the current editor session.
+- [ ] End-to-end neural JPEG export: AI option changes real JPEG bytes, output retains dimensions and can be decoded on emulator.
 - [ ] Check 256 tile overlaps on image borders and 1000×1200 images; no visible seams.
 - [ ] AI Denoise and Portrait Bokeh combined, before/after preview and actual saved JPEG, original-copy guard.
 - [ ] Continue real-portrait Bokeh QA with consented human samples, glasses/hair/night/EXIF.

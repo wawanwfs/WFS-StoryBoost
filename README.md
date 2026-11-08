@@ -1,8 +1,20 @@
-# WFS StoryBoost — Creative Editing Studio v3.0.0-beta1
+# WFS StoryBoost — Creative Editing Studio v3.0.0-beta2
 
 **Android offline-first.** Antarmuka editor non-destruktif dengan workflow proyek, timeline satu media, filter, trim, split-export, konversi rasio, dan kualitas ekspor sumber-asli.
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
+
+## v3.0.0-beta2 — Verified Android QA (still beta)
+
+The [QA branch CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42491741331) passed all four jobs: APK debug build/inspection, Android 29 instrumented tests (4), Android 35 instrumented tests (5), and Android 35 emulator smoke/install. Subsequent commits and merged `main` must be checked independently.
+
+- **Persisted edit round-trip:** real Activities receive a **stubbed SAF result**, modify Color Look, Crop, Caption and portrait-AI flag, close, then open a fresh Home and Recent; draft data, decoded JPEG output 1080×1920 and original SHA-256 are verified. The test does *not* drive Android's DocumentsUI picker or kill the app process.
+- **Missing source safety:** `SourceAccess` checks file-descriptor read permission before opening a media URI. Corrupt drafts, deleted media and Clear Recent have emulator coverage.
+- **Real video test:** CI generates synthetic H.264/AAC, silent and rotated MP4 sources. Android MediaExtractor checks codecs, tracks, duration and orientation; the API 35 emulator performs actual Media3 1080×1920 H.264/AAC trim export and validates duration and A/V sync. Multi-clip merge, split and cancellation still require further acceptance.
+- **Screenshots:** the emulator captures exact 320×640 and 1080×2400 editor screenshots. The image dimensions are checked, but human review of all UI controls and touch crop remains to be completed.
+- **Model limits:** DnCNN is a grayscale sigma-25 luminance denoiser, not AI deblur or super-resolution. It rejects photos above 2.6 MP. No new model is activated, and no portrait, chroma-noise, tile-seam or physical-device quality benchmark has been established in this milestone.
+- **Installers:** CI publishes ARM64 and Universal **debug-signed** APKs. Stable `adb install -r` upgrades are unverified without owner-provided release keystore GitHub Secrets. The original media is never rewritten, and social apps may recompress exports.
+- **Roadmap:** exactly **23/32 = 71.875% (≈72%)**. New test evidence improves quality confidence but does not create another module.
 
 ## v3.0.0-beta1 — Resumable Editing & AI Safety
 

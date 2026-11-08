@@ -668,17 +668,18 @@ public final class MainActivity extends Activity {
             chosen.add(data.getData());
         }
         if(chosen.isEmpty())return;
-        ExportOptions selected;
+        ExportOptions provisional;
         try{
-            selected=new ExportOptions(Math.max(0,presets.getCheckedRadioButtonId()-1000),
+            provisional=new ExportOptions(Math.max(0,presets.getCheckedRadioButtonId()-1000),
                 ratioSpinner.getSelectedItemPosition(),frameSpinner.getSelectedItemPosition(),
                 qualitySpinner.getSelectedItemPosition()!=OutputProfile.HD,secondsToMs(trimStartField),secondsToMs(trimEndField),
                 focusXSeek.getProgress()/100f,focusYSeek.getProgress()/100f)
                 .withQuality(qualitySpinner.getSelectedItemPosition())
                 .withSocialProfile(socialSpinner.getSelectedItemPosition());
         }catch(IllegalArgumentException e){status.setText(e.getMessage());return;}
-        if(selected.ratio==AspectRatioProfile.CUSTOM)
-            selected=selected.withCustomSize(customWidth,customHeight);
+        if(provisional.ratio==AspectRatioProfile.CUSTOM)
+            provisional=provisional.withCustomSize(customWidth,customHeight);
+        final ExportOptions selected=provisional;
         if(selected.frameStyle==AspectRatioProfile.CROP){
             try {
                 AspectRatioProfile.Size nativeSize=MediaDimensions.read(this,chosen.get(0));

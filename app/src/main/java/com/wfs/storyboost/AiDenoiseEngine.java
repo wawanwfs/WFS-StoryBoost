@@ -98,6 +98,14 @@ public final class AiDenoiseEngine {
     }
 
     public static Result process(Context context,Bitmap source)throws IOException {
+        int recommended=Math.max(1,Math.min(3,Runtime.getRuntime().availableProcessors()));
+        return processWithThreads(context,source,recommended);
+    }
+    // Package-visible for Android QA: compare CPU worker count without altering
+    // the production default. No undocumented model-weight changes.
+    static Result processWithThreads(Context context,Bitmap source,int threads)
+            throws IOException {
+        if(threads<1||threads>3)throw new IllegalArgumentException("DnCNN threads 1..3");
         if(source==null||source.isRecycled())throw new IOException("Foto AI tidak tersedia");
         int width=source.getWidth(),height=source.getHeight();
         long pixels=(long)width*height;
@@ -113,7 +121,7 @@ public final class AiDenoiseEngine {
             float[] sum=new float[(int)pixels],weight=new float[(int)pixels];
             ByteBuffer model=loadModel(context);
             Interpreter.Options opts=new Interpreter.Options();
-            opts.setNumThreads(Math.max(1,Math.min(3,Runtime.getRuntime().availableProcessors())));
+            opts.setNumThreads(threads);
             try(Interpreter tf=new Interpreter(model,opts)){
                 validate(tf);
                 tf.allocateTensors();

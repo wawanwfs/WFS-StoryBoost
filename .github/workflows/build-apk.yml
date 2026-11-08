@@ -227,6 +227,14 @@ jobs:
             gradle --no-daemon :app:connectedDebugAndroidTest
             bash scripts/qa-process-death-local.sh
             bash scripts/qa-process-death-saf.sh
+            bash scripts/qa-dncnn-memory-v4.sh
+      - name: Upload beta4 DnCNN CPU thread and memory measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WFS-StoryBoost-beta4-DnCNN-Thread-Memory-API${{ matrix.api }}
+          path: qa-dncnn-memory-v4.txt
+          if-no-files-found: warn
       - name: Publish real DocumentsUI picker failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4

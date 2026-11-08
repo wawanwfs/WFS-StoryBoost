@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -72,6 +73,8 @@ public final class StudioEditorActivity extends Activity {
     private VideoView video;
     private SeekBar seekbar;
     private FrameLayout canvasArea,outputCanvas;
+    private View cropTouchLayer;
+    private float cropDownX,cropDownY,cropDownFocusX,cropDownFocusY;
     private LinearLayout toolPane,thumbStrip;
     private Button playButton,exportButton,compareButton;
     private android.app.AlertDialog exportDialog;
@@ -245,6 +248,37 @@ public final class StudioEditorActivity extends Activity {
                 Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
         captionLp.bottomMargin=dp(23);
         outputCanvas.addView(captionView,captionLp);
+        cropTouchLayer=new View(this);
+        cropTouchLayer.setContentDescription("Drag to reposition image crop focus");
+        cropTouchLayer.setClickable(true);
+        cropTouchLayer.setVisibility(View.GONE);
+        cropTouchLayer.setOnTouchListener((view,event)->{
+            if(framing!=AspectRatioProfile.CROP)return false;
+            switch(event.getActionMasked()){
+                case MotionEvent.ACTION_DOWN:
+                    cropDownX=event.getX();cropDownY=event.getY();
+                    cropDownFocusX=focusX;cropDownFocusY=focusY;
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    float deltaX=(event.getX()-cropDownX)/Math.max(1,view.getWidth());
+                    float deltaY=(event.getY()-cropDownY)/Math.max(1,view.getHeight());
+                    focusX=Math.max(0f,Math.min(1f,cropDownFocusX-deltaX));
+                    focusY=Math.max(0f,Math.min(1f,cropDownFocusY-deltaY));
+                    previewLabel.setText("CROP FOCUS • X "+Math.round(focusX*100)+
+                            "% / Y "+Math.round(focusY*100)+"%");
+                    return true;
+                case MotionEvent.ACTION_UP:
+                    view.performClick();
+                    refreshSettings();
+                    return true;
+                case MotionEvent.ACTION_CANCEL:
+                    focusX=cropDownFocusX;focusY=cropDownFocusY;
+                    refreshSettings();
+                    return true;
+                default:return true;
+            }
+        });
+        outputCanvas.addView(cropTouchLayer,new FrameLayout.LayoutParams(-1,-1));
         updateCaptionPreview();
         if(isVideo){
             photo.setVisibility(View.GONE);video.setVisibility(View.VISIBLE);
@@ -360,6 +394,8 @@ public final class StudioEditorActivity extends Activity {
                     ?dp(23):Math.round(newH*(1f-SocialExportProfile.captionCenterY(socialProfile)));
             captionView.setLayoutParams(titleParams);
         }
+        if(cropTouchLayer!=null)cropTouchLayer.setVisibility(framing==AspectRatioProfile.CROP
+                ?View.VISIBLE:View.GONE);
         if(safeZoneView!=null){
             safeZoneView.setProfile(socialProfile);
             safeZoneView.setVisibility(socialProfile==SocialExportProfile.CUSTOM
@@ -640,7 +676,8 @@ public final class StudioEditorActivity extends Activity {
         toolPane.addView(txt(isVideo?"Video menggunakan warna ini saat ekspor.":"Foto menampilkan warna secara langsung.",10,StudioUi.GREEN,false));
     }
     private void toolFraming(){
-        toolbarTitle("Framing & Crop","Fit = utuh • Crop = penuh • Blur = latar kabur.");
+        toolbarTitle("Framing & Crop",
+                "Fit = utuh • Crop = penuh • Blur = latar. Saat Crop, geser foto untuk mengatur fokus.");
         addChips(new String[]{"Fit","Crop","Blur"},framing,i->{
             framing=i;refreshSettings();showTool(3);
         });

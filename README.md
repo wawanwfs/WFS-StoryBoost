@@ -6,7 +6,7 @@
 
 ## v2.9.0 — Neural AI Denoise (DnCNN)
 
-**Tambahan editor:** tombol **↶ Undo** dan **↷ Redo** mengembalikan/mengulangi perubahan rasio, filter, framing, teks, warna, dan toggle AI. History dibatasi 35 snapshot per sesi untuk menjaga penggunaan memori. Perubahan file asli tidak pernah ditimpa. Pengujian manual tombol pada beragam layar masih diperlukan.
+**Tambahan editor:** tombol **↶ Undo** dan **↷ Redo** mengembalikan/mengulangi perubahan rasio, filter, framing, teks, warna, dan toggle AI. History dibatasi 35 snapshot per sesi untuk menjaga penggunaan memori. Perubahan file asli tidak pernah ditimpa. **Touch Crop:** pada mode Crop, seret foto di area pratinjau untuk menggeser fokus X/Y dan lakukan rendering akhir saat sentuhan dilepas, sehingga AI tidak dijalankan pada setiap piksel gerakan. Pengujian manual tombol pada beragam layar masih diperlukan.
 
 - Menambahkan **inference DnCNN nyata** via TensorFlow Lite CPU (model `DnCNN-25`, MIT, bobot ~2 MB). Model dibundel pada APK saat CI build; foto pengguna diproses sepenuhnya di Android **tanpa upload**.
 - Model bawaan dirancang untuk **denoise Gaussian pada grayscale**. Untuk foto berwarna, engine menjalankannya pada luminance dan menerapkan koreksi terang-gelap terbatas ke RGB tanpa mengubah geometri wajah. **Ini bukan AI deblur atau super-resolution** dan hasil bisa tidak menguntungkan pada kompresi JPEG/motion blur.

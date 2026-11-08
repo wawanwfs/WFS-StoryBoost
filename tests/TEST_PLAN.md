@@ -171,3 +171,6 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] Check 256 tile overlaps on image borders and 1000×1200 images; no visible seams.
 - [ ] AI Denoise and Portrait Bokeh combined, before/after preview and actual saved JPEG, original-copy guard.
 - [ ] Continue real-portrait Bokeh QA with consented human samples, glasses/hair/night/EXIF.
+
+- [ ] Touch Crop: drag left/right/up/down in Crop mode, verify focus X/Y changes and one final preview on touch release; Undo restores previous focus and Redo reapplies.
+- [ ] Drag surface disabled on Fit/Blur and does not interfere with video playback or social safe-zone overlays.

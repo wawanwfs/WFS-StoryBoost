@@ -93,6 +93,9 @@ public class ProcessDeathLocalTest {
         cv.put(MediaStore.Images.Media.DISPLAY_NAME,"wfs-pid-qa-"+System.nanoTime()+".jpg");
         cv.put(MediaStore.Images.Media.MIME_TYPE,"image/jpeg");
         cv.put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/WFS-StoryBoost-QA/");
+        // Explicitly publish the JPEG in MediaStore after writing. A private
+        // pending record is not a persistent gallery source across processes.
+        cv.put(MediaStore.Images.Media.IS_PENDING,1);
         Uri uri=app().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,cv);
         assertNotNull(uri);
         Bitmap img=Bitmap.createBitmap(640,960,Bitmap.Config.ARGB_8888);
@@ -103,6 +106,12 @@ public class ProcessDeathLocalTest {
                 assertNotNull(out);assertTrue(img.compress(Bitmap.CompressFormat.JPEG,93,out));
             }
         }finally{img.recycle();}
+        ContentValues visible=new ContentValues();
+        visible.put(MediaStore.Images.Media.IS_PENDING,0);
+        assertEquals("Unable to publish synthetic MediaStore photo",
+                1,app().getContentResolver().update(uri,visible,null,null));
+        assertTrue("Source not readable immediately after publishing",
+                SourceAccess.canRead(app(),uri));
         return uri;
     }
     @Test public void stageDraftBeforeForceStop()throws Exception{
@@ -156,7 +165,23 @@ public class ProcessDeathLocalTest {
         assertNotNull("First process did not persist source",source);
         assertNotEquals("No actual new process observed",p.getInt("pid",-1),Process.myPid());
         Uri uri=Uri.parse(source);
-        assertTrue("Source became unreadable",SourceAccess.canRead(app(),uri));
+        // MediaProvider may still be completing a publish after process restart.
+        // Retry only briefly; persistent permission or missing-file failures
+        // remain hard errors with the real openFileDescriptor exception attached.
+        boolean accessible=false;
+        for(int attempt=0;attempt<12;attempt++){
+            if(SourceAccess.canRead(app(),uri)){accessible=true;break;}
+            android.os.SystemClock.sleep(200);
+        }
+        if(!accessible){
+            String detail;
+            try(android.os.ParcelFileDescriptor fd=app().getContentResolver()
+                    .openFileDescriptor(uri,"r")){
+                detail="unexpected null FileDescriptor="+(fd==null);
+            }catch(Exception ex){detail=ex.getClass().getName()+": "+ex.getMessage();}
+            fail("Published MediaStore source unreadable after force-stop: "+
+                    uri+"; cause="+detail);
+        }
         assertEquals("Original JPEG hash changed",p.getString("sha",""),sha(app(),uri));
         try(ActivityScenario<StudioHomeActivity> home=ActivityScenario.launch(StudioHomeActivity.class)){
             home.onActivity(a->tap(a,"Media Proyek 1",false));

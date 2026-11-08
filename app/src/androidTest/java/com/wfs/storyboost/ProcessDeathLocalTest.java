@@ -3,7 +3,6 @@ package com.wfs.storyboost;
 import static org.junit.Assert.*;
 import android.app.Activity;
 import android.app.Instrumentation;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -12,7 +11,6 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Process;
-import android.provider.MediaStore;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
@@ -88,30 +86,24 @@ public class ProcessDeathLocalTest {
         }while(android.os.SystemClock.uptimeMillis()<deadline);
         return null;
     }
+    /** Test LOCAL app-owned source persistence. The independent native
+     * DocumentsUI suite is responsible for exercising real SAF grants.
+     * Android 10 MediaStore publish ownership is not a substitute for either.
+     */
     private Uri createPhoto()throws Exception{
-        ContentValues cv=new ContentValues();
-        cv.put(MediaStore.Images.Media.DISPLAY_NAME,"wfs-pid-qa-"+System.nanoTime()+".jpg");
-        cv.put(MediaStore.Images.Media.MIME_TYPE,"image/jpeg");
-        cv.put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/WFS-StoryBoost-QA/");
-        // Explicitly publish the JPEG in MediaStore after writing. A private
-        // pending record is not a persistent gallery source across processes.
-        cv.put(MediaStore.Images.Media.IS_PENDING,1);
-        Uri uri=app().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,cv);
-        assertNotNull(uri);
+        java.io.File directory=new java.io.File(app().getFilesDir(),"qa-pid");
+        assertTrue("Cannot create private QA directory",directory.isDirectory()||directory.mkdirs());
+        java.io.File photo=java.io.File.createTempFile("wfs-pid-qa-",".jpg",directory);
         Bitmap img=Bitmap.createBitmap(640,960,Bitmap.Config.ARGB_8888);
         try{
             for(int y=0;y<960;y++)for(int x=0;x<640;x++)
                 img.setPixel(x,y,Color.rgb((x*2)%256,(y*4)%256,(x+y)%256));
-            try(OutputStream out=app().getContentResolver().openOutputStream(uri)){
-                assertNotNull(out);assertTrue(img.compress(Bitmap.CompressFormat.JPEG,93,out));
+            try(OutputStream out=new java.io.FileOutputStream(photo)){
+                assertTrue(img.compress(Bitmap.CompressFormat.JPEG,93,out));
             }
         }finally{img.recycle();}
-        ContentValues visible=new ContentValues();
-        visible.put(MediaStore.Images.Media.IS_PENDING,0);
-        assertEquals("Unable to publish synthetic MediaStore photo",
-                1,app().getContentResolver().update(uri,visible,null,null));
-        assertTrue("Source not readable immediately after publishing",
-                SourceAccess.canRead(app(),uri));
+        Uri uri=Uri.fromFile(photo);
+        assertTrue("App-owned local JPEG unreadable",SourceAccess.canRead(app(),uri));
         return uri;
     }
     @Test public void stageDraftBeforeForceStop()throws Exception{
@@ -220,7 +212,7 @@ public class ProcessDeathLocalTest {
             assertEquals("Original changed during export",p.getString("sha",""),sha(app(),uri));
             inst.runOnMainSync(resumed::finish);
         }
-        try{app().getContentResolver().delete(uri,null,null);}catch(Exception ignored){}
+        assertTrue("Cleanup of synthetic local photo failed",new java.io.File(uri.getPath()).delete());
         p.edit().clear().commit();
         app().getSharedPreferences("studio-projects",Context.MODE_PRIVATE).edit().clear().commit();
         StudioDraftStore.clearAll(app());

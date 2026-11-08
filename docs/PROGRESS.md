@@ -54,6 +54,12 @@ New synthetic API35 media checks: separate H.264/AAC split files, 2-clip merge, 
 
 **Distinct feature recount:** A 8/8 + B 6/8 + C 5/8 + D 4/8 = **23/32 = 71.875%**. No new roadmap module counted; testing confidence improved. WhatsApp/Instagram/TikTok may recompress.
 
+### Additional beta3 on-device AI test
+
+Synthetic real TFLite DnCNN benchmark on Android 15 x86_64 emulator: 480×480 RGB with paired clean/noisy fixture, **four 256px overlapping tiles**, CPU inference **10.783 s**, full pipeline **12.028 s**, PSNR **20.307→28.801 dB**, SSIM **0.293→0.745**, process PSS snapshots **48,144→53,274 KB**. The RGB chroma-difference guard and overlap-boundary checks passed. [Green AI CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42501208561). Not a portrait, low-light camera, physical ARM64, peak-RAM or overall IQA benchmark; no new AI weights or models activated.
+
+The CI suite improves confidence in the existing DnCNN module; it **does not** add a 24th roadmap module. End-to-end physical-device and consented face-photo QA remain incomplete. A previously seen API29 MediaStore URI access failure after process death prompted an explicit IS_PENDING publication and failure-diagnostic regression; do not describe it as fixed until the final run passes.
+
 ## v3.0 beta2 — evidence summary (no extra modules)
 
 [Verified candidate CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42491741331): four jobs passed, 4 Android 10/API 29 and 5 Android 15/API 35 instrumented tests passed. Checks include synthetic local SAF-result photo import (intent result stubbed, actual DocumentsUI picker untested), Activity close and fresh Home → Recent restoration, Color Look/Crop/Caption/AI flags, 1080×1920 decoded JPEG, SHA-256 immutability, corrupted drafts, deleted media and clearing history. Video QA checks synthetic FFmpeg H.264/AAC, silent, rotated and malformed MP4, with real Media3 trimmed **1080×1920 H.264/AAC encoding on API 35**, metadata and A/V duration checks. The [Pixel 6 screenshot smoke job in run 42493751785](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42493751785) separately confirmed PNG dimensions at 320×640 and 1080×2400; that overall run was unsuccessful due to intermittent dialog-focus automation, which has been addressed in a later QA commit. Human interaction correctness has not been certified.

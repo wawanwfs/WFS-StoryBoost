@@ -28,3 +28,9 @@
 MIT KAIR: Copyright (c) 2019 Kai Zhang. License https://github.com/cszn/KAIR/blob/master/LICENSE
 Qualcomm exporter implementation SPDX-License-Identifier: BSD-3-Clause, Copyright (c) 2025 Qualcomm Technologies.
 The source and output model documentation retain upstream attribution. The build's binary model asset is not committed directly to source control.
+
+## Beta3 measured multi-tile TFLite follow-up (synthetic only)
+
+Synthetic real TFLite DnCNN benchmark on Android 15 x86_64 emulator: 480×480 RGB with paired clean/noisy fixture, **four 256px overlapping tiles**, CPU inference **10.783 s**, full pipeline **12.028 s**, PSNR **20.307→28.801 dB**, SSIM **0.293→0.745**, process PSS snapshots **48,144→53,274 KB**. The RGB chroma-difference guard and overlap-boundary checks passed. [Green AI CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42501208561). Not a portrait, low-light camera, physical ARM64, peak-RAM or overall IQA benchmark; no new AI weights or models activated.
+
+The synthetic fixture is paired clean/noisy RGB, so PSNR/SSIM apply *only* to this test. For real portraits, chroma/compression noise or low-light without a clean ground truth, do not publish PSNR/SSIM as objective quality evidence. Retain DnCNN's 2.6 MP cap and state clearly: this is grayscale-sigma25 luminance denoise, not AI Deblur or Super Resolution.

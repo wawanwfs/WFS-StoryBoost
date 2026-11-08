@@ -14,6 +14,8 @@ On API35, synthetic H.264/AAC sources undergo real Media3 split (two independent
 
 Exactly **23/32 unique modules = 71.875%**. Repeated tests do not add modules. Not full CapCut parity or lossless WA/IG status.
 
+**Beta3 synthetic DnCNN tile QA:** Synthetic real TFLite DnCNN benchmark on Android 15 x86_64 emulator: 480×480 RGB with paired clean/noisy fixture, **four 256px overlapping tiles**, CPU inference **10.783 s**, full pipeline **12.028 s**, PSNR **20.307→28.801 dB**, SSIM **0.293→0.745**, process PSS snapshots **48,144→53,274 KB**. The RGB chroma-difference guard and overlap-boundary checks passed. [Green AI CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42501208561). Not a portrait, low-light camera, physical ARM64, peak-RAM or overall IQA benchmark; no new AI weights or models activated.
+
 ## v3.0.0-beta2 — Verified Android QA (still beta)
 
 The [QA branch CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42491741331) passed all four jobs: APK debug build/inspection, Android 29 instrumented tests (4), Android 35 instrumented tests (5), and Android 35 emulator smoke/install. Subsequent commits and merged `main` must be checked independently.

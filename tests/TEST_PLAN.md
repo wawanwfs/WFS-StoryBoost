@@ -215,3 +215,9 @@ Do not count tests as new roadmap modules. Current ledger remains 23 of 32 uniqu
 - [ ] Owner release keystore, two same-certificate signed APKs and actual `adb install -r` preserving project state.
 
 Tests are not additional feature modules. Progress is 23/32.
+
+### Beta3 DnCNN multi-tile synthetic benchmark
+
+- [x] Real Qualcomm/KAIR MIT model loaded by TFLite CPU on API29/API35 and 480×480 paired synthetic RGB image processed across four overlapped 256px tiles; color-channel delta invariance and seam boundary guards. [Green CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42501208561).
+- [x] Reported API35 synthetic 4-tile values: inference 10.783 s, total 12.028 s; PSNR 20.307→28.801 dB, SSIM 0.293→0.745, PSS snapshots 48,144→53,274 KB. Not peak memory or physical device data.
+- [ ] Consented real portrait and low-light/chroma-seam visual evaluation remains incomplete. No module increase from 23/32.

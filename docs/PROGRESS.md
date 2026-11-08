@@ -1,4 +1,4 @@
-# WFS StoryBoost — Progress report v3.0.0-beta1
+# WFS StoryBoost — Progress report v3.0.0-beta2
 
 This is a **feature roadmap coverage estimate** for the target v3.0, not a claim of tested production quality. Each checkbox counts as one module. Implemented means source code is present and the project builds; feature correctness still requires end-to-end device tests.
 
@@ -45,6 +45,14 @@ This is a **feature roadmap coverage estimate** for the target v3.0, not a claim
 - [ ] Benchmarks for memory, rendering time and actual output media quality
 
 **Total: 8 + 6 + 5 + 4 = 23 of 32 = 71.875%, rounded to 72%, only if CI inference benchmark passes.**
+
+## v3.0 beta2 — evidence summary (no extra modules)
+
+[Verified candidate CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42491741331): four jobs passed, 4 Android 10/API 29 and 5 Android 15/API 35 instrumented tests passed. Checks include synthetic local SAF-result photo import (intent result stubbed, actual DocumentsUI picker untested), Activity close and fresh Home → Recent restoration, Color Look/Crop/Caption/AI flags, 1080×1920 decoded JPEG, SHA-256 immutability, corrupted drafts, deleted media and clearing history. Video QA checks synthetic FFmpeg H.264/AAC, silent, rotated and malformed MP4, with real Media3 trimmed **1080×1920 H.264/AAC encoding on API 35**, metadata and A/V duration checks. Separate emulator screenshot gate covers actual pixel outputs at 320×640 and 1080×2400; human interaction correctness has not been certified.
+
+**Unverified:** process death by OS force-stop, third-party persistable URI revocation, repeated fresh imports, split/merge/cancel full media acceptance, real portrait (hair/glasses/multi-person) bokeh, chroma noise/tile seam DnCNN, physical Android 10+ CPU/RAM, and matching certificates/upgrade across two owner-signed builds. No extra AI models or production signing were introduced.
+
+**Unique module recount** A editor 8 + B editing 6 + C AI 5 + D export 4 = **23 / 32 = 71.875%**. Recent editing or codec test repetitions do not add modules. Debug signing is not release signing. WA/IG/TikTok recompress media.
 
 ## v3.0 beta changes (quality and continuity, not new modules)
 - Implemented secure local draft storage/restore for media reopened through Recent Projects. Persists Color Looks, frame/crop, caption, quality, video trim and AI effect flags; source media remains untouched. Undo/Redo remains an in-memory history within each editor session.

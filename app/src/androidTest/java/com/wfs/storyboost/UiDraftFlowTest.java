@@ -260,17 +260,25 @@ public class UiDraftFlowTest {
             freshHome.onActivity(a->tap(a,"Media Proyek 1",false));
             idle();
             assertNull("Deleted source must not open Editor",resumedEditor());
-            freshHome.onActivity(a->tap(a,"BERSIHKAN",false));
+        }
+        // A stale Toast window after a deleted source must not interfere with
+        // the confirmation dialog. Launch a brand-new foreground Home Activity.
+        try(ActivityScenario<StudioHomeActivity> cleanHome=
+                ActivityScenario.launch(StudioHomeActivity.class)){
+            cleanHome.onActivity(a->tap(a,"BERSIHKAN",false));
+            idle();
             UiDevice device=UiDevice.getInstance(instrument);
-            assertTrue("Clear-history confirmation dialog did not appear",
-                device.wait(Until.hasObject(By.text("Bersihkan")),10000));
-            UiObject2 confirm=device.findObject(By.text("Bersihkan"));
+            androidx.test.uiautomator.BySelector affirmative=
+                By.clazz("android.widget.Button").textMatches("(?i)^bersihkan$");
+            assertTrue("Clear-history dialog button not visible",
+                device.wait(Until.hasObject(affirmative),10000));
+            UiObject2 confirm=device.findObject(affirmative);
             assertNotNull("Clear-history confirmation button missing",confirm);
             confirm.click();
             idle();
-            assertEquals("",target.getSharedPreferences("studio-projects",Context.MODE_PRIVATE)
-                    .getString("recent_0",""));
-            assertNull(StudioDraftStore.load(target,source));
         }
+        assertEquals("",target.getSharedPreferences("studio-projects",Context.MODE_PRIVATE)
+                .getString("recent_0",""));
+        assertNull(StudioDraftStore.load(target,source));
     }
 }

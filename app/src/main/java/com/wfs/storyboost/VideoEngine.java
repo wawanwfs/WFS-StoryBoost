@@ -69,19 +69,19 @@ public final class VideoEngine {
                 settings.qualityMode, sourceSize.width, sourceSize.height, settings.frameStyle);
         temp = new File(context.getCacheDir(), "storyboost_" + System.nanoTime() + ".mp4");
         List<Effect> effects = new ArrayList<>();
-        if (settings.preset > 0 && settings.preset < 4) {
-            effects.add(new Contrast(settings.preset == 3 ? 0.015f
-                    : settings.preset == 1 ? 0.065f : 0.09f));
-            effects.add(new HslAdjustment.Builder()
-                    .adjustSaturation(settings.preset == 3 ? 5
-                            : settings.preset == 1 ? 8 : 13).build());
+        ColorLooks.Look look=ColorLooks.get(settings.preset);
+        if(!ColorLooks.isOriginal(settings.preset)){
+            float c=Math.max(-.5f,Math.min(.5f,look.contrast-1f));
+            if(Math.abs(c)>.001f)effects.add(new Contrast(c));
+            float sat=(look.saturation-1f)*65f;
+            if(Math.abs(sat)>.1f)effects.add(
+                    new HslAdjustment.Builder().adjustSaturation(sat).build());
+            float lift=look.lift/255f;
+            float r=Math.max(.6f,Math.min(1.5f,look.red+lift));
+            float g=Math.max(.6f,Math.min(1.5f,look.green+lift));
+            float b=Math.max(.6f,Math.min(1.5f,look.blue+lift));
             effects.add(new RgbAdjustment.Builder()
-                    .setRedScale(settings.preset == 3 ? 1.035f : 1.025f)
-                    .setGreenScale(settings.preset == 3 ? 1.035f : 1.008f)
-                    .setBlueScale(settings.preset == 1 ? 0.99f : 1.015f).build());
-        } else if (settings.preset == 0) {
-            effects.add(new Contrast(0.025f));
-            effects.add(new HslAdjustment.Builder().adjustSaturation(4).build());
+                    .setRedScale(r).setGreenScale(g).setBlueScale(b).build());
         }
         if(settings.hasColorAdjustments()){
             if(settings.contrast!=0f)effects.add(new Contrast(settings.contrast*.25f));
@@ -117,7 +117,8 @@ public final class VideoEngine {
             text.setSpan(new AbsoluteSizeSpan(100),0,text.length(),
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             StaticOverlaySettings titlePosition=new StaticOverlaySettings.Builder()
-                    .setBackgroundFrameAnchor(0f,-.72f)
+                    .setBackgroundFrameAnchor(0f,settings.socialProfile==SocialExportProfile.CUSTOM
+                            ? -.72f : 0f)
                     .setOverlayFrameAnchor(0f,0f)
                     .setScale(.72f,.72f).build();
             effects.add(new OverlayEffect(Collections.singletonList(
@@ -132,7 +133,8 @@ public final class VideoEngine {
                 .setEffects(new Effects(Collections.emptyList(), effects))
                 .setRemoveAudio(settings.muteAudio).build();
         float frameRate = sourceInfo.fps;
-        int bitrate = VideoBitrate.estimate(target.width, target.height, settings.qualityMode, frameRate);
+        int bitrate = SocialExportProfile.cappedBitrate(settings.socialProfile,
+                target.width,target.height,settings.qualityMode,frameRate);
         VideoEncoderSettings requested = new VideoEncoderSettings.Builder()
                 .setBitrate(bitrate).setiFrameIntervalSeconds(2f).build();
         transformer = new Transformer.Builder(context)

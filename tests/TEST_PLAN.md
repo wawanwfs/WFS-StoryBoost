@@ -113,3 +113,15 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] 4K/HDR/HEVC mixed inputs: fail gracefully with meaningful codec error; report unsupported device.
 - [ ] Cancel merge mid-export; no pending partial video saved to public gallery.
 - [ ] Android emulator opens real MultiClip screen without crash; capture UI screenshot.
+
+## v2.5 Social Export / Color Look QA
+- [ ] Photo Editor: scroll 24 look thumbnails, confirm visible selection, live preview and JPEG output after applying each.
+- [ ] Video Editor: verify all 24 look options can be selected and each changes rendered result; keep source audio.
+- [ ] Quick Enhance: 24 looks appear; choosing custom / platform modifies target canvas as shown.
+- [ ] WhatsApp Status: 1080x1920 portrait JPEG or H.264 MP4/AAC; bitrate <= 8 Mbps requested; evaluate decoded size, actual average bitrate and visible quality.
+- [ ] Instagram Story/Reels/TikTok: 9:16 1080x1920 portrait output, caps 12/16/18 Mbps, stereo AAC when audio present.
+- [ ] Social safe guide: shown only in social mode and not burned onto exported frames.
+- [ ] Social text title: center zone in exported JPEG and MP4; preview placement corresponds reasonably.
+- [ ] Landscape 1920x1080 to 9:16: Fit by default on social selection, never silently crop.
+- [ ] Platform upload QA on actual WhatsApp/Instagram/TikTok applications; no claim against server-side recompression.
+- [ ] Repeated social profile change does not damage previous project colors/clip bounds.

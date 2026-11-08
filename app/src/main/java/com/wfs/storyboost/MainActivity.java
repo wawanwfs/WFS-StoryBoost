@@ -66,7 +66,7 @@ public final class MainActivity extends Activity {
     private Button selectButton, shareButton, cancelButton;
     private BeforeAfterView preview;
     private RadioGroup presets;
-    private Spinner ratioSpinner, frameSpinner, qualitySpinner;
+    private Spinner ratioSpinner, frameSpinner, qualitySpinner, socialSpinner;
     private TextView ratioHint;
     private Switch dualAspectSwitch;
     private EditText trimStartField,trimEndField;
@@ -226,7 +226,7 @@ public final class MainActivity extends Activity {
         space(editCard, 7);
         presets = new RadioGroup(this);
         presets.setOrientation(RadioGroup.HORIZONTAL);
-        String[] looks = {"Natural", "Cinematic", "Vibrant", "Soft Night", "Asli / No Edit"};
+        String[] looks = ColorLooks.names();
         for (int i = 0; i < looks.length; i++) {
             RadioButton radio = new RadioButton(this);
             radio.setId(1000 + i);
@@ -309,6 +309,12 @@ public final class MainActivity extends Activity {
                 "Max Detail · resolusi asli, hingga 4K"
         });
         editCard.addView(qualitySpinner);
+        space(editCard, 15);
+        editCard.addView(text("SOCIAL MEDIA OPTIMIZER",11,CYAN,true));
+        space(editCard,7);
+        socialSpinner=spinner(SocialExportProfile.names());
+        editCard.addView(socialSpinner);
+        editCard.addView(text("WhatsApp Status • Instagram Story/Reels • TikTok. Setiap platform dapat mengompresi hasil unggahan.",11,SOFT,false));
         space(editCard, 6);
         ratioHint = text("", 12, SOFT, false);
         editCard.addView(ratioHint);
@@ -410,7 +416,9 @@ public final class MainActivity extends Activity {
         ratioSpinner.setSelection(Math.max(0, Math.min(4, prefs.getInt("ratio", 0))));
         frameSpinner.setSelection(Math.max(0, Math.min(2, prefs.getInt("frame", 0))));
         qualitySpinner.setSelection(Math.max(0, Math.min(2, prefs.getInt("quality", OutputProfile.MAX_DETAIL))));
-        presets.check(1000 + Math.max(0, Math.min(4, prefs.getInt("preset", 1))));
+        presets.check(1000 + Math.max(0, Math.min(ColorLooks.count()-1, prefs.getInt("preset", 1))));
+        socialSpinner.setSelection(Math.max(0,Math.min(SocialExportProfile.count()-1,
+                prefs.getInt("social_profile",SocialExportProfile.CUSTOM))));
         presets.setOnCheckedChangeListener((group, checkedId) -> {
             for(int i=0;i<group.getChildCount();i++){
                 RadioButton rb=(RadioButton)group.getChildAt(i);
@@ -439,6 +447,16 @@ public final class MainActivity extends Activity {
                 updateRatioHint();
             }
             @Override public void onNothingSelected(AdapterView<?> p) {}
+        });
+        socialSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent,View v,int position,long id){
+                if(position!=SocialExportProfile.CUSTOM){
+                    ratioSpinner.setSelection(AspectRatioProfile.PORTRAIT_9_16);
+                    qualitySpinner.setSelection(OutputProfile.FULL_HD);
+                    dualAspectSwitch.setChecked(false);
+                }
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent){}
         });
         qualitySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> p, View v, int position, long id) {
@@ -621,7 +639,8 @@ public final class MainActivity extends Activity {
                 ratioSpinner.getSelectedItemPosition(),frameSpinner.getSelectedItemPosition(),
                 qualitySpinner.getSelectedItemPosition()!=OutputProfile.HD,secondsToMs(trimStartField),secondsToMs(trimEndField),
                 focusXSeek.getProgress()/100f,focusYSeek.getProgress()/100f)
-                .withQuality(qualitySpinner.getSelectedItemPosition());
+                .withQuality(qualitySpinner.getSelectedItemPosition())
+                .withSocialProfile(socialSpinner.getSelectedItemPosition());
         }catch(IllegalArgumentException e){status.setText(e.getMessage());return;}
         if(selected.frameStyle==AspectRatioProfile.CROP){
             try {
@@ -650,7 +669,7 @@ public final class MainActivity extends Activity {
     private void beginQueue(java.util.ArrayList<Uri> chosen,ExportOptions settings){
         queueOptions=settings;
         for(Uri uri:chosen){
-            if(dualAspectSwitch.isChecked()){
+            if(dualAspectSwitch.isChecked()&&queueOptions.socialProfile==SocialExportProfile.CUSTOM){
                 pending.add(new ExportJob(uri,queueOptions.forRatio(AspectRatioProfile.PORTRAIT_9_16)));
                 pending.add(new ExportJob(uri,queueOptions.forRatio(AspectRatioProfile.LANDSCAPE_16_9)));
             }else pending.add(new ExportJob(uri,queueOptions));
@@ -658,6 +677,7 @@ public final class MainActivity extends Activity {
         getPreferences(MODE_PRIVATE).edit()
                 .putInt("ratio", queueOptions.ratio).putInt("frame", queueOptions.frameStyle)
                 .putInt("preset",queueOptions.preset).putInt("quality",queueOptions.qualityMode)
+                .putInt("social_profile",queueOptions.socialProfile)
                 .putBoolean("dual_ratio",dualAspectSwitch.isChecked())
                 .putString("trim_start",trimStartField.getText().toString())
                 .putString("trim_end",trimEndField.getText().toString())

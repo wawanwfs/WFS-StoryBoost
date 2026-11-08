@@ -53,6 +53,9 @@ public final class StudioEditorActivity extends Activity {
     private float focusX=.5f,focusY=.5f;
     private int completed,failed;
     private boolean dualOutput=false;
+    private int socialProfile=SocialExportProfile.CUSTOM;
+    private int lookScrollX=0;
+    private SocialSafeZoneView safeZoneView;
     private TextView timeLabel,qualityLabel,trimSummary,sourceLabel,exportStatus,previewLabel;
     private ImageView photo;
     private VideoView video;
@@ -134,6 +137,9 @@ public final class StudioEditorActivity extends Activity {
         video=new VideoView(this);video.setBackgroundColor(Color.BLACK);
         outputCanvas.addView(photo,new FrameLayout.LayoutParams(-1,-1));
         outputCanvas.addView(video,new FrameLayout.LayoutParams(-1,-1));
+        safeZoneView=new SocialSafeZoneView(this);
+        safeZoneView.setVisibility(View.GONE);
+        outputCanvas.addView(safeZoneView,new FrameLayout.LayoutParams(-1,-1));
         captionView=txt("",16,Color.WHITE,true);
         captionView.setGravity(Gravity.CENTER);captionView.setMaxLines(3);
         captionView.setShadowLayer(dp(3),0,dp(1),Color.BLACK);
@@ -253,6 +259,17 @@ public final class StudioEditorActivity extends Activity {
         FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(
                 Math.max(dp(50),newW),Math.max(dp(50),newH),Gravity.CENTER);
         outputCanvas.setLayoutParams(lp);
+        if(captionView!=null && captionView.getLayoutParams() instanceof FrameLayout.LayoutParams){
+            FrameLayout.LayoutParams titleParams=(FrameLayout.LayoutParams)captionView.getLayoutParams();
+            titleParams.bottomMargin=socialProfile==SocialExportProfile.CUSTOM
+                    ?dp(23):Math.round(newH*(1f-SocialExportProfile.captionCenterY(socialProfile)));
+            captionView.setLayoutParams(titleParams);
+        }
+        if(safeZoneView!=null){
+            safeZoneView.setProfile(socialProfile);
+            safeZoneView.setVisibility(socialProfile==SocialExportProfile.CUSTOM
+                    ?View.GONE:View.VISIBLE);
+        }
         if(photo!=null){
             photo.setScaleType(framing==AspectRatioProfile.CROP?
                     ImageView.ScaleType.CENTER_CROP:ImageView.ScaleType.FIT_CENTER);
@@ -377,7 +394,8 @@ public final class StudioEditorActivity extends Activity {
         return new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
                 trimStartMs,trimEndMs,focusX,focusY).withQuality(quality)
                 .withAdjustments(brightness,contrast,saturation)
-                .withCaption(caption,captionColor).withMute(muteAudio);
+                .withCaption(caption,captionColor).withMute(muteAudio)
+                .withSocialProfile(socialProfile);
     }
     private void refreshSettings(){
         layoutPreviewCanvas();
@@ -419,18 +437,54 @@ public final class StudioEditorActivity extends Activity {
     private void toolRatio(){
         toolbarTitle("Canvas Ratio","Ubah orientasi tanpa memutar subjek.");
         addChips(new String[]{"9:16","16:9","1:1","4:5","Asli"},ratio,i->{
-            ratio=i;refreshSettings();showTool(1);
+            ratio=i;socialProfile=SocialExportProfile.CUSTOM;refreshSettings();showTool(1);
         });
         gap(toolPane,6);
         toolPane.addView(txt("Untuk menghindari crop ekstrem, gunakan Fit atau Blur.",10,StudioUi.GREEN,false));
     }
     private void toolFilters(){
-        toolbarTitle("Color Looks","Natural • Film tone • Vibrant • Night • Asli.");
-        addChips(new String[]{"Natural","Cinematic","Vibrant","Soft Night","Asli"},preset,i->{
-            preset=i;refreshSettings();showTool(2);
-        });
-        gap(toolPane,6);
-        toolPane.addView(txt(isVideo?"Filter video diproses saat ekspor.":"Geser tombol Sebelum untuk membandingkan.",10,StudioUi.GREEN,false));
+        ColorLooks.Look selectedLook=ColorLooks.get(preset);
+        toolbarTitle("24 Color Looks",""+selectedLook.category+"  •  "+selectedLook.name+"  •  Geser untuk melihat semua");
+        android.widget.HorizontalScrollView scroller=new android.widget.HorizontalScrollView(this);
+        scroller.setHorizontalScrollBarEnabled(false);
+        LinearLayout strip=row();
+        int[] colors={0xFF566FAD,0xFF6B6CAE,0xFFB56FA8,0xFF3E5285,
+            0xFF344055,0xFF4F9F9D,0xFFB98B4F,0xFF98634D,0xFF6B9CB4,
+            0xFF364C81,0xFF7A6C82,0xFF97856D,0xFF878787,0xFF3E3E3E,
+            0xFFBF7897,0xFFAAA1C7,0xFF567F5C,0xFF414A79,0xFF9B5CA7,
+            0xFF78B4B0,0xFFCC846E,0xFFB59A9D,0xFF92705A,0xFF777A87};
+        for(int i=0;i<ColorLooks.count();i++){
+            final int index=i;
+            ColorLooks.Look look=ColorLooks.get(i);
+            LinearLayout tile=column();
+            tile.setPadding(dp(4),dp(2),dp(4),dp(2));
+            TextView swatch=txt(i==preset?"✓":"✦",19,TEXT,true);
+            swatch.setGravity(Gravity.CENTER);
+            android.graphics.drawable.GradientDrawable image=StudioUi.gradient(this,
+                    colors[i],0xFF1E2C48,12);
+            if(i==preset)image.setStroke(dp(2),StudioUi.LAVENDER);
+            swatch.setBackground(image);
+            tile.addView(swatch,new LinearLayout.LayoutParams(-1,dp(45)));
+            gap(tile,5);
+            TextView name=txt(look.name,11,i==preset?StudioUi.LAVENDER:TEXT,true);
+            name.setGravity(Gravity.CENTER);name.setSingleLine(true);
+            name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            tile.addView(name);
+            LinearLayout.LayoutParams tileLp=new LinearLayout.LayoutParams(dp(103),dp(78));
+            if(i>0)tileLp.leftMargin=dp(3);
+            strip.addView(tile,tileLp);
+            tile.setClickable(true);tile.setFocusable(true);
+            tile.setContentDescription("Color Look: "+look.name);
+            tile.setOnClickListener(v->{
+                lookScrollX=scroller.getScrollX();
+                preset=index;refreshSettings();showTool(2);
+            });
+        }
+        scroller.addView(strip);
+        toolPane.addView(scroller,new LinearLayout.LayoutParams(-1,dp(83)));
+        scroller.post(()->scroller.scrollTo(lookScrollX,0));
+        gap(toolPane,1);
+        toolPane.addView(txt(isVideo?"Video menggunakan warna ini saat ekspor.":"Foto menampilkan warna secara langsung.",10,StudioUi.GREEN,false));
     }
     private void toolFraming(){
         toolbarTitle("Framing & Crop","Fit = utuh • Crop = penuh • Blur = latar kabur.");
@@ -604,14 +658,39 @@ public final class StudioEditorActivity extends Activity {
     }
 
     private void toolExport(){
-        toolbarTitle("Output Quality","Max Detail menjaga resolusi sumber sampai batas perangkat.");
+        toolbarTitle("Social Export","Pilih tujuan unggahan; kualitas tidak menjamin tanpa kompresi.");
+        Button destination=btn("▯  "+SocialExportProfile.get(socialProfile).name+"  ▾",false);
+        destination.setTextSize(12);
+        toolPane.addView(destination,new LinearLayout.LayoutParams(-1,dp(36)));
+        destination.setOnClickListener(v->new AlertDialog.Builder(this)
+                .setTitle("Optimasi ekspor untuk")
+                .setSingleChoiceItems(SocialExportProfile.names(),socialProfile,(dialog,selected)->{
+                    socialProfile=selected;
+                    if(selected!=SocialExportProfile.CUSTOM){
+                        ratio=AspectRatioProfile.PORTRAIT_9_16;
+                        framing=AspectRatioProfile.FIT;
+                        quality=OutputProfile.FULL_HD;
+                        dualOutput=false;
+                    }
+                    dialog.dismiss();refreshSettings();showTool(7);
+                })
+                .setNegativeButton("Batal",null).show());
+        gap(toolPane,4);
         addChips(new String[]{"HD","1080p","Max Detail"},quality,i->{
-            quality=i;showTool(4);
+            quality=i;
+            if(socialProfile!=SocialExportProfile.CUSTOM)
+                socialProfile=SocialExportProfile.CUSTOM;
+            refreshSettings();showTool(7);
         });
-        LinearLayout dual=row();dual.addView(txt("Ekspor 9:16 dan 16:9 sekaligus",11,TEXT,true),
+        LinearLayout dual=row();
+        dual.addView(txt(socialProfile==SocialExportProfile.CUSTOM?
+                "Ekspor ganda 9:16 + 16:9":"1080 × 1920 • H.264/AAC • Safe Zone",11,TEXT,true),
                 new LinearLayout.LayoutParams(0,-1,1f));
-        Switch dualSwitch=new Switch(this);dualSwitch.setChecked(dualOutput);
-        dualSwitch.setOnCheckedChangeListener((v,b)->dualOutput=b);dual.addView(dualSwitch);
+        if(socialProfile==SocialExportProfile.CUSTOM){
+            Switch dualSwitch=new Switch(this);dualSwitch.setChecked(dualOutput);
+            dualSwitch.setOnCheckedChangeListener((v,b)->dualOutput=b);
+            dual.addView(dualSwitch);
+        }
         toolPane.addView(dual);
     }
     private void confirmExport(){
@@ -649,11 +728,13 @@ public final class StudioEditorActivity extends Activity {
                 sequences.add(new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
                         trimStartMs,splitMs,focusX,focusY).withQuality(quality)
                         .withAdjustments(brightness,contrast,saturation)
-                        .withCaption(caption,captionColor).withMute(muteAudio));
+                        .withCaption(caption,captionColor).withMute(muteAudio)
+                        .withSocialProfile(socialProfile));
                 sequences.add(new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
                         splitMs,trimEndMs,focusX,focusY).withQuality(quality)
                         .withAdjustments(brightness,contrast,saturation)
-                        .withCaption(caption,captionColor).withMute(muteAudio));
+                        .withCaption(caption,captionColor).withMute(muteAudio)
+                        .withSocialProfile(socialProfile));
             }
         }
         if(sequences.isEmpty())sequences.add(current);

@@ -153,6 +153,41 @@ public final class AspectRatioProfileTest {
             new ExportOptions(1,0,0,true).withCaption("X".repeat(81),0xFFFFFFFF);
             throw new AssertionError("overlong caption accepted");
         }catch(IllegalArgumentException expected){passed++;}
+        check(ColorLooks.count()==24,"24 color looks available");
+        check(ColorLooks.get(ColorLooks.ORIGINAL).name.equals("Original"),"original preset index preserved");
+        check(ColorLooks.get(6).name.equals("Golden Hour"),"golden-hour look available");
+        check(ColorLooks.get(12).saturation==0f,"monochrome preset desaturates");
+        try{ColorLooks.get(24);throw new AssertionError("Invalid look accepted");}
+        catch(IllegalArgumentException expected){passed++;}
+        check(SocialExportProfile.count()==5,"four social presets plus manual");
+        ExportOptions ig=new ExportOptions(6,AspectRatioProfile.LANDSCAPE_16_9,
+                AspectRatioProfile.FIT,true).withQuality(OutputProfile.MAX_DETAIL)
+                .withSocialProfile(SocialExportProfile.INSTAGRAM_REELS);
+        check(ig.ratio==AspectRatioProfile.PORTRAIT_9_16,"Reels forces 9:16");
+        check(ig.qualityMode==OutputProfile.FULL_HD,"Reels outputs Full HD");
+        check(ig.preset==6&&ig.socialProfile==SocialExportProfile.INSTAGRAM_REELS,
+                "social export retains look");
+        check(ig.withQuality(OutputProfile.HD).socialProfile==ig.socialProfile,
+                "social profile survives chained quality setting");
+        check(ig.forRatio(AspectRatioProfile.LANDSCAPE_16_9).socialProfile==ig.socialProfile,
+                "social recipe survives per-ratio options");
+        check(SocialExportProfile.cappedBitrate(SocialExportProfile.WHATSAPP_STATUS,
+                1080,1920,OutputProfile.FULL_HD,60f)<=8_000_000,
+                "WhatsApp caps 1080p bitrate");
+        check(SocialExportProfile.cappedBitrate(SocialExportProfile.TIKTOK,
+                1080,1920,OutputProfile.FULL_HD,60f)<=18_000_000,
+                "TikTok caps 1080p bitrate");
+        check(SocialExportProfile.cappedBitrate(SocialExportProfile.CUSTOM,
+                1080,1920,OutputProfile.FULL_HD,30f)
+                ==VideoBitrate.estimate(1080,1920,OutputProfile.FULL_HD,30f),
+                "manual bitrate unchanged");
+        check(SocialExportProfile.captionCenterY(SocialExportProfile.INSTAGRAM_REELS)>.14f
+                &&SocialExportProfile.captionCenterY(SocialExportProfile.INSTAGRAM_REELS)<.65f,
+                "Reels caption respects vertical safe zone");
+        check(SocialExportProfile.captionCenterY(SocialExportProfile.CUSTOM)==.83f,
+                "manual caption position preserved");
+        try{SocialExportProfile.get(7);throw new AssertionError("Invalid profile accepted");}
+        catch(IllegalArgumentException expected){passed++;}
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

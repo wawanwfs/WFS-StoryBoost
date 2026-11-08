@@ -9,6 +9,7 @@ public final class ExportOptions {
     public final String caption;
     public final int captionColor;
     public final boolean muteAudio;
+    public final int socialProfile;
 
     public ExportOptions(int preset,int ratio,int frameStyle,boolean fullHd){
         this(preset,ratio,frameStyle,fullHd,0,0,0.5f,0.5f);
@@ -19,11 +20,11 @@ public final class ExportOptions {
     public ExportOptions(int preset,int ratio,int frameStyle,boolean fullHd,long start,long end,
                          float focusX,float focusY){
         this(preset,ratio,frameStyle,fullHd?OutputProfile.FULL_HD:OutputProfile.HD,
-                start,end,focusX,focusY,0f,0f,0f,"",0xFFFFFFFF,false);
+                start,end,focusX,focusY,0f,0f,0f,"",0xFFFFFFFF,false,SocialExportProfile.CUSTOM);
     }
     private ExportOptions(int preset,int ratio,int frameStyle,int quality,long start,long end,
                           float focusX,float focusY,float brightness,float contrast,
-                          float saturation,String caption,int captionColor,boolean mute){
+                          float saturation,String caption,int captionColor,boolean mute,int socialProfile){
         ClipWindow.validate(start,end);
         OutputProfile.normalized(quality);
         if(!Float.isFinite(focusX)||!Float.isFinite(focusY)||focusX<0||focusX>1||focusY<0||focusY>1)
@@ -37,12 +38,14 @@ public final class ExportOptions {
         trimStartMs=start;trimEndMs=end;this.focusX=focusX;this.focusY=focusY;
         this.brightness=brightness;this.contrast=contrast;this.saturation=saturation;
         this.caption=caption;this.captionColor=captionColor;this.muteAudio=mute;
+        SocialExportProfile.get(socialProfile);
+        this.socialProfile=socialProfile;
     }
     private static boolean valid(float x){return Float.isFinite(x)&&x>=-1f&&x<=1f;}
     private ExportOptions copy(int ratio,int style,int quality,float brightness,float contrast,
                                float saturation,String caption,int captionColor,boolean mute){
         return new ExportOptions(preset,ratio,style,quality,trimStartMs,trimEndMs,focusX,focusY,
-                brightness,contrast,saturation,caption,captionColor,mute);
+                brightness,contrast,saturation,caption,captionColor,mute,socialProfile);
     }
     public ExportOptions withQuality(int quality){
         return copy(ratio,frameStyle,quality,brightness,contrast,saturation,caption,captionColor,muteAudio);
@@ -64,6 +67,16 @@ public final class ExportOptions {
     }
     public ExportOptions withMute(boolean mute){
         return copy(ratio,frameStyle,qualityMode,brightness,contrast,saturation,caption,captionColor,mute);
+    }
+    public ExportOptions withSocialProfile(int profile){
+        SocialExportProfile.get(profile);
+        // Social profiles use safe, predictable vertical Full HD canvases;
+        // manual profile never overrides geometry or quality.
+        int nextRatio=profile==SocialExportProfile.CUSTOM?ratio:AspectRatioProfile.PORTRAIT_9_16;
+        int nextQuality=profile==SocialExportProfile.CUSTOM?qualityMode:OutputProfile.FULL_HD;
+        return new ExportOptions(preset,nextRatio,frameStyle,nextQuality,
+                trimStartMs,trimEndMs,focusX,focusY,brightness,contrast,saturation,
+                caption,captionColor,muteAudio,profile);
     }
     public boolean hasColorAdjustments(){
         return brightness!=0f || contrast!=0f || saturation!=0f;

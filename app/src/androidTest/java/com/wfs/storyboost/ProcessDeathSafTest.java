@@ -214,6 +214,45 @@ public class ProcessDeathSafTest {
                 pickerDiagnostics(device),file);
         return file;
     }
+    /** Tap the DOCUMENT ROW, not its clickable preview-icon child.
+     *  In the Android 15 Files grid the row is 85 px wide but the
+     *  "Preview the file ..." child occupies its center, so UiObject2.click()
+     *  on the row's center mistakenly opens preview.
+     */
+    private boolean chooseRealDocument(UiDevice device,String filename){
+        // Prefer list layout, where the row is wide and the preview icon
+        // is a different touch target from its filename/details region.
+        UiObject2 listToggle=device.findObject(By.desc("List view"));
+        if(listToggle!=null){
+            clickStable(device,By.desc("List view"));
+            SystemClock.sleep(450);
+        }
+        for(int attempt=0;attempt<3;attempt++){
+            UiObject2 row=findFixture(device,4500);
+            if(row==null)return false;
+            try {
+                android.graphics.Rect b=row.getVisibleBounds();
+                assertTrue("Document has empty bounds "+b,b.width()>25&&b.height()>25);
+                int x=b.right-Math.min(13,Math.max(5,b.width()/9));
+                int y=b.bottom-Math.min(11,Math.max(5,b.height()/8));
+                if(!device.click(x,y))return false;
+                SystemClock.sleep(550);
+                // A real picker may switch to a second selection/confirmation UI.
+                for(String title:new String[]{"Open","OPEN","Select","SELECT","Use this photo"}){
+                    UiObject2 confirm=device.findObject(By.text(title));
+                    if(confirm!=null){
+                        confirm.click();
+                        break;
+                    }
+                }
+                // The final stage checks the real app Editor and persisted URI.
+                return true;
+            }catch(androidx.test.uiautomator.StaleObjectException stale){
+                SystemClock.sleep(250);
+            }
+        }
+        return false;
+    }
     @Test public void stageRealDocumentsUiImportAndDraft() throws Exception {
         phase("stage");
         String file=PREFIX+System.nanoTime()+".jpg";
@@ -228,8 +267,8 @@ public class ProcessDeathSafTest {
                     ||device.wait(Until.hasObject(By.text("Recent")),5000));
             UiObject2 target=locateDownload(device,file);
             assertNotNull("Synthetic JPEG not visible in real DocumentsUI",target);
-            assertTrue("DocumentsUI file selection was not clickable",
-                    clickStable(device,fixtureFile())||clickStable(device,fixtureText()));
+            assertTrue("DocumentsUI document row could not be selected: "+
+                    pickerDiagnostics(device),chooseRealDocument(device,file));
             inst.waitForIdleSync();
             StudioEditorActivity editor=waitForEditor();
             assertNotNull("Real picker result did not launch app Editor. Picker UI: "+

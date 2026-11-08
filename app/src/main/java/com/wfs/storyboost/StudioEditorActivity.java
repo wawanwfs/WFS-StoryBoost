@@ -25,6 +25,9 @@ import android.widget.TextView;
 import android.widget.VideoView;
 import android.widget.Switch;
 import android.widget.Toast;
+import android.widget.EditText;
+import android.text.Editable;
+import android.text.TextWatcher;
 import java.io.File;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -60,6 +63,11 @@ public final class StudioEditorActivity extends Activity {
     private android.app.AlertDialog exportDialog;
     private android.widget.ProgressBar exportProgress;
     private boolean compareOriginal=false;
+    private float brightness=0f,contrast=0f,saturation=0f;
+    private String caption="";
+    private int captionColor=Color.WHITE;
+    private boolean muteAudio=false;
+    private TextView captionView;
     private Bitmap imagePreviewBitmap;
     private Runnable playTicker;
     private int renderToken=0;
@@ -126,6 +134,15 @@ public final class StudioEditorActivity extends Activity {
         video=new VideoView(this);video.setBackgroundColor(Color.BLACK);
         outputCanvas.addView(photo,new FrameLayout.LayoutParams(-1,-1));
         outputCanvas.addView(video,new FrameLayout.LayoutParams(-1,-1));
+        captionView=txt("",16,Color.WHITE,true);
+        captionView.setGravity(Gravity.CENTER);captionView.setMaxLines(3);
+        captionView.setShadowLayer(dp(3),0,dp(1),Color.BLACK);
+        captionView.setPadding(dp(8),dp(4),dp(8),dp(4));
+        FrameLayout.LayoutParams captionLp=new FrameLayout.LayoutParams(-1,-2,
+                Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+        captionLp.bottomMargin=dp(23);
+        outputCanvas.addView(captionView,captionLp);
+        updateCaptionPreview();
         if(isVideo){
             photo.setVisibility(View.GONE);video.setVisibility(View.VISIBLE);
             video.setVideoURI(mediaUri);
@@ -198,7 +215,8 @@ public final class StudioEditorActivity extends Activity {
         HorizontalScrollView toolsScroll=new HorizontalScrollView(this);
         toolsScroll.setHorizontalScrollBarEnabled(false);
         LinearLayout tabs=row();tabs.setPadding(dp(9),dp(8),dp(9),dp(8));
-        String[] labels={"✂  Trim","▯  Rasio","✦  Filter","◧  Frame","☷  Ekspor"};
+        String[] labels={"✂  Trim","▯  Rasio","✦  Filter","◧  Frame",
+                "☼  Adjust","Aa  Teks","♫  Audio","☷  Ekspor"};
         for(int i=0;i<labels.length;i++){
             final int tab=i;
             Button b=btn(labels[i],false);b.setTextSize(12);
@@ -209,7 +227,7 @@ public final class StudioEditorActivity extends Activity {
         toolsScroll.addView(tabs);root.addView(toolsScroll,new LinearLayout.LayoutParams(-1,dp(62)));
         toolPane=column();toolPane.setPadding(dp(13),dp(8),dp(13),dp(10));
         toolPane.setBackground(StudioUi.solid(this,0xFF161D31,0));
-        root.addView(toolPane,new LinearLayout.LayoutParams(-1,dp(168)));
+        root.addView(toolPane,new LinearLayout.LayoutParams(-1,dp(172)));
         showTool(isVideo?0:2);
         setContentView(root);
     }
@@ -302,7 +320,7 @@ public final class StudioEditorActivity extends Activity {
                 imagePreviewBitmap=finalBitmap;
                 // The same color matrix is used for the photo export engine.
                 photo.setColorFilter(compareOriginal?null:
-                        options.preset==4?null:PhotoEngine.colorFilter(options.preset));
+                        PhotoEngine.colorFilter(options));
                 photo.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 for(int i=0;i<thumbStrip.getChildCount();i++){
                     View old=thumbStrip.getChildAt(i);
@@ -350,13 +368,16 @@ public final class StudioEditorActivity extends Activity {
         compareButton.setText(compareOriginal?"✦ Sesudah":"↔ Sebelum");
         if(!isVideo){
             photo.setColorFilter(compareOriginal?null:
-                    preset==4?null:PhotoEngine.colorFilter(preset));
+                    PhotoEngine.colorFilter(options()));
             previewLabel.setText(compareOriginal?"SEBELUM • ASLI":"PRATINJAU FILTER");
+            updateCaptionPreview();
         }else toast("Video preview menampilkan sumber; hasil filter terlihat setelah ekspor.");
     }
     private ExportOptions options(){
         return new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
-                trimStartMs,trimEndMs,focusX,focusY).withQuality(quality);
+                trimStartMs,trimEndMs,focusX,focusY).withQuality(quality)
+                .withAdjustments(brightness,contrast,saturation)
+                .withCaption(caption,captionColor).withMute(muteAudio);
     }
     private void refreshSettings(){
         layoutPreviewCanvas();
@@ -369,6 +390,9 @@ public final class StudioEditorActivity extends Activity {
             case 1:toolRatio();break;
             case 2:toolFilters();break;
             case 3:toolFraming();break;
+            case 4:toolAdjust();break;
+            case 5:toolText();break;
+            case 6:toolAudio();break;
             default:toolExport();break;
         }
     }
@@ -493,6 +517,92 @@ public final class StudioEditorActivity extends Activity {
         });
         toolPane.addView(bottom);
     }
+    private void updateCaptionPreview(){
+        if(captionView==null)return;
+        boolean show=!caption.trim().isEmpty()&&!compareOriginal;
+        captionView.setVisibility(show?View.VISIBLE:View.GONE);
+        captionView.setText(caption.trim());
+        captionView.setTextColor(captionColor);
+    }
+    private void updateLiveAdjust(){
+        if(!isVideo&&!compareOriginal)
+            photo.setColorFilter(PhotoEngine.colorFilter(options()));
+    }
+    private void toolAdjust(){
+        toolbarTitle("Color Adjust","Atur warna sebelum mengekspor. Nilai 0 = netral.");
+        adjustment("Brightness",brightness,value->{brightness=value;updateLiveAdjust();});
+        adjustment("Contrast",contrast,value->{contrast=value;updateLiveAdjust();});
+        adjustment("Saturation",saturation,value->{saturation=value;updateLiveAdjust();});
+    }
+    private void adjustment(String title,float initial,java.util.function.Consumer<Float> changed){
+        LinearLayout row=row();
+        TextView label=txt(title,11,TEXT,true);
+        row.addView(label,new LinearLayout.LayoutParams(dp(82),dp(30)));
+        SeekBar bar=new SeekBar(this);bar.setMax(200);
+        bar.setProgress(Math.max(0,Math.min(200,Math.round(100+initial*100))));
+        row.addView(bar,new LinearLayout.LayoutParams(0,dp(30),1f));
+        TextView valueText=txt(String.format(Locale.US,"%+d",Math.round(initial*100)),10,MUTED,true);
+        valueText.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        row.addView(valueText,new LinearLayout.LayoutParams(dp(37),dp(30)));
+        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(SeekBar s,int progress,boolean user){
+                if(!user)return;
+                float value=(progress-100)/100f;
+                valueText.setText(String.format(Locale.US,"%+d",progress-100));
+                changed.accept(value);
+            }
+            @Override public void onStartTrackingTouch(SeekBar s){}
+            @Override public void onStopTrackingTouch(SeekBar s){}
+        });
+        toolPane.addView(row);
+    }
+    private void toolText(){
+        toolbarTitle("Text Overlay","Teks statis akan ikut masuk ke foto atau seluruh durasi video.");
+        EditText field=new EditText(this);
+        field.setSingleLine(true);field.setTextSize(13);
+        field.setTextColor(TEXT);field.setHintTextColor(MUTED);
+        field.setHint("Judul / subtitle singkat");
+        field.setBackground(StudioUi.solid(this,0xFF2B3450,11));
+        field.setPadding(dp(12),dp(8),dp(12),dp(8));
+        field.setFilters(new android.text.InputFilter[]{
+                new android.text.InputFilter.LengthFilter(80)});
+        field.setText(caption);
+        field.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count){
+                caption=s.toString();updateCaptionPreview();
+            }
+            @Override public void afterTextChanged(Editable e){}
+        });
+        toolPane.addView(field,new LinearLayout.LayoutParams(-1,dp(42)));
+        gap(toolPane,9);
+        LinearLayout colors=row();
+        colors.addView(txt("Warna",12,MUTED,true),new LinearLayout.LayoutParams(0,-2,1f));
+        Button white=btn("● Putih",captionColor==Color.WHITE);
+        colors.addView(white,new LinearLayout.LayoutParams(dp(93),dp(35)));
+        Button yellow=btn("● Emas",captionColor!=Color.WHITE);
+        LinearLayout.LayoutParams second=new LinearLayout.LayoutParams(dp(93),dp(35));
+        second.leftMargin=dp(8);colors.addView(yellow,second);
+        white.setOnClickListener(v->{captionColor=Color.WHITE;updateCaptionPreview();showTool(5);});
+        yellow.setOnClickListener(v->{captionColor=0xFFFFD786;updateCaptionPreview();showTool(5);});
+        toolPane.addView(colors);
+    }
+    private void toolAudio(){
+        toolbarTitle("Original Audio","Kontrol audio asli dari media sumber.");
+        if(!isVideo){
+            toolPane.addView(txt("Foto tidak memiliki track audio.",12,MUTED,false));
+            return;
+        }
+        LinearLayout toggle=row();
+        toggle.addView(txt("Hapus audio dari hasil ekspor",12,TEXT,true),
+                new LinearLayout.LayoutParams(0,dp(42),1f));
+        Switch muteSwitch=new Switch(this);muteSwitch.setChecked(muteAudio);
+        muteSwitch.setOnCheckedChangeListener((v,checked)->muteAudio=checked);
+        toggle.addView(muteSwitch);
+        toolPane.addView(toggle);gap(toolPane,8);
+        toolPane.addView(txt("Mode mute menghilangkan track audio output. Preview tetap memutar audio asli.",11,MUTED,false));
+    }
+
     private void toolExport(){
         toolbarTitle("Output Quality","Max Detail menjaga resolusi sumber sampai batas perangkat.");
         addChips(new String[]{"HD","1080p","Max Detail"},quality,i->{
@@ -537,9 +647,13 @@ public final class StudioEditorActivity extends Activity {
             long ending=trimEndMs>0?trimEndMs:durationMs;
             if(splitMs>trimStartMs&&splitMs<ending){
                 sequences.add(new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
-                        trimStartMs,splitMs,focusX,focusY).withQuality(quality));
+                        trimStartMs,splitMs,focusX,focusY).withQuality(quality)
+                        .withAdjustments(brightness,contrast,saturation)
+                        .withCaption(caption,captionColor).withMute(muteAudio));
                 sequences.add(new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
-                        splitMs,trimEndMs,focusX,focusY).withQuality(quality));
+                        splitMs,trimEndMs,focusX,focusY).withQuality(quality)
+                        .withAdjustments(brightness,contrast,saturation)
+                        .withCaption(caption,captionColor).withMute(muteAudio));
             }
         }
         if(sequences.isEmpty())sequences.add(current);

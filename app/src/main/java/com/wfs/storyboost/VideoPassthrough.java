@@ -8,6 +8,7 @@ public final class VideoPassthrough {
                 && o.frameStyle==AspectRatioProfile.FIT
                 && o.qualityMode==OutputProfile.MAX_DETAIL
                 && o.trimStartMs==0L&&o.trimEndMs==0L
+                && !o.muteAudio && !o.hasText() && !o.hasColorAdjustments()
                 &&"video/mp4".equalsIgnoreCase(mime);
     }
 }

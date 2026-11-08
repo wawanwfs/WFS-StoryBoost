@@ -1,6 +1,12 @@
 package com.wfs.storyboost;
 
 import android.content.Context;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
+import android.text.style.AbsoluteSizeSpan;
+import android.graphics.Typeface;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 
@@ -8,6 +14,9 @@ import androidx.media3.common.Effect;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.effect.Contrast;
+import androidx.media3.effect.TextOverlay;
+import androidx.media3.effect.OverlayEffect;
+import androidx.media3.effect.StaticOverlaySettings;
 import androidx.media3.effect.HslAdjustment;
 import androidx.media3.effect.GaussianBlurWithFrameOverlaid;
 import androidx.media3.effect.Crop;
@@ -74,6 +83,16 @@ public final class VideoEngine {
             effects.add(new Contrast(0.025f));
             effects.add(new HslAdjustment.Builder().adjustSaturation(4).build());
         }
+        if(settings.hasColorAdjustments()){
+            if(settings.contrast!=0f)effects.add(new Contrast(settings.contrast*.25f));
+            if(settings.saturation!=0f)effects.add(new HslAdjustment.Builder()
+                    .adjustSaturation(settings.saturation*35f).build());
+            if(settings.brightness!=0f){
+                float scale=Math.max(.7f,Math.min(1.3f,1f+settings.brightness*.25f));
+                effects.add(new RgbAdjustment.Builder().setRedScale(scale)
+                        .setGreenScale(scale).setBlueScale(scale).build());
+            }
+        }
         boolean crop=settings.frameStyle==AspectRatioProfile.CROP;
         boolean blur=settings.frameStyle==AspectRatioProfile.BLUR;
         float scale=VideoFramePlan.sharpScale(sourceSize.width,sourceSize.height,
@@ -89,13 +108,29 @@ public final class VideoEngine {
                 (blur&&scale<0.999f)
                     ? Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
                     : Presentation.LAYOUT_SCALE_TO_FIT));
+        if(settings.hasText()){
+            SpannableString text=new SpannableString(settings.caption.trim());
+            text.setSpan(new ForegroundColorSpan(settings.captionColor),0,text.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            text.setSpan(new StyleSpan(Typeface.BOLD),0,text.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            text.setSpan(new AbsoluteSizeSpan(100),0,text.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            StaticOverlaySettings titlePosition=new StaticOverlaySettings.Builder()
+                    .setBackgroundFrameAnchor(0f,-.72f)
+                    .setOverlayFrameAnchor(0f,0f)
+                    .setScale(.72f,.72f).build();
+            effects.add(new OverlayEffect(Collections.singletonList(
+                    TextOverlay.createStaticTextOverlay(text,titlePosition))));
+        }
         MediaItem.ClippingConfiguration.Builder clip=new MediaItem.ClippingConfiguration.Builder()
                 .setStartPositionMs(settings.trimStartMs);
         if(settings.trimEndMs>0)clip.setEndPositionMs(settings.trimEndMs);
         MediaItem mediaItem=new MediaItem.Builder().setUri(source)
                 .setClippingConfiguration(clip.build()).build();
         EditedMediaItem item = new EditedMediaItem.Builder(mediaItem)
-                .setEffects(new Effects(Collections.emptyList(), effects)).build();
+                .setEffects(new Effects(Collections.emptyList(), effects))
+                .setRemoveAudio(settings.muteAudio).build();
         float frameRate = sourceInfo.fps;
         int bitrate = VideoBitrate.estimate(target.width, target.height, settings.qualityMode, frameRate);
         VideoEncoderSettings requested = new VideoEncoderSettings.Builder()
@@ -108,7 +143,7 @@ public final class VideoEngine {
                 .addListener(new Transformer.Listener() {
                     @Override public void onCompleted(Composition composition, ExportResult result) {
                         try {
-                            validateOutput(temp,target,sourceInfo,expectedDuration);
+                            validateOutput(temp,target,sourceInfo,expectedDuration,settings.muteAudio);
                             if(!cancelled)callback.onSuccess(temp,target);
                         } catch (Exception invalid) {
                             if(!cancelled)callback.onError("Validasi MP4 gagal: "+invalid.getMessage());
@@ -151,7 +186,7 @@ public final class VideoEngine {
     }
 
     /** Reject empty/truncated media before it reaches the public Gallery. */
-    private static void validateOutput(File file, AspectRatioProfile.Size target,MediaProbe.Info sourceInfo,long expectedDuration) throws Exception {
+    private static void validateOutput(File file, AspectRatioProfile.Size target,MediaProbe.Info sourceInfo,long expectedDuration,boolean muteAudio) throws Exception {
         if (!file.isFile() || file.length() < 1024) {
             throw new java.io.IOException("File video kosong atau terpotong.");
         }
@@ -173,7 +208,13 @@ public final class VideoEngine {
             String duration = retriever.extractMetadata(
                     MediaMetadataRetriever.METADATA_KEY_DURATION);
             if(duration==null||Long.parseLong(duration)<=0)throw new java.io.IOException("Durasi MP4 tidak terbaca.");
-            MediaProbe.verifyTracks(sourceInfo,MediaProbe.inspect(file),expectedDuration);
+            MediaProbe.Info exported=MediaProbe.inspect(file);
+            if(muteAudio){
+                if(exported.audio)throw new java.io.IOException("Audio masih ada meskipun muted");
+                MediaProbe.Info expectedSilent=new MediaProbe.Info(sourceInfo.video,false,
+                        sourceInfo.fps,sourceInfo.durationMs,0,sourceInfo.videoDurationMs);
+                MediaProbe.verifyTracks(expectedSilent,exported,expectedDuration);
+            }else MediaProbe.verifyTracks(sourceInfo,exported,expectedDuration);
         } finally {
             try { retriever.release(); } catch (Exception ignored) { }
         }

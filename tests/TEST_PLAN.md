@@ -94,3 +94,12 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] Crop severe warning provides safe Blur alternative; test 1920x1080 source into 9:16.
 - [ ] Android low memory and 4K HEVC source: gracefully report unsupported codec or memory, never claim detail creation.
 - [ ] Screen-size snapshots for home/editor at small 320x640 emulator and 1080x2400 phone.
+
+## v2.3 Color / Text / Audio
+- [ ] Foto: Brightness/Contrast/Saturation -100,0,+100; preview and exported pixels change consistently.
+- [ ] Photo text overlay with 0, 1, 80 characters; text does not exceed frame width.
+- [ ] Video with title overlay: rendered MP4 contains text throughout clip (GPU overlay) and preserves audio when mute disabled.
+- [ ] Video mute on/off: MediaProbe output has no audio when selected; includes audio otherwise.
+- [ ] Split + dual ratio retain text, color adjustments and mute settings for every output.
+- [ ] Copy original JPEG/MP4 is disabled when caption/adjustment/mute is requested.
+- [ ] Test UI on 320x640 display: Adjust, Text and Audio tabs can be scrolled horizontally and all controls remain interactive.

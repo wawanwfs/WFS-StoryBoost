@@ -124,6 +124,35 @@ public final class AspectRatioProfileTest {
         check(!VideoPassthrough.allowed(new ExportOptions(1,4,0,true)
                 .withQuality(OutputProfile.MAX_DETAIL),"video/mp4"),
                 "enhanced video must not bypass processing");
+        ExportOptions advanced=new ExportOptions(4,4,0,true)
+                .withQuality(OutputProfile.MAX_DETAIL)
+                .withAdjustments(.15f,-.1f,.25f)
+                .withCaption("My Story",0xFFFFD786)
+                .withMute(true);
+        check(advanced.hasColorAdjustments(),"advanced filter settings are retained");
+        check(advanced.hasText(),"caption stored for rendering");
+        check(advanced.muteAudio,"mute audio stored");
+        check(advanced.forRatio(0).withQuality(OutputProfile.FULL_HD).hasText(),
+                "dual-aspect quality update preserves caption");
+        check(advanced.forRatio(0).muteAudio,"dual aspect preserves mute audio");
+        check(advanced.withFrameStyle(2).brightness==.15f,
+                "framing preserves custom brightness");
+        check(!VideoPassthrough.allowed(advanced,"video/mp4"),
+                "muted edited video cannot bypass transcoding");
+        check(!VideoPassthrough.allowed(new ExportOptions(4,4,0,true)
+                .withQuality(OutputProfile.MAX_DETAIL).withCaption("Caption",0xFFFFFFFF),"video/mp4"),
+                "text overlay cannot bypass video encoder");
+        check(!VideoPassthrough.allowed(new ExportOptions(4,4,0,true)
+                .withQuality(OutputProfile.MAX_DETAIL).withAdjustments(.2f,0f,0f),"video/mp4"),
+                "color adjustments cannot bypass video encoder");
+        try{
+            new ExportOptions(1,0,0,true).withAdjustments(1.1f,0,0);
+            throw new AssertionError("invalid adjustment accepted");
+        }catch(IllegalArgumentException expected){passed++;}
+        try{
+            new ExportOptions(1,0,0,true).withCaption("X".repeat(81),0xFFFFFFFF);
+            throw new AssertionError("overlong caption accepted");
+        }catch(IllegalArgumentException expected){passed++;}
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

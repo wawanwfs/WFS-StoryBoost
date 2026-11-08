@@ -38,6 +38,7 @@ public final class PhotoEngine {
         if (settings.preset==4 && settings.ratio==AspectRatioProfile.ORIGINAL
                 && settings.frameStyle==AspectRatioProfile.FIT
                 && settings.qualityMode==OutputProfile.MAX_DETAIL
+                && !settings.hasText() && !settings.hasColorAdjustments()
                 && "image/jpeg".equalsIgnoreCase(context.getContentResolver().getType(uri))) {
             AspectRatioProfile.Size nativeSize=MediaDimensions.read(context,uri);
             try(InputStream in=context.getContentResolver().openInputStream(uri)){
@@ -69,7 +70,7 @@ public final class PhotoEngine {
                 canvas.drawColor(Color.rgb(14, 19, 29));
                 Paint photoPaint = new Paint(Paint.ANTI_ALIAS_FLAG
                         | Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
-                photoPaint.setColorFilter(settings.preset==4 ? null : colorFilter(settings.preset));
+                photoPaint.setColorFilter(colorFilter(settings));
                 if (settings.frameStyle == AspectRatioProfile.BLUR) {
                     drawBlurredBackground(canvas, oriented, width, height);
                 }
@@ -77,6 +78,7 @@ public final class PhotoEngine {
                         width, height, settings.frameStyle, settings.focusX, settings.focusY);
                 canvas.drawBitmap(oriented, null,
                         new RectF(b.left, b.top, b.right, b.bottom), photoPaint);
+                if(settings.hasText())drawCaption(canvas,settings,width,height);
 
                 // Avoid excessive halos and memory usage on large images.
                 // No destructive per-pixel sharpening: it created halos and memory
@@ -230,23 +232,60 @@ public final class PhotoEngine {
         return Bitmap.createBitmap(src, 0, 0, src.getWidth(), src.getHeight(), matrix, true);
     }
 
-    static ColorMatrixColorFilter colorFilter(int preset) {
-        float sat = preset == 0 ? 1.055f : preset == 1 ? 1.12f
-                : preset == 2 ? 1.21f : 1.075f;
-        float contrast = preset == 0 ? 1.035f : preset == 1 ? 1.07f
-                : preset == 2 ? 1.095f : 1.025f;
-        float red = preset == 0 ? 1.01f : preset == 3 ? 1.018f : 1.045f;
-        float blue = preset == 1 ? 0.99f : 1.01f;
-        float lift = preset == 3 ? 10f : 0f;
-        ColorMatrix matrix = new ColorMatrix();
+    /** Shared color matrix for full-size photo exports and on-device editor preview. */
+    static ColorMatrixColorFilter colorFilter(int preset){
+        return colorFilter(preset,0f,0f,0f);
+    }
+    static ColorMatrixColorFilter colorFilter(ExportOptions opts){
+        if(opts.preset==4&&!opts.hasColorAdjustments())return null;
+        return colorFilter(opts.preset,opts.brightness,opts.contrast,opts.saturation);
+    }
+    private static ColorMatrixColorFilter colorFilter(int preset,float brightness,
+                                                       float userContrast,float userSaturation){
+        float sat=preset==4?1f:preset==0?1.055f:preset==1?1.12f:preset==2?1.21f:1.075f;
+        sat=Math.max(.2f,Math.min(2f,sat+userSaturation*.65f));
+        float contrast=preset==4?1f:preset==0?1.035f:preset==1?1.07f:preset==2?1.095f:1.025f;
+        contrast=Math.max(.55f,Math.min(1.55f,contrast+userContrast*.30f));
+        float red=preset==4?1f:preset==0?1.01f:preset==3?1.018f:1.045f;
+        float blue=preset==4?1f:preset==1?.99f:1.01f;
+        float lift=(preset==3?10f:0f)+brightness*38f;
+        ColorMatrix matrix=new ColorMatrix();
         matrix.setSaturation(sat);
         matrix.postConcat(new ColorMatrix(new float[]{
-                contrast * red, 0, 0, 0, lift + 3 - 128 * (contrast - 1),
-                0, contrast * 1.01f, 0, 0, lift + 2 - 128 * (contrast - 1),
-                0, 0, contrast * blue, 0, lift + 2 - 128 * (contrast - 1),
-                0, 0, 0, 1, 0
+                contrast*red,0,0,0,lift-(contrast-1)*128,
+                0,contrast,0,0,lift-(contrast-1)*128,
+                0,0,contrast*blue,0,lift-(contrast-1)*128,
+                0,0,0,1,0
         }));
         return new ColorMatrixColorFilter(matrix);
+    }
+    private static void drawCaption(Canvas canvas,ExportOptions settings,int width,int height){
+        String caption=settings.caption.trim().replace((char)10,' ');
+        if(caption.isEmpty())return;
+        Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.SUBPIXEL_TEXT_FLAG);
+        paint.setTypeface(android.graphics.Typeface.create("sans-serif-medium",
+                android.graphics.Typeface.BOLD));
+        float px=Math.max(18f,Math.min(width*.058f,height*.04f));
+        paint.setTextSize(px);
+        paint.setTextAlign(Paint.Align.CENTER);
+        String[] lines;
+        if(paint.measureText(caption)>width*.88f&&caption.contains(" ")){
+            int middle=caption.length()/2;
+            int split=caption.lastIndexOf(' ',middle);
+            if(split<caption.length()/4)split=caption.indexOf(' ',middle);
+            lines=split>0?new String[]{caption.substring(0,split),caption.substring(split+1)}
+                         :new String[]{caption};
+        }else lines=new String[]{caption};
+        paint.setColor(settings.captionColor);
+        paint.setShadowLayer(Math.max(2f,px*.11f),1f,Math.max(2f,px*.10f),0xEE000000);
+        float y=height*.83f-(lines.length-1)*px*.65f;
+        for(String line:lines){
+            // Fit even long captions within the frame, never clip at the sides.
+            float fit=paint.measureText(line)>0?Math.min(1f,width*.9f/paint.measureText(line)):1f;
+            canvas.save();canvas.translate(width/2f,y);canvas.scale(fit,1f);
+            canvas.drawText(line,0,0,paint);canvas.restore();
+            y+=px*1.25f;
+        }
     }
 
     private static void sharpen(Bitmap image, int width, int height, float strength) {

@@ -167,6 +167,26 @@ jobs:
             adb pull /sdcard/storyboost-ai-photo.png storyboost-ai-photo.png
             # Script is one command: emulator runner executes script lines separately.
             bash scripts/qa-emulator-photo.sh
+            # Record actual UI previews at both requested portrait resolutions.
+            adb shell wm size 320x640
+            adb shell wm density 320
+            adb shell am force-stop com.wfs.storyboost.studio
+            adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity --ez qa_demo true
+            sleep 6
+            adb shell dumpsys activity activities | grep -q 'StudioEditorActivity'
+            adb shell screencap -p /sdcard/storyboost-editor-320x640.png
+            adb pull /sdcard/storyboost-editor-320x640.png storyboost-editor-320x640.png
+            adb shell wm size 1080x2400
+            adb shell wm density 440
+            adb shell am force-stop com.wfs.storyboost.studio
+            adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity --ez qa_demo true
+            sleep 6
+            adb shell dumpsys activity activities | grep -q 'StudioEditorActivity'
+            adb shell screencap -p /sdcard/storyboost-editor-1080x2400.png
+            adb pull /sdcard/storyboost-editor-1080x2400.png storyboost-editor-1080x2400.png
+            python3 -c 'import struct; from pathlib import Path; expected={"storyboost-editor-320x640.png":(320,640),"storyboost-editor-1080x2400.png":(1080,2400)}; [(lambda p,size: (_ for _ in ()).throw(AssertionError((p,size))) if struct.unpack(">II",Path(p).read_bytes()[16:24])!=size else print(p,size))(p,s) for p,s in expected.items()]'
+            adb shell wm size reset
+            adb shell wm density reset
 
       - name: Upload real app screenshot for UI inspection
         uses: actions/upload-artifact@v4

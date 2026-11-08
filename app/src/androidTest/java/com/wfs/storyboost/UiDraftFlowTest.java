@@ -119,8 +119,23 @@ public class UiDraftFlowTest {
         }
         return null;
     }
+    private static View locateExactText(View root,String label){
+        if(root==null)return null;
+        if(root instanceof TextView&&((TextView)root).getText().toString().equals(label))
+            return root;
+        if(root instanceof ViewGroup){
+            ViewGroup group=(ViewGroup)root;
+            for(int i=0;i<group.getChildCount();i++){
+                View child=locateExactText(group.getChildAt(i),label);
+                if(child!=null)return child;
+            }
+        }
+        return null;
+    }
     private static View require(Activity a,String label,boolean description){
-        View found=locate(a.getWindow().getDecorView(),label,description);
+        View root=a.getWindow().getDecorView();
+        View found=description?null:locateExactText(root,label);
+        if(found==null)found=locate(root,label,description);
         assertNotNull("Missing UI control "+label,found);
         return found;
     }

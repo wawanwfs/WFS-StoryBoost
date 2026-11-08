@@ -235,30 +235,36 @@ public final class StudioEditorActivity extends Activity {
     private void build(){
         LinearLayout root=column();root.setBackgroundColor(BG);root.setFitsSystemWindows(true);
         // Editor header
-        LinearLayout header=row();header.setPadding(dp(11),dp(7),dp(12),dp(8));
+        LinearLayout header=row();header.setPadding(dp(8),dp(6),dp(8),dp(7));
         Button back=btn("‹",false);
         back.setTextSize(26);
-        header.addView(back,new LinearLayout.LayoutParams(dp(44),dp(46)));
+        header.addView(back,new LinearLayout.LayoutParams(dp(40),dp(44)));
         back.setOnClickListener(v->finish());
         LinearLayout title=column();
-        title.addView(txt("Studio Editor",19,TEXT,true));gap(title,4);
-        title.addView(txt(isVideo?"VIDEO PROJECT":"PHOTO PROJECT",10,StudioUi.CYAN,true));
-        LinearLayout.LayoutParams titleLp=new LinearLayout.LayoutParams(0,-2,1f);titleLp.leftMargin=dp(8);
+        TextView editorTitle=txt("Editor",18,TEXT,true);
+        editorTitle.setSingleLine(true);
+        editorTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        title.addView(editorTitle);gap(title,3);
+        TextView editorSubtitle=txt(isVideo?"VIDEO • WFS":"FOTO • WFS",9,StudioUi.CYAN,true);
+        editorSubtitle.setSingleLine(true);
+        editorSubtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        title.addView(editorSubtitle);
+        LinearLayout.LayoutParams titleLp=new LinearLayout.LayoutParams(0,-2,1f);titleLp.leftMargin=dp(6);
         header.addView(title,titleLp);
         undoButton=btn("↶",false);
         undoButton.setContentDescription("Undo perubahan terakhir");
         undoButton.setTextSize(22);
-        header.addView(undoButton,new LinearLayout.LayoutParams(dp(37),dp(42)));
+        header.addView(undoButton,new LinearLayout.LayoutParams(dp(35),dp(42)));
         undoButton.setOnClickListener(v->historyNavigate(true));
         redoButton=btn("↷",false);
         redoButton.setContentDescription("Redo perubahan");
         redoButton.setTextSize(22);
-        LinearLayout.LayoutParams redoLp=new LinearLayout.LayoutParams(dp(37),dp(42));
+        LinearLayout.LayoutParams redoLp=new LinearLayout.LayoutParams(dp(35),dp(42));
         redoLp.leftMargin=dp(4);
         header.addView(redoButton,redoLp);
         redoButton.setOnClickListener(v->historyNavigate(false));
         exportButton=btn("Ekspor  ↗",true);
-        header.addView(exportButton,new LinearLayout.LayoutParams(dp(100),dp(44)));
+        header.addView(exportButton,new LinearLayout.LayoutParams(dp(87),dp(44)));
         exportButton.setOnClickListener(v->confirmExport());
         root.addView(header);
 
@@ -356,6 +362,7 @@ public final class StudioEditorActivity extends Activity {
         seekbar.setProgressTintList(android.content.res.ColorStateList.valueOf(StudioUi.LAVENDER));
         seekbar.setThumbTintList(android.content.res.ColorStateList.valueOf(StudioUi.CYAN));
         seekbar.setEnabled(isVideo);
+        seekbar.setVisibility(isVideo?View.VISIBLE:View.GONE);
         seekbar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
             @Override public void onProgressChanged(SeekBar s,int progress,boolean user){
                 if(!user||!isVideo)return;

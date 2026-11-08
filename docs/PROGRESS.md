@@ -51,6 +51,7 @@ This is a **feature roadmap coverage estimate** for the target v3.0, not a claim
 - Autosaves on user edits and during Activity pause; Clear Recent clears editing drafts as well.
 - Added source-resolution validation **before** AI DnCNN preview/export to avoid promising an output that the full-size renderer cannot process (>2.6 MP).
 - Added real Android emulator tests of SharedPreferences draft roundtrip, malformed/corrupt draft rejection, source isolation, URI privacy, clearing, and >2.6 MP guard. Evidence requires the latest successful CI run, not just compiling.
+- Actual emulator 320×640 screenshot identified a wrapped editor header and unnecessary disabled photo seekbar; v3 beta1 fixes both. Check the latest screenshot to confirm layout.
 - Roadmap stays **23/32 = 71.875% (~72%)** because saved editing state strengthens an already-counted Editor foundation module. No real-photo ML benchmark, physical-device QA, stable signed release or multi-track editing was completed.
 - Note: Original output quality on WhatsApp/Instagram/TikTok cannot be guaranteed after their server-side recompression.
 

@@ -12,6 +12,7 @@
 - **Clear history:** now clears both Recent Projects and private drafts; exports and gallery originals remain untouched.
 - **DnCNN preflight:** photos exceeding the 2.6 MP source limit fail **before image decoding or AI preview**, with an explicit explanation. Earlier, the scaled preview could appear to work even though full-resolution AI export would reject the image.
 - **AI color controls:** slider changes debounce expensive neural preview calculations while maintaining the original image safety policy.
+- **Small-screen UI fix:** compact Editor header prevents wrapped titles on 320px-wide screens; photo-only mode hides the disabled video playhead slider to recover preview space.
 - **Real emulator QA:** tests the persisted draft round-trip, corrupt JSON, per-source isolation, data privacy, clearing drafts, and source-dimension rejection on both preview/export. Existing genuine DnCNN PSNR/SSIM + JPEG export tests remain mandatory.
 - **Scope:** This is a **beta milestone**, not complete CapCut parity or a production-certified release. No AI super-resolution, AI deblur, or tested real-photo bokeh accuracy has been added.
 

@@ -184,3 +184,6 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] Neural Denoise photo source >2.6 MP rejects in preview and export BEFORE expensive decode, not silently downsampled.
 - [ ] Read the actual emulator report; it must have STATUS=PASS, draftPersistenceTests and over2_6MPGuard, plus original neural PSNR/SSIM metrics.
 - [ ] Run real UI test on Android 10/15 physical devices. These items remain incomplete until verified on hardware.
+
+- [ ] On 320x640 emulator, Editor title stays one line, Undo/Redo and Export buttons all visible and clickable.
+- [ ] In photo mode no disabled video seekbar consumes vertical space; video mode retains working seekbar.

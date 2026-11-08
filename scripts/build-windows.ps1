@@ -43,5 +43,5 @@ $Apk = Join-Path (Get-Location) "app\build\outputs\apk\debug\app-debug.apk"
 if (-not (Test-Path $Apk)) { throw "Build selesai tanpa file APK." }
 $Dist = Join-Path (Get-Location) "dist"
 New-Item -ItemType Directory -Force -Path $Dist | Out-Null
-Copy-Item $Apk (Join-Path $Dist "WFS-StoryBoost-v2.7.0-debug.apk") -Force
-Write-Host "SELESAI: $(Join-Path $Dist 'WFS-StoryBoost-v2.7.0-debug.apk')" -ForegroundColor Green
+Copy-Item $Apk (Join-Path $Dist "WFS-StoryBoost-v2.7.1-debug.apk") -Force
+Write-Host "SELESAI: $(Join-Path $Dist 'WFS-StoryBoost-v2.7.1-debug.apk')" -ForegroundColor Green

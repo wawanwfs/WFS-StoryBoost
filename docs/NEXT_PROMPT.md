@@ -1,6 +1,6 @@
 # WFS StoryBoost — Next execution prompt (after v2.7)
 
-Continue development in https://github.com/wawanwfs/WFS-StoryBoost using the latest main branch. Audit README.md, docs/PROGRESS.md, tests/TEST_PLAN.md, CI build logs, and current Android source before editing. Make changes on an appropriate development branch or use safe fast-forward updates without overwriting concurrent work. Preserve commit attribution to the connected user's GitHub identity.
+Continue development in https://github.com/wawanwfs/WFS-StoryBoost using the latest main branch (v2.7.1 or later). Audit README.md, docs/PROGRESS.md, tests/TEST_PLAN.md, CI build logs, and current Android source before editing. Make changes on an appropriate development branch or use safe fast-forward updates without overwriting concurrent work. Preserve commit attribution to the connected user's GitHub identity.
 
 **Priority 1 — image quality & real AI models**
 - Validate v2.7 Portrait Bokeh with representative portraits, difficult hair edges, multi-person images, EXIF rotations, and no-person cases. Fix segmentation mask edge artifacts and device-specific crashes. Keep all face identity and features unchanged.
@@ -10,7 +10,7 @@ Continue development in https://github.com/wawanwfs/WFS-StoryBoost using the lat
 **Priority 2 — editor and production**
 - Add true undo/redo of editing operations, stable project persistence, more precise touch crop controls, and clear export before/after comparisons.
 - Develop multi-track composition and transitions incrementally, only when verified by rendering two real clips.
-- Implement stable signed release signing using repository secrets supplied by the owner, never commit any keystore, token or password.
+- Verify arm64 APK on an actual arm64 device, measure installation size and performance, reduce unused resources (R8/resource shrinking when safe). Implement stable signed release signing using repository secrets supplied by the owner; never commit any keystore, token or password.
 - Add tests: unit, emulator export integration, real JPEG output validation, 1080p MP4 playback/audio, A/B comparison, and a physical-device QA matrix.
 - Publish APK as a GitHub Actions artifact only after all available gates pass. Inspect emulator screenshots and declare anything not tested.
 

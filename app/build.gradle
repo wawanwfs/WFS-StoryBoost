@@ -14,14 +14,25 @@ android {
     namespace 'com.wfs.storyboost'
     compileSdk 36
 
+    // ABI-specific APKs minimize download size for phones using only one CPU ABI.
+    // Universal APK remains available for compatibility including older 32-bit phones.
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
+            universalApk true
+        }
+    }
+
     defaultConfig {
         // v1.4–v1.6 used the same app ID with different ephemeral debug certificates,
         // causing INSTALL_FAILED_UPDATE_INCOMPATIBLE. New package installs side by side.
         applicationId 'com.wfs.storyboost.studio'
         minSdk 29
         targetSdk 35
-        versionCode 27
-        versionName '2.7.0'
+        versionCode 28
+        versionName '2.7.1'
     }
 
     signingConfigs {

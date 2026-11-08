@@ -31,8 +31,9 @@ android {
         applicationId 'com.wfs.storyboost.studio'
         minSdk 29
         targetSdk 35
-        versionCode 32
-        versionName '3.0.0-beta1'
+        versionCode 33
+        versionName '3.0.0-beta2'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
     signingConfigs {
@@ -76,6 +77,9 @@ android {
 dependencies {
     // Universal CPU-capable neural inference; model weights are MIT licensed.
     implementation 'org.tensorflow:tensorflow-lite:2.17.0'
+    androidTestImplementation 'androidx.test:core:1.6.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
     implementation 'androidx.media3:media3-transformer:1.11.1'
     implementation 'androidx.media3:media3-effect:1.11.1'
     implementation 'androidx.media3:media3-common:1.11.1'

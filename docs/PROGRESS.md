@@ -1,4 +1,4 @@
-# WFS StoryBoost — Progress report v3.0.0-beta1
+# WFS StoryBoost — Progress report v3.0.0-beta2
 
 This is a **feature roadmap coverage estimate** for the target v3.0, not a claim of tested production quality. Each checkbox counts as one module. Implemented means source code is present and the project builds; feature correctness still requires end-to-end device tests.
 
@@ -45,6 +45,15 @@ This is a **feature roadmap coverage estimate** for the target v3.0, not a claim
 - [ ] Benchmarks for memory, rendering time and actual output media quality
 
 **Total: 8 + 6 + 5 + 4 = 23 of 32 = 71.875%, rounded to 72%, only if CI inference benchmark passes.**
+
+## v3.0 beta2: objective QA and crash-safety
+
+- Added AndroidJUnit4 in-app activity interaction tests on Android API 29 and API 35 using a real MediaStore JPEG (SAF result simulated, not actual DocumentsUI picker automation).
+- Added authentic FFmpeg-generated procedural H.264/AAC 1080p fixture and production Media3 export/trim/mute/merge/cancel tests, gated on API 35. Debugging and validation status depend on actual GitHub Actions results.
+- Fixed missing/revoked media URI handling, corrupt/missing-duration video path, video intermediate cleanup, and touch crop normalized source transform; new pure Java crop regression assertions.
+- Added DnCNN 480px multi-tile RGB synthetic test with latency, seam and chroma preservation diagnostics. Still no evidence from consented real faces/low-light portraits.
+- **Roadmap remains 23/32 = 72%**. Instrumentation and quality checks do not count as new editor or ML-feature modules.
+- Stable owner release signing, real physical ARM64 devices, original SAF picker tap-through, actual Android process death, and rights-cleared portrait Bokeh validation remain incomplete.
 
 ## v3.0 beta changes (quality and continuity, not new modules)
 - Implemented secure local draft storage/restore for media reopened through Recent Projects. Persists Color Looks, frame/crop, caption, quality, video trim and AI effect flags; source media remains untouched. Undo/Redo remains an in-memory history within each editor session.

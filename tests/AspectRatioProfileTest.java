@@ -314,6 +314,27 @@ public final class AspectRatioProfileTest {
                 "denoise survives portrait toggle");
         check(!neural.withAiDenoise(false).aiDenoise,
                 "denoise can be disabled safely");
+        // v3 beta2: focus tracks crop window, not the raw finger percentage.
+        check(Math.abs(CropGestureMath.moveX(1920,1080,1080,1920,.5f,0)-.5f)<.0001f,
+                "zero drag keeps crop x");
+        check(CropGestureMath.moveX(1920,1080,1080,1920,.5f,130)<.5f,
+                "rightward finger drag pans left in wide image");
+        check(CropGestureMath.moveX(1920,1080,1080,1920,.5f,-130)>.5f,
+                "leftward finger drag pans right in wide image");
+        check(CropGestureMath.moveY(1920,1080,1080,1920,.5f,130)==.5f,
+                "vertical axis remains fixed without vertical cropping");
+        check(CropGestureMath.moveX(1080,1920,1920,1080,.5f,100)==.5f,
+                "horizontal axis remains fixed without horizontal cropping");
+        check(CropGestureMath.moveY(1080,1920,1920,1080,.5f,130)<.5f,
+                "vertical crop tracks finger geometry");
+        check(CropGestureMath.moveY(1080,1920,1920,1080,.5f,-9999)==1f,
+                "crop focus clamps to one");
+        check(CropGestureMath.moveX(1920,1080,1080,1920,.5f,9999)==0f,
+                "crop focus clamps to zero");
+        boolean invalidDrag=false;
+        try{CropGestureMath.moveX(1920,1080,1080,1920,.5f,Float.NaN);}
+        catch(IllegalArgumentException expected){invalidDrag=true;}
+        check(invalidDrag,"NaN finger drag is rejected");
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

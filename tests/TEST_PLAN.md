@@ -187,3 +187,13 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 
 - [ ] On 320x640 emulator, Editor title stays one line, Undo/Redo and Export buttons all visible and clickable.
 - [ ] In photo mode no disabled video seekbar consumes vertical space; video mode retains working seekbar.
+
+## v3.0 beta2 objective UI / media gate status
+- [ ] Android API 29/35 AndroidJUnit4 ActivityScenario test: actual MediaStore JPEG, simulated SAF callback, filter/ratio/crop/caption/AI UI controls, editor onPause and reopen through Recent, JPEG export, and byte-for-byte unchanged original.
+- [ ] On-device corrupted draft reject, clear history, and missing/revoked media message, on both APIs.
+- [ ] Real system DocumentsUI picker with granted persistable URI: **not covered** by the simulated-result test.
+- [ ] Real Android process-kill/relaunch across fresh instrumentation processes: **not covered** by ActivityScenario recreation.
+- [ ] GitHub API 35 video QA: synthetic H.264/AAC 1920x1080, encoded FHD MP4, trimmed 1280x720, audio muted, merged 2 clips and cancellation cleans cache; inspect codec/duration and screenshot reports.
+- [ ] Android API 29 real MP4 encoding and physical ARM64 codec matrix: pending; API29 still runs JPEG/UI instrumentation.
+- [ ] DnCNN actual 480x480 multi-tile inference with recorded seam and RGB chroma diagnostics; real portrait photos pending.
+- [ ] Visual QA at 320x640 and 1080x2400: verify controls are not clipped, text remains readable, crop gestures align with subject and before/after comparison is usable.

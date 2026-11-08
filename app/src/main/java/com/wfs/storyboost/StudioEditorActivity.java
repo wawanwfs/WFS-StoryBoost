@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
+import android.os.ParcelFileDescriptor;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -54,7 +55,7 @@ public final class StudioEditorActivity extends Activity {
     private final ArrayDeque<RenderJob> exports=new ArrayDeque<>();
     private VideoEngine activeVideoEngine;
     private Uri mediaUri,lastExport;
-    private boolean isVideo,isDemo,destroyed,exportBusy,exportCancelled;
+    private boolean isVideo,isDemo,destroyed,exportBusy,exportCancelled,mediaReady;
     private long durationMs=0,trimStartMs=0,trimEndMs=0,splitMs=-1;
     private int ratio=0,preset=1,framing=AspectRatioProfile.FIT,quality=OutputProfile.MAX_DETAIL;
     private float focusX=.5f,focusY=.5f;
@@ -75,6 +76,7 @@ public final class StudioEditorActivity extends Activity {
     private FrameLayout canvasArea,outputCanvas;
     private View cropTouchLayer;
     private float cropDownX,cropDownY,cropDownFocusX,cropDownFocusY;
+    private int cropSourceW,cropSourceH;
     private LinearLayout toolPane,thumbStrip;
     private Button playButton,exportButton,compareButton;
     private android.app.AlertDialog exportDialog;
@@ -140,7 +142,7 @@ public final class StudioEditorActivity extends Activity {
         }
     }
     private void persistDraft(){
-        if(isDemo||mediaUri==null||destroyed)return;
+        if(isDemo||mediaUri==null||destroyed||!mediaReady)return;
         try{
             StudioDraftStore.save(this,mediaUri,options(),splitMs,dualOutput);
         }catch(RuntimeException ignored){
@@ -162,6 +164,16 @@ public final class StudioEditorActivity extends Activity {
         portraitBokeh=o.portraitBokeh;aiDenoise=o.aiDenoise;
         trimStartMs=o.trimStartMs;trimEndMs=o.trimEndMs;
         splitMs=saved.splitMs;dualOutput=saved.dualOutput;
+        // Never restore a stale trim range on a replaced or shortened video.
+        if(isVideo){
+            if(trimStartMs>=durationMs)trimStartMs=0;
+            if(trimEndMs>durationMs)trimEndMs=durationMs;
+            if(trimEndMs>0&&trimEndMs<=trimStartMs)trimEndMs=0;
+            long end=trimEndMs>0?trimEndMs:durationMs;
+            if(splitMs<=trimStartMs||splitMs>=end)splitMs=-1;
+        }else{
+            trimStartMs=0;trimEndMs=0;splitMs=-1;muteAudio=false;
+        }
         draftRestored=true;
     }
     private void updateUndoButtons(){
@@ -209,7 +221,16 @@ public final class StudioEditorActivity extends Activity {
         String from=getIntent().getStringExtra("media_uri");
         if(from==null||from.isEmpty()){finish();return;}
         mediaUri=Uri.parse(from);isDemo=getIntent().getBooleanExtra("demo",false);
-        String mime=getContentResolver().getType(mediaUri);
+        String mime;
+        // Content URIs may be revoked/deleted since Recent was created.
+        try(ParcelFileDescriptor handle=getContentResolver().openFileDescriptor(mediaUri,"r")){
+            if(handle==null)throw new java.io.IOException("Sumber kosong");
+            mime=getContentResolver().getType(mediaUri);
+        }catch(Exception unavailable){
+            Toast.makeText(this,"Media tidak tersedia atau izin akses dicabut. Pilih ulang melalui Galeri.",
+                    Toast.LENGTH_LONG).show();
+            finish();return;
+        }
         isVideo=(mime!=null&&mime.startsWith("video/"))
                 ||from.toLowerCase(Locale.US).matches(".*\\.(mp4|mov|m4v|webm)(\\?.*)?$");
         ratio=getIntent().getIntExtra("ratio",0);
@@ -217,8 +238,13 @@ public final class StudioEditorActivity extends Activity {
         aiAutoStart=getIntent().getBooleanExtra("auto_ai",false);
         if(isVideo){
             durationMs=MediaProbe.duration(this,mediaUri);
-            if(durationMs<=0)durationMs=30000;
+            if(durationMs<=0){
+                Toast.makeText(this,"Video tidak didukung atau durasi/track rusak.",
+                        Toast.LENGTH_LONG).show();
+                finish();return;
+            }
         }
+        mediaReady=true;
         restoreRecentDraft();
         build();
         lastState=captureEdit();
@@ -298,14 +324,20 @@ public final class StudioEditorActivity extends Activity {
             if(framing!=AspectRatioProfile.CROP)return false;
             switch(event.getActionMasked()){
                 case MotionEvent.ACTION_DOWN:
+                    try{
+                        AspectRatioProfile.Size nativeSize=MediaDimensions.read(this,mediaUri);
+                        cropSourceW=nativeSize.width;cropSourceH=nativeSize.height;
+                    }catch(Exception unavailable){return false;}
                     cropDownX=event.getX();cropDownY=event.getY();
                     cropDownFocusX=focusX;cropDownFocusY=focusY;
                     return true;
                 case MotionEvent.ACTION_MOVE:
-                    float deltaX=(event.getX()-cropDownX)/Math.max(1,view.getWidth());
-                    float deltaY=(event.getY()-cropDownY)/Math.max(1,view.getHeight());
-                    focusX=Math.max(0f,Math.min(1f,cropDownFocusX-deltaX));
-                    focusY=Math.max(0f,Math.min(1f,cropDownFocusY-deltaY));
+                    focusX=CropGestureMath.moveX(cropSourceW,cropSourceH,
+                            view.getWidth(),view.getHeight(),cropDownFocusX,
+                            event.getX()-cropDownX);
+                    focusY=CropGestureMath.moveY(cropSourceW,cropSourceH,
+                            view.getWidth(),view.getHeight(),cropDownFocusY,
+                            event.getY()-cropDownY);
                     previewLabel.setText("CROP FOCUS • X "+Math.round(focusX*100)+
                             "% / Y "+Math.round(focusY*100)+"%");
                     return true;

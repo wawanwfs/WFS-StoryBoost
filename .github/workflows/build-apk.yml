@@ -3,7 +3,7 @@ name: Build and verify WFS StoryBoost APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches: [main, master, wfs-storyboost-v3-beta2]
 
 permissions:
   contents: read
@@ -35,7 +35,7 @@ jobs:
       - name: Fetch verified Qualcomm DnCNN model
         run: bash scripts/fetch-dncnn-model.sh
       - name: Build debug APK
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
       - name: Verify debug APK signature, manifest, launcher and ZIP
         shell: bash
         run: |
@@ -61,14 +61,20 @@ jobs:
       - name: Publish optimized ARM64 APK
         uses: actions/upload-artifact@v4
         with:
-          name: WFS-StoryBoost-v3.0.0-beta1-ARM64-APK
+          name: WFS-StoryBoost-v3.0.0-beta2-ARM64-APK
           path: app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
           if-no-files-found: error
       - name: Publish Universal APK
         uses: actions/upload-artifact@v4
         with:
-          name: WFS-StoryBoost-v3.0.0-beta1-Universal-APK
+          name: WFS-StoryBoost-v3.0.0-beta2-Universal-APK
           path: app/build/outputs/apk/debug/app-universal-debug.apk
+          if-no-files-found: error
+      - name: Publish UI instrumentation test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: WFS-StoryBoost-v3.0.0-beta2-Instrumentation-APK
+          path: app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           if-no-files-found: error
       - name: Configure stable release signing if secrets exist
         id: signing
@@ -106,35 +112,47 @@ jobs:
         if: steps.signing.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: WFS-StoryBoost-v3.0.0-beta1-Release-Signed
+          name: WFS-StoryBoost-v3.0.0-beta2-Release-Signed
           path: |
             app/build/outputs/apk/release/app-arm64-v8a-release.apk
             app/build/outputs/apk/release/app-universal-release.apk
           if-no-files-found: error
 
   install-smoke:
-    name: Android 35 emulator install and launch
+    name: Android API ${{ matrix.api-level }} emulator UI / JPEG / MP4 QA
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [29, 35]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: WFS-StoryBoost-v3.0.0-beta1-Universal-APK
+          name: WFS-StoryBoost-v3.0.0-beta2-Universal-APK
           path: smoke-apk
+      - uses: actions/download-artifact@v4
+        with:
+          name: WFS-StoryBoost-v3.0.0-beta2-Instrumentation-APK
+          path: smoke-test-apk
+      - name: Create synthetic H.264/AAC MP4 fixtures
+        run: bash scripts/generate-video-fixtures.sh
       - name: Allow Android emulator KVM
         run: |
           if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
       - name: Install and launch in Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: ${{ matrix.api-level }}
           arch: x86_64
           target: google_apis
           disable-animations: true
           emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
             adb install smoke-apk/app-universal-debug.apk
+            adb install smoke-test-apk/app-debug-androidTest.apk
+            bash scripts/qa-emulator-ui.sh
             adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity
             sleep 4
             adb shell pidof com.wfs.storyboost.studio
@@ -165,13 +183,20 @@ jobs:
             adb pull /sdcard/storyboost-ai-photo.png storyboost-ai-photo.png
             # Script is one command: emulator runner executes script lines separately.
             bash scripts/qa-emulator-photo.sh
+            bash scripts/qa-emulator-video.sh
 
-      - name: Upload real app screenshot for UI inspection
+      - name: Upload emulator QA evidence (including failures)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: WFS-StoryBoost-v3.0.0-beta1-Emulator-Screenshot
+          name: WFS-StoryBoost-v3.0.0-beta2-API${{ matrix.api-level }}-Emulator-QA
           path: |
             storyboost-*.png
             qa-photo-export.txt
             qa-photo-memory.txt
-          if-no-files-found: error
+            qa-ui-instrumentation.txt
+            qa-video-input-probe.txt
+            qa-video-export.txt
+            qa-video-memory.txt
+            qa-video-logcat.txt
+          if-no-files-found: warn

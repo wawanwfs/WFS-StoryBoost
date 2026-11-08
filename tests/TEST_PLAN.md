@@ -204,3 +204,14 @@ The [successful candidate CI](https://github.com/wawanwfs/WFS-StoryBoost/actions
 - [ ] Two independent owner-signed APK builds with same certificate and successful `adb install -r`.
 
 Do not count tests as new roadmap modules. Current ledger remains 23 of 32 unique features. Debug artifacts are not stable signed production builds.
+
+## Beta3 verified and pending acceptance
+
+- [x] Two independent `adb am instrument` processes separated by **external** `adb am force-stop` on API29/35; PID changes, MediaStore Recent/draft persists, 1080×1920 JPEG and original SHA-256 unchanged. [CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42499169024).
+- [x] API35 synthetic video: actual H.264/AAC split/merge, silent and rotated transformations, active cancellation and no new cache temp files.
+- [x] Android Activity crop gesture focus, Undo/Redo, before-after control, repeated same-URI import starts a fresh project, not Recent.
+- [ ] Real system DocumentsUI picker selection, persistable third-party URI grants/revocation: **exploratory CI failed**, not merged ([evidence](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42499028171)).
+- [ ] Forced death during **pending autosave**, real-device benchmark/gesture QA, consented real-human bokeh, real low-light chroma/tile-seam DnCNN benchmark.
+- [ ] Owner release keystore, two same-certificate signed APKs and actual `adb install -r` preserving project state.
+
+Tests are not additional feature modules. Progress is 23/32.

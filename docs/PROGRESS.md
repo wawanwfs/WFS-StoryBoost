@@ -1,4 +1,4 @@
-# WFS StoryBoost — Progress report v3.0.0-beta2
+# WFS StoryBoost — Progress report v3.0.0-beta3
 
 This is a **feature roadmap coverage estimate** for the target v3.0, not a claim of tested production quality. Each checkbox counts as one module. Implemented means source code is present and the project builds; feature correctness still requires end-to-end device tests.
 
@@ -45,6 +45,14 @@ This is a **feature roadmap coverage estimate** for the target v3.0, not a claim
 - [ ] Benchmarks for memory, rendering time and actual output media quality
 
 **Total: 8 + 6 + 5 + 4 = 23 of 32 = 71.875%, rounded to 72%, only if CI inference benchmark passes.**
+
+## v3.0 beta3 — evidence vs remaining blockers
+
+[All four CI jobs passed](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42499169024) on `5757f76c5d4bd473306c9afd6ebd8244fe5e3186`: API29/API35 local MediaStore state persisted over genuine external `adb am force-stop`, independent instrumentation processes and PID check, Recent resume, decoded 1080×1920 JPEG and original SHA-256. This **does not** prove actual DocumentsUI `ACTION_OPEN_DOCUMENT` selection or external URI permission revocation.
+
+New synthetic API35 media checks: separate H.264/AAC split files, 2-clip merge, silent and rotated MP4, active cancellation and cleanup. Real Activity UI checks: crop focus gesture, Undo/Redo, before-after, repeated import without inheriting a Recent draft. Quality on real portraits, low-RAM Android 10/ARM64 hardware, complete accessibility, 24-Look visual inspection, full source-provider tests and two owner-signed releases remain **unverified**. [Exploratory DocumentsUI CI failed](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42499028171), so was **not merged**.
+
+**Distinct feature recount:** A 8/8 + B 6/8 + C 5/8 + D 4/8 = **23/32 = 71.875%**. No new roadmap module counted; testing confidence improved. WhatsApp/Instagram/TikTok may recompress.
 
 ## v3.0 beta2 — evidence summary (no extra modules)
 

@@ -149,6 +149,8 @@ public final class VideoEngine {
                             validateOutput(temp,target,sourceInfo,expectedDuration,settings.muteAudio);
                             if(!cancelled)callback.onSuccess(temp,target);
                         } catch (Exception invalid) {
+                            // A failed validation must never leak a partially encoded MP4.
+                            cleanup();
                             if(!cancelled)callback.onError("Validasi MP4 gagal: "+invalid.getMessage());
                         }
                     }
@@ -158,9 +160,14 @@ public final class VideoEngine {
                         if(allowFallback&&settings.qualityMode==OutputProfile.FULL_HD){
                             if(temp!=null)temp.delete();
                             try{startInternal(context,source,settings.inHd(),callback,false);return;}
-                            catch(Exception problem){callback.onError("FHD/HD gagal: "+problem.getMessage());return;}
+                            catch(Exception problem){
+                                cleanup();
+                                callback.onError("FHD/HD gagal: "+problem.getMessage());return;
+                            }
                         }
-                        callback.onError(e.getMessage()==null?"Video gagal diekspor.":e.getMessage());
+                        String reason=e.getMessage()==null?"Video gagal diekspor.":e.getMessage();
+                        cleanup();
+                        callback.onError(reason);
                     }
                 })
                 .build();

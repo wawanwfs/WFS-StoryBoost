@@ -150,14 +150,20 @@ public class UiDraftFlowTest {
         assertTrue("Click failed "+label,target.performClick());
     }
     private StudioEditorActivity resumedEditor(){
-        AtomicReference<StudioEditorActivity> result=new AtomicReference<>();
-        instrument.runOnMainSync(()->{
-            Collection<Activity> resumed=ActivityLifecycleMonitorRegistry.getInstance()
-                    .getActivitiesInStage(Stage.RESUMED);
-            for(Activity a:resumed)
-                if(a instanceof StudioEditorActivity)result.set((StudioEditorActivity)a);
-        });
-        return result.get();
+        long timeout=android.os.SystemClock.uptimeMillis()+6000L;
+        do{
+            AtomicReference<StudioEditorActivity> result=new AtomicReference<>();
+            instrument.runOnMainSync(()->{
+                Collection<Activity> resumed=ActivityLifecycleMonitorRegistry.getInstance()
+                        .getActivitiesInStage(Stage.RESUMED);
+                for(Activity a:resumed)
+                    if(a instanceof StudioEditorActivity)result.set((StudioEditorActivity)a);
+            });
+            if(result.get()!=null)return result.get();
+            android.os.SystemClock.sleep(140);
+            idle();
+        }while(android.os.SystemClock.uptimeMillis()<timeout);
+        return null;
     }
     private ActivityScenario<StudioHomeActivity> importWithSafResult(){
         Intents.init();
@@ -208,6 +214,7 @@ public class UiDraftFlowTest {
             assertEquals(OutputProfile.FULL_HD,saved.options.qualityMode);
             assertEquals("DRAFT 29-35",saved.options.caption);
             assertFalse(saved.options.portraitBokeh);
+            assertTrue("Original source must remain readable",SourceAccess.canRead(target,source));
             home.onActivity(a->tap(a,"Media Proyek 1",false));
             idle();
             assertNotNull("Recent must launch Editor",resumedEditor());

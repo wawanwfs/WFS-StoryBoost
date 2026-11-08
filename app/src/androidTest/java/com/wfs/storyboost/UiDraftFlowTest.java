@@ -149,6 +149,13 @@ public class UiDraftFlowTest {
         assertNotNull("Not clickable "+label,target);
         assertTrue("Click failed "+label,target.performClick());
     }
+    // Must only be called on main thread: no nested runOnMainSync.
+    private StudioEditorActivity resumedEditorUnsafe(){
+        for(Activity a:ActivityLifecycleMonitorRegistry.getInstance()
+                .getActivitiesInStage(Stage.RESUMED))
+            if(a instanceof StudioEditorActivity)return (StudioEditorActivity)a;
+        throw new AssertionError("Editor was not RESUMED during crop measurement");
+    }
     private StudioEditorActivity resumedEditor(){
         long timeout=android.os.SystemClock.uptimeMillis()+6000L;
         do{
@@ -291,6 +298,20 @@ public class UiDraftFlowTest {
                 tap(a,"Crop",false);
             });
             idle();
+            int measuredWidth=0,measuredHeight=0;
+            for(int attempt=0;attempt<25;attempt++){
+                int[] dims=new int[2];
+                instrument.runOnMainSync(()->{
+                    View layer=require(resumedEditorUnsafe(),
+                            "Drag to reposition image crop focus",true);
+                    dims[0]=layer.getWidth();dims[1]=layer.getHeight();
+                });
+                measuredWidth=dims[0];measuredHeight=dims[1];
+                if(measuredWidth>40&&measuredHeight>40)break;
+                android.os.SystemClock.sleep(160);
+            }
+            assertTrue("Crop layer remained unmeasured after layout: "+
+                    measuredWidth+"x"+measuredHeight,measuredWidth>40&&measuredHeight>40);
             act(a->{
                 View touch=require(a,"Drag to reposition image crop focus",true);
                 assertEquals(View.VISIBLE,touch.getVisibility());

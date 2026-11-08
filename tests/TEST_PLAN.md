@@ -174,3 +174,13 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 
 - [ ] Touch Crop: drag left/right/up/down in Crop mode, verify focus X/Y changes and one final preview on touch release; Undo restores previous focus and Redo reapplies.
 - [ ] Drag surface disabled on Fit/Blur and does not interfere with video playback or social safe-zone overlays.
+
+## v3.0 beta1 — Persisted edit drafts and preflight dimensions
+- [ ] Open a persisted-URI photo, change Look, ratio, custom dimensions, caption, focus X/Y and AI flags, close editor and reopen **Proyek Terakhir**. Confirm all settings restored, without altering source bytes.
+- [ ] Android process killed during background: draft survives; corrupt state and revoked/deleted media never crash the app.
+- [ ] Clear Recent clears both media list and drafts, without deleting Gallery original/export files.
+- [ ] Fresh new import is not forced into an existing draft; only Recent explicitly resumes a draft.
+- [ ] Restore trim/mute, split and dual export from a persisted video source; state must be validated against changed media duration.
+- [ ] Neural Denoise photo source >2.6 MP rejects in preview and export BEFORE expensive decode, not silently downsampled.
+- [ ] Read the actual emulator report; it must have STATUS=PASS, draftPersistenceTests and over2_6MPGuard, plus original neural PSNR/SSIM metrics.
+- [ ] Run real UI test on Android 10/15 physical devices. These items remain incomplete until verified on hardware.

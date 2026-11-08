@@ -270,6 +270,80 @@ public final class PhotoExportQa {
         if(verified!=null)verified.recycle();
         report.append("dncnnExportJpegBytes=").append(jpegWithAi.jpeg.length).append('\n');
         noisyJpeg.delete();
+        // v3 beta: REAL private draft persistence. Media itself remains untouched.
+        ExportOptions savedOptions=new ExportOptions(ColorLooks.ORIGINAL,
+                AspectRatioProfile.CUSTOM,AspectRatioProfile.CROP,true,
+                200,900,.24f,.81f)
+                .withCustomSize(1200,900)
+                .withQuality(OutputProfile.HD)
+                .withAdjustments(.25f,-.1f,.15f)
+                .withCaption("WFS draft restored",Color.WHITE)
+                .withMute(true)
+                .withAiDenoise(true)
+                .withPortraitBokeh(true);
+        check(StudioDraftStore.save(app,uri,savedOptions,450,true),
+                "private editor draft stored successfully");
+        StudioDraftStore.Draft recovered=StudioDraftStore.load(app,uri);
+        check(recovered!=null,"draft can reopen after preferences commit");
+        check(recovered.options.ratio==AspectRatioProfile.CUSTOM
+                &&recovered.options.customWidth==1200
+                &&recovered.options.customHeight==900,
+                "custom dimensions recovered from disk");
+        check(recovered.options.aiDenoise&&recovered.options.portraitBokeh,
+                "neural and bokeh switches recovered");
+        check(recovered.options.caption.equals("WFS draft restored")
+                &&recovered.options.muteAudio,
+                "text and audio state recovered");
+        check(Math.abs(recovered.options.focusX-.24f)<.001f
+                &&Math.abs(recovered.options.focusY-.81f)<.001f,
+                "crop focus recovered without rounding");
+        check(recovered.splitMs==450&&recovered.dualOutput,
+                "timeline split and dual export options recovered");
+        check(!app.getSharedPreferences("studio-drafts",Context.MODE_PRIVATE)
+                .getAll().toString().contains(uri.toString()),
+                "raw source URI is never stored as a draft value or key");
+        Uri unrelated=Uri.parse("content://some-other-media/5678");
+        check(StudioDraftStore.load(app,unrelated)==null,
+                "draft is isolated to its own media source");
+        app.getSharedPreferences("studio-drafts",Context.MODE_PRIVATE).edit()
+                .putString(StudioDraftStore.keyFor(uri),"{corrupt-json").commit();
+        check(StudioDraftStore.load(app,uri)==null,
+                "corrupt draft fails closed without crashing");
+        StudioDraftStore.clearAll(app);
+        check(StudioDraftStore.load(app,uri)==null,
+                "clear history also clears private editing draft");
+        report.append("draftPersistenceTests=11").append('\n');
+
+        // Validate source pixel count BEFORE decoding or running neural inference.
+        File huge=new File(app.getCacheDir(),"qa_v30_too_large.jpg");
+        Bitmap oversized=Bitmap.createBitmap(1900,1400,Bitmap.Config.ARGB_8888);
+        try{
+            oversized.eraseColor(Color.rgb(26,64,124));
+            try(FileOutputStream out=new FileOutputStream(huge)){
+                check(oversized.compress(Bitmap.CompressFormat.JPEG,85,out),
+                        "oversized source fixture encoded");
+            }
+        }finally{oversized.recycle();}
+        ExportOptions hugeOptions=new ExportOptions(ColorLooks.ORIGINAL,
+                AspectRatioProfile.ORIGINAL,AspectRatioProfile.FIT,true)
+                .withAiDenoise(true);
+        boolean oversizedRejected=false;
+        try{PhotoEngine.process(app,Uri.fromFile(huge),hugeOptions);}
+        catch(java.io.IOException expected){
+            oversizedRejected=expected.getMessage().contains("2,6 MP");
+        }
+        check(oversizedRejected,"full-resolution AI export rejects >2.6 MP source");
+        oversizedRejected=false;
+        try{
+            Bitmap unexpectedlyRendered=PhotoEngine.enhancedPreview(
+                    app,Uri.fromFile(huge),hugeOptions);
+            if(unexpectedlyRendered!=null)unexpectedlyRendered.recycle();
+        }catch(java.io.IOException expected){
+            oversizedRejected=expected.getMessage().contains("2,6 MP");
+        }
+        check(oversizedRejected,"preview also rejects oversized source before downsampling");
+        report.append("over2_6MPGuard=PASS").append('\n');
+        huge.delete();
         colored.delete();rotated.delete();empty.delete();
     }
 }

@@ -91,6 +91,9 @@ public final class StudioEditorActivity extends Activity {
     private boolean restoringHistory=false;
     private Button undoButton,redoButton;
     private int activeTool=2;
+    private final Runnable draftWriter=this::persistDraft;
+    private final Runnable adjustedPreview=()->{if(!destroyed&&!isVideo)refreshImagePreview();};
+    private boolean draftRestored=false;
     private TextView captionView;
     private Bitmap imagePreviewBitmap;
     private Runnable playTicker;
@@ -131,6 +134,35 @@ public final class StudioEditorActivity extends Activity {
         }
         lastState=next;
         updateUndoButtons();
+        if(!isDemo&&mediaUri!=null){
+            handler.removeCallbacks(draftWriter);
+            handler.postDelayed(draftWriter,800);
+        }
+    }
+    private void persistDraft(){
+        if(isDemo||mediaUri==null||destroyed)return;
+        try{
+            StudioDraftStore.save(this,mediaUri,options(),splitMs,dualOutput);
+        }catch(RuntimeException ignored){
+            // A stale URI or full storage must never prevent the editor opening.
+        }
+    }
+    private void restoreRecentDraft(){
+        if(isDemo||!getIntent().getBooleanExtra("resume_project",false))return;
+        StudioDraftStore.Draft saved=StudioDraftStore.load(this,mediaUri);
+        if(saved==null)return;
+        ExportOptions o=saved.options;
+        // Never enable photo-only AI controls for a video draft.
+        if(isVideo&&(o.aiDenoise||o.portraitBokeh))return;
+        preset=o.preset;ratio=o.ratio;framing=o.frameStyle;quality=o.qualityMode;
+        focusX=o.focusX;focusY=o.focusY;brightness=o.brightness;contrast=o.contrast;
+        saturation=o.saturation;caption=o.caption;captionColor=o.captionColor;
+        muteAudio=o.muteAudio;socialProfile=o.socialProfile;
+        customWidth=o.customWidth;customHeight=o.customHeight;
+        portraitBokeh=o.portraitBokeh;aiDenoise=o.aiDenoise;
+        trimStartMs=o.trimStartMs;trimEndMs=o.trimEndMs;
+        splitMs=saved.splitMs;dualOutput=saved.dualOutput;
+        draftRestored=true;
     }
     private void updateUndoButtons(){
         if(undoButton!=null){
@@ -162,6 +194,8 @@ public final class StudioEditorActivity extends Activity {
             lastState=captureEdit();
             showTool(activeTool);refreshSettings();updateCaptionPreview();
         }finally{restoringHistory=false;updateUndoButtons();}
+        handler.removeCallbacks(draftWriter);
+        handler.postDelayed(draftWriter,500);
     }
     private static final class RenderJob {
         final ExportOptions options;
@@ -185,9 +219,11 @@ public final class StudioEditorActivity extends Activity {
             durationMs=MediaProbe.duration(this,mediaUri);
             if(durationMs<=0)durationMs=30000;
         }
+        restoreRecentDraft();
         build();
         lastState=captureEdit();
         updateUndoButtons();
+        if(draftRestored)Toast.makeText(this,"Draft edit dipulihkan",Toast.LENGTH_SHORT).show();
         if(isVideo){renderThumbnails();startTicker();}
         else{
             refreshImagePreview();
@@ -770,8 +806,11 @@ public final class StudioEditorActivity extends Activity {
     }
     private void updateLiveAdjust(){
         if(isVideo||compareOriginal)return;
-        if(aiDenoise||portraitBokeh)refreshImagePreview();
-        else photo.setColorFilter(PhotoEngine.colorFilter(options()));
+        if(aiDenoise||portraitBokeh){
+            // Debounce neural re-inference while a color seekbar is being dragged.
+            handler.removeCallbacks(adjustedPreview);
+            handler.postDelayed(adjustedPreview,350);
+        }else photo.setColorFilter(PhotoEngine.colorFilter(options()));
     }
     private void toolAdjust(){
         toolbarTitle("Color Adjust","Atur warna sebelum mengekspor. Nilai 0 = netral.");
@@ -1145,7 +1184,13 @@ public final class StudioEditorActivity extends Activity {
         return String.format(Locale.US,"%02d:%02d",seconds/60,seconds%60);
     }
     private void toast(String value){Toast.makeText(this,value,Toast.LENGTH_SHORT).show();}
-    @Override protected void onPause(){super.onPause();if(video!=null&&video.isPlaying())video.pause();}
+    @Override protected void onPause(){
+        handler.removeCallbacks(draftWriter);
+        handler.removeCallbacks(adjustedPreview);
+        persistDraft();
+        if(video!=null&&video.isPlaying())video.pause();
+        super.onPause();
+    }
     @Override protected void onDestroy(){
         destroyed=true;handler.removeCallbacksAndMessages(null);
         if(activeVideoEngine!=null)activeVideoEngine.cancel();

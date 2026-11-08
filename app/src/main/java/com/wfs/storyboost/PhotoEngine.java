@@ -32,6 +32,7 @@ public final class PhotoEngine {
     }
 
     public static Result process(Context context, Uri uri, ExportOptions settings) throws IOException {
+        validateAiSource(context,uri,settings);
         // The exact-copy path is intentionally opt-in: Original preset + original
         // aspect + Fit + Max Detail on JPEG. It preserves every original pixel
         // and EXIF byte instead of recompressing an already compressed image.
@@ -106,6 +107,20 @@ public final class PhotoEngine {
         }
     }
 
+    /** Reject oversized source images before downsampling preview or allocating bitmaps.
+     * A smaller preview must never imply the full-resolution export will succeed.
+     */
+    private static void validateAiSource(Context context,Uri uri,ExportOptions settings)
+            throws IOException{
+        if(!settings.aiDenoise)return;
+        AspectRatioProfile.Size nativeSize=MediaDimensions.read(context,uri);
+        if(nativeSize.width<=0||nativeSize.height<=0)
+            throw new IOException("Ukuran sumber foto tidak dapat diketahui");
+        if((long)nativeSize.width*nativeSize.height>2_600_000L)
+            throw new IOException("DnCNN v3 beta mendukung maksimal 2,6 MP. "+
+                    "Foto asli tidak diperkecil secara diam-diam; pilih foto lebih kecil.");
+    }
+
     /** Upright, bounded preview of the entire photo for ML Kit on-device inference. */
     public static Bitmap aiInput(Context context,Uri uri)throws IOException{
         Bitmap source=decode(context,uri,1200);
@@ -159,6 +174,7 @@ public final class PhotoEngine {
     /** Uses the exact same real model and framing/color operations as JPEG export. */
     public static Bitmap enhancedPreview(Context context,Uri uri,ExportOptions settings)
             throws IOException {
+        validateAiSource(context,uri,settings);
         Bitmap source=decode(context,uri,settings.aiDenoise?720:1200);
         if(source==null)throw new IOException("Foto tidak dapat dibaca");
         Bitmap oriented=orient(context,uri,source);

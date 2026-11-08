@@ -31,8 +31,8 @@ android {
         applicationId 'com.wfs.storyboost.studio'
         minSdk 29
         targetSdk 35
-        versionCode 31
-        versionName '2.9.0'
+        versionCode 32
+        versionName '3.0.0-beta1'
     }
 
     signingConfigs {

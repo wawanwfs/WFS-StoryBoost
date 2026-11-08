@@ -1,34 +1,16 @@
-# WFS StoryBoost — Next execution prompt (after v2.9.0)
+# WFS StoryBoost — Next execution prompt after v3.0.0-beta1
 
-Continue development in https://github.com/wawanwfs/WFS-StoryBoost using the latest main branch (v2.9.0 or later). Audit README.md, docs/PROGRESS.md, tests/TEST_PLAN.md, CI build logs, and current Android source before editing. Make changes on an appropriate development branch or use safe fast-forward updates without overwriting concurrent work. Preserve commit attribution to the connected user's GitHub identity.
+Continue from the LATEST main of https://github.com/wawanwfs/WFS-StoryBoost. Read README.md, docs/PROGRESS.md, docs/MODEL_RESEARCH_V29.md, docs/NEXT_PROMPT.md, tests/TEST_PLAN.md, and successful/failing GitHub Actions logs before changing code.
 
-**Priority 1 — image quality & real AI models**
-- Recheck DnCNN TFLite asset SHA, licensing and all emulator PSNR/SSIM/latency reports. On physical Android 10+ ARM64 phones, test CPU speed, memory, JPEG export, and ensure model preserves face texture. Never treat synthetic-only metrics as real-image results.
-- Test non-Gaussian noise and chroma noise separately; the current DnCNN is grayscale sigma25 only. Consider a separately licensed small RGB denoiser if real portraits require it.
-- Design optional model downloads only with cryptographic hash verification and user consent; do not add online access to private user photos.
-- Add Undo/Redo editor state snapshots, persist projects safely, touch crop controls, and tested MP4 1080p media benchmarks.
-- Read `docs/MODEL_RESEARCH_V28.md` and the synthetic-media CI QA report. Source a legally redistributable LiteRT model and independently verify its model license, binary SHA256, CPU/GPU support, minimum Android/API, input tensor layout, output limits, memory usage, and quality on real paired images before enabling a user-facing AI denoise/deblur feature.
-- Evaluate the MIT-licensed NAFNet-SIDD-width32 LiteRT candidate **only on supported GPU backends** (62.5 MB FP16, unsuitable as universal CPU fallback) and avoid bundling it without a documented fallback and size budget.
-- Review TensorFlow's ESRGAN SISR sample; a 50×50 tile 4× example is not proof of full-resolution photo restoration. Confirm separate model-weight licensing, image tiling seams, and performance.
+**Phase v3.0 beta2 priorities (in order):**
+1. Audit and harden the new StudioDraftStore and editor onPause/autosave/reopen flow. Run real Activity UI tests on API 29 and API 35: import image via SAF, edit colors, ratio, text and AI flags, back, reopen Recent, verify exact preview/export and source immutability. Test revoked/deleted media permissions, corrupt drafts, process death, clear history, and repeated imports. Fix all real bugs; no mock UI claims.
+2. Improve UX/performance of DnCNN. Current sigma-25 grayscale model operates on luminance only and sources <=2.6 MP. Benchmark real photos with permission across low-light and chroma noise plus 256px-tile seam edge cases, CPU/RAM/latency. Do not call it AI deblur/upscale. Consider an optional licensed RGB model only after verified CPU fallback and reliable license+SHA hash.
+3. Integrate a single genuine on-device AI deblur OR 4x super-resolution model only if model weights are redistributable, Android 10 CPU-compatible, and end-to-end inference demonstrates measurable benefit against paired images. If not, leave disabled and document the blocker.
+4. Add end-to-end H.264/AAC MP4 export tests with actual synthetic frames, inspect via ffprobe and/or MediaExtractor, test trim/merge/audio sync and cancellation. Address failure handling before declaring video production ready.
+5. Review a real small-screen mobile UI in emulator: Undo/Redo, Touch Crop, caption/safe-zone positioning, vertical tool panel, 24 Color Looks and all 12 ratios. Fix clipped buttons, accidental touches, text and stale AI preview.
+6. For release: configure stable Android keystore from owner's private CI secrets (never commit secret/keystore), test signature match and in-place upgrade across TWO builds, produce ARM64 and Universal signed APKs when credentials are available. Debug APK is not a public release.
+7. Preserve no-INTERNET-permission, on-device ML Kit + TFLite, 24 Looks, ratios, WA/IG/TikTok presets and original-media privacy.
 
-**Priority 1B — real-portrait validation**
-- Add licensed (with consent) real image fixtures for single face, multiple people, dark scenes, glasses, fine hair and EXIF rotations; measure foreground preservation and perceptual quality, and never upload user photographs to CI. Record device failure modes without claiming perfect masks.
-- Validate v2.7 Portrait Bokeh with representative portraits, difficult hair edges, multi-person images, EXIF rotations, and no-person cases. Fix segmentation mask edge artifacts and device-specific crashes. Keep all face identity and features unchanged.
-- Research a properly licensed, actively maintained *on-device* denoise/deblur or super-resolution TFLite/LiteRT model with manageable APK footprint. Integrate only if it can be downloaded legally, run on CPU or GPU on Android 10+, and be tested on synthetic and real images with objective before/after checks. Do NOT relabel a sharpen/unsharp mask filter as generative AI or super-resolution.
-- Ensure photo export and preview match, preserve aspect ratio, handle OOM, validate source dimensions, and do not claim recovery of unavailable detail.
+**Definition of done:** Commit to a non-overwriting branch or fast-forward main, compile Android release/debug as appropriate, pass pure-Java tests, inspect latest GitHub Actions and emulator report, publish only verified APK artifact, report final commit SHA, direct Actions URL, test counts, failed checks, observed benchmarks, and 32-module roadmap progress with honest denominator. Physical-device/real portrait QA remains pending until independently demonstrated.
 
-**Priority 2 — editor and production**
-- Add true undo/redo of editing operations, stable project persistence, more precise touch crop controls, and clear export before/after comparisons.
-- Develop multi-track composition and transitions incrementally, only when verified by rendering two real clips.
-- Verify arm64 APK on an actual arm64 device, measure installation size and performance, reduce unused resources (R8/resource shrinking when safe). Implement stable signed release signing using repository secrets supplied by the owner; never commit any keystore, token or password.
-- Add tests: unit, emulator export integration, real JPEG output validation, 1080p MP4 playback/audio, A/B comparison, and a physical-device QA matrix.
-- Publish APK as a GitHub Actions artifact only after all available gates pass. Inspect emulator screenshots and declare anything not tested.
-
-**Required final report every iteration**
-1. Commit SHA, branch and GitHub Actions run URL, status and APK download link.
-2. Exact completed features, unit-test counts, build status, emulator install and real-media test coverage.
-3. Updated 32-module roadmap progress percentage (do not mark merely designed/mock features as done).
-4. Remaining blockers, technical risk, no-claim list (not production-ready unless verified).
-5. Next prompt with prioritized actions for the following iteration.
-
-Never assert 100% CapCut parity, flawless social upload quality, or actual AI restoration without reproducible tests. Keep offline-first and user privacy.
+At the end, provide a follow-up prompt for the next iteration. Do NOT inflate progress merely by improving an already counted module, declare zero compression on social uploads, or claim CapCut parity.

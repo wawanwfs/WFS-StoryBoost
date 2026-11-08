@@ -1,8 +1,8 @@
-# WFS StoryBoost — Progress report v2.9.0
+# WFS StoryBoost — Progress report v3.0.0-beta1
 
 This is a **feature roadmap coverage estimate** for the target v3.0, not a claim of tested production quality. Each checkbox counts as one module. Implemented means source code is present and the project builds; feature correctness still requires end-to-end device tests.
 
-## Project roadmap: 23 / 32 modules ≈ 72%
+## Project roadmap: 23 / 32 modules ≈ 72% (beta)
 
 ### A. Editor foundation — 8 / 8
 - [x] Import local photo/video
@@ -45,6 +45,14 @@ This is a **feature roadmap coverage estimate** for the target v3.0, not a claim
 - [ ] Benchmarks for memory, rendering time and actual output media quality
 
 **Total: 8 + 6 + 5 + 4 = 23 of 32 = 71.875%, rounded to 72%, only if CI inference benchmark passes.**
+
+## v3.0 beta changes (quality and continuity, not new modules)
+- Implemented secure local draft storage/restore for media reopened through Recent Projects. Persists Color Looks, frame/crop, caption, quality, video trim and AI effect flags; source media remains untouched. Undo/Redo remains an in-memory history within each editor session.
+- Autosaves on user edits and during Activity pause; Clear Recent clears editing drafts as well.
+- Added source-resolution validation **before** AI DnCNN preview/export to avoid promising an output that the full-size renderer cannot process (>2.6 MP).
+- Added real Android emulator tests of SharedPreferences draft roundtrip, malformed/corrupt draft rejection, source isolation, URI privacy, clearing, and >2.6 MP guard. Evidence requires the latest successful CI run, not just compiling.
+- Roadmap stays **23/32 = 71.875% (~72%)** because saved editing state strengthens an already-counted Editor foundation module. No real-photo ML benchmark, physical-device QA, stable signed release or multi-track editing was completed.
+- Note: Original output quality on WhatsApp/Instagram/TikTok cannot be guaranteed after their server-side recompression.
 
 ## v2.9 neural inference evidence and limitations
 - Candidate model: Qualcomm DnCNN-25 float TFLite (MIT / KAIR), grayscale Gaussian denoise trained for sigma=25. App projects luminance only and preserves chroma.

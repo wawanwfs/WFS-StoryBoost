@@ -54,7 +54,7 @@ public final class StudioHomeActivity extends Activity {
         ImageView logo=new ImageView(this);logo.setImageResource(R.mipmap.ic_launcher);
         header.addView(logo,new LinearLayout.LayoutParams(d(49),d(49)));
         LinearLayout identity=StudioUi.column(this);identity.addView(text("WFS StoryBoost",20,TEXT,true));
-        gap(identity,3);identity.addView(text("CREATIVE EDITING SUITE  /  v2.9",10,StudioUi.CYAN,true));
+        gap(identity,3);identity.addView(text("CREATIVE EDITING SUITE  /  v3.0 BETA",10,StudioUi.CYAN,true));
         LinearLayout.LayoutParams identityLp=new LinearLayout.LayoutParams(0,-2,1);
         identityLp.leftMargin=d(8);header.addView(identity,identityLp);
         TextView settings=text("⚙",23,StudioUi.LAVENDER,true);
@@ -130,7 +130,9 @@ public final class StudioHomeActivity extends Activity {
         clear.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Bersihkan riwayat?")
                 .setMessage("Hanya menghapus daftar proyek dalam aplikasi. Media asli dan file ekspor tidak dihapus.")
                 .setNegativeButton("Batal",null).setPositiveButton("Bersihkan",(a,b)->{
-                    getSharedPreferences("studio-projects",MODE_PRIVATE).edit().clear().apply();populateRecent();
+                    getSharedPreferences("studio-projects",MODE_PRIVATE).edit().clear().apply();
+                    StudioDraftStore.clearAll(this);
+                    populateRecent();
                 }).show());
         content.addView(recentHeading);gap(content,11);
         recentCard=card(13);content.addView(recentCard);
@@ -197,9 +199,12 @@ public final class StudioHomeActivity extends Activity {
         openEditor(uri,ratio,demo,false);
     }
     private void openEditor(Uri uri,int ratio,boolean demo,boolean ai){
+        openEditor(uri,ratio,demo,ai,false);
+    }
+    private void openEditor(Uri uri,int ratio,boolean demo,boolean ai,boolean resume){
         Intent i=new Intent(this,StudioEditorActivity.class);
         i.putExtra("media_uri",uri.toString());i.putExtra("ratio",ratio);i.putExtra("demo",demo);
-        i.putExtra("auto_ai",ai);
+        i.putExtra("auto_ai",ai);i.putExtra("resume_project",resume);
         startActivity(i);
     }
     private void saveRecent(Uri uri){
@@ -229,12 +234,12 @@ public final class StudioHomeActivity extends Activity {
             row.addView(glyph,new LinearLayout.LayoutParams(d(48),d(48)));
             LinearLayout labels=StudioUi.column(this);
             labels.addView(text("Media Proyek "+(i+1),13,TEXT,true));gap(labels,4);
-            labels.addView(text("Ketuk untuk melanjutkan editing",11,MUTED,false));
+            labels.addView(text("Buka draft edit tersimpan (jika ada)",11,MUTED,false));
             LinearLayout.LayoutParams labelParams=new LinearLayout.LayoutParams(0,-2,1f);
             labelParams.leftMargin=d(12);row.addView(labels,labelParams);
             row.addView(text("›",25,MUTED,true));
             recentCard.addView(row);gap(recentCard,12);count++;
-            row.setOnClickListener(v->openEditor(uri,0,false));
+            row.setOnClickListener(v->openEditor(uri,0,false,false,true));
         }
         if(count==0)recentCard.addView(emptyRecent);
     }

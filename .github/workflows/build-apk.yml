@@ -185,7 +185,8 @@ jobs:
             bash scripts/qa-emulator-photo.sh
             bash scripts/qa-emulator-video.sh
 
-      - name: Upload real app screenshot for UI inspection
+      - name: Upload emulator QA evidence (including failures)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: WFS-StoryBoost-v3.0.0-beta2-API${{ matrix.api-level }}-Emulator-QA
@@ -197,4 +198,5 @@ jobs:
             qa-video-input-probe.txt
             qa-video-export.txt
             qa-video-memory.txt
-          if-no-files-found: error
+            qa-video-logcat.txt
+          if-no-files-found: warn

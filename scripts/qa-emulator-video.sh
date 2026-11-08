@@ -13,18 +13,21 @@ adb push qa-silent.mp4 "$DEST/qa-silent.mp4"
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/com.wfs.storyboost.StudioHomeActivity" --ez qa_video_export true
 rm -f qa-video-export.txt
-for n in $(seq 1 210); do
+for n in $(seq 1 85); do
   if adb shell run-as "$PKG" cat files/qa-video-export.txt > qa-video-export.txt 2>/dev/null; then
     if grep -q '^STATUS=' qa-video-export.txt; then break; fi
   fi
   sleep 2
 done
 if [ ! -s qa-video-export.txt ]; then
-  echo "Real MP4 QA did not finish in 420s" >&2
-  adb logcat -d -t 240 | grep -E 'StoryBoostVideoQA|E/AndroidRuntime|FATAL EXCEPTION' || true
+  echo "Real MP4 QA timed out or process crashed (170s)" >&2
+  adb shell pidof "$PKG" || true
+  adb logcat -d -t 1200 > qa-video-logcat.txt || true
+  grep -E 'StoryBoostVideoQA|E/AndroidRuntime|FATAL EXCEPTION|MediaCodec|Media3' qa-video-logcat.txt | tail -70 || true
   exit 1
 fi
 cat qa-video-export.txt
+adb logcat -d -t 1200 > qa-video-logcat.txt || true
 grep -q '^STATUS=PASS' qa-video-export.txt
 grep -q '^fhdMp4Ms=' qa-video-export.txt
 grep -q '^trimMp4Ms=' qa-video-export.txt

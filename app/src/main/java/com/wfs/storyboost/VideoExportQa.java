@@ -31,6 +31,9 @@ public final class VideoExportQa {
         final File report,fixture,silent;
         final StringBuilder log=new StringBuilder();
         long totalStart;
+        volatile String stage="preflight";
+        private final java.util.concurrent.atomic.AtomicBoolean finished =
+                new java.util.concurrent.atomic.AtomicBoolean(false);
         int checks=0;
         VideoEngine engine;
         VideoMergeEngine merge;
@@ -47,6 +50,17 @@ public final class VideoExportQa {
         void run(){
             report.delete();
             totalStart=SystemClock.elapsedRealtime();
+            // Emulator encoders may stall indefinitely without a Transformer error
+            // callback. Fail CLOSED with stage diagnosis; never claim an MP4 passed.
+            Thread watchdog=new Thread(()->{
+                SystemClock.sleep(135_000L);
+                if(!finished.get()){
+                    Log.e(TAG,"QA timed out in stage: "+stage);
+                    fail(new java.util.concurrent.TimeoutException(
+                            "No completion/callback after 135s in "+stage));
+                }
+            },"wfs-mp4-qa-watchdog");
+            watchdog.setDaemon(true);watchdog.start();
             try{
                 check(fixture.isFile()&&fixture.length()>10000,"real synthetic MP4 staged");
                 check(silent.isFile()&&silent.length()>10000,"silent MP4 staged");
@@ -73,6 +87,8 @@ public final class VideoExportQa {
                 }catch(RuntimeException expected){rejected=true;}
                 invalid.delete();
                 check(rejected,"unsupported/corrupt MP4 rejected before export");
+                stage="FHD 1920x1080 encode";
+                Log.i(TAG,"Begin "+stage);
                 fhd();
             }catch(Throwable t){fail(t);}
         }
@@ -131,6 +147,7 @@ public final class VideoExportQa {
             }catch(Throwable e){fail(e);}
         }
         void trim(){
+            stage="trim";Log.i(TAG,"Begin "+stage);
             engine=new VideoEngine();
             long start=SystemClock.elapsedRealtime();
             ExportOptions options=new ExportOptions(ColorLooks.ORIGINAL,
@@ -151,6 +168,7 @@ public final class VideoExportQa {
             }catch(Throwable e){fail(e);}
         }
         void noAudio(){
+            stage="mute";Log.i(TAG,"Begin "+stage);
             engine=new VideoEngine();
             ExportOptions options=new ExportOptions(ColorLooks.ORIGINAL,
                     AspectRatioProfile.LANDSCAPE_16_9,AspectRatioProfile.FIT,false)
@@ -168,6 +186,7 @@ public final class VideoExportQa {
             }catch(Throwable e){fail(e);}
         }
         void merge(){
+            stage="merge";Log.i(TAG,"Begin "+stage);
             merge=new VideoMergeEngine();
             long start=SystemClock.elapsedRealtime();
             try{
@@ -186,6 +205,7 @@ public final class VideoExportQa {
             }catch(Throwable e){fail(e);}
         }
         void cancellation(){
+            stage="cancel";Log.i(TAG,"Begin "+stage);
             engine=new VideoEngine();
             try{
                 engine.start(context,Uri.fromFile(fixture),new ExportOptions(
@@ -204,20 +224,21 @@ public final class VideoExportQa {
             }catch(Throwable e){fail(e);}
         }
         void fail(Throwable e){
-            if(report.exists())return;
+            if(!finished.compareAndSet(false,true))return;
             Log.e(TAG,"QA failed",e);
             log.insert(0,"STATUS=FAIL\nerror="+e.getClass().getSimpleName()+": "+
                     String.valueOf(e.getMessage()).replace('\n',' ')+"\n");
             finish();
         }
         void success(){
-            if(report.exists())return;
+            if(!finished.compareAndSet(false,true))return;
             log.insert(0,"STATUS=PASS\n");
             finish();
         }
         void finish(){
             if(engine!=null)engine.cancel();
             if(merge!=null)merge.cancel();
+            log.append("stage=").append(stage).append('\n');
             log.append("checks=").append(checks).append('\n');
             log.append("totalElapsedMs=").append(SystemClock.elapsedRealtime()-totalStart).append('\n');
             try(FileOutputStream out=new FileOutputStream(report)){

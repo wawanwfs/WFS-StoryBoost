@@ -136,3 +136,16 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] ML Kit analysis and repeated exit/re-entry: no crashes or bitmap leaks.
 - [ ] Test on Android 10 and Android 15 physical devices; both models packaged with APK.
 - [ ] No automatic AI upscaling / generative face editing; ensure README accuracy.
+
+## v2.7 Real ML Portrait Bokeh (BETA)
+- [ ] With **real human portrait**, toggle AI Portrait: background blurred while facial features, skin and identity are unchanged.
+- [ ] With two or more people, check both subjects protected by mask; hair glasses and transparent items may show artifacts.
+- [ ] Toggle before/after: both previews show matching ratio and focus; caption should not be duplicated.
+- [ ] Export bokeh JPEG and verify blurred background is actually in saved JPEG, not preview-only.
+- [ ] Original/Max Detail/No Color with bokeh ON must transcode, not copy original unchanged.
+- [ ] No-person landscape photo should display actionable model error; it must not export a misleading success.
+- [ ] Airplane-mode model loading works; image is never transmitted to network.
+- [ ] Small 3GB RAM handset, low light portrait, high resolution 12MP input: no app process kill; HD fallback and OOM error are clear.
+- [ ] EXIF-rotated person image: foreground mask stays correctly aligned with upright subject.
+- [ ] AI preview after rapidly changing Look/Ratio doesn't show an outdated result or recycled bitmap.
+- [ ] Validate original vs. export on phone and WhatsApp Status; server-side recompression remains outside app control.

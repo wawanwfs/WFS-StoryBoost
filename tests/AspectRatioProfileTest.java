@@ -244,6 +244,39 @@ public final class AspectRatioProfileTest {
                 "face focal y clamped");
         check(AiPhotoPolicy.suggest(null,0f,0,.5f,.5f).colorLook==0,
                 "unknown scene uses safe Natural look");
+        // v2.7: bundled ML Kit portrait bokeh is real segmentation, not upscale.
+        check(PortraitMaskMath.alpha(0f)==0,"mask confidence zero is transparent");
+        check(PortraitMaskMath.alpha(.12f)==0,"low confidence is background");
+        check(PortraitMaskMath.alpha(.50f)>=120&&PortraitMaskMath.alpha(.50f)<=136,
+                "medium mask confidence yields feathered subject edge");
+        check(PortraitMaskMath.alpha(1f)==255,"high confidence keeps original subject");
+        check(PortraitMaskMath.alpha(Float.NaN)==0,"NaN confidence never creates solid mask");
+        check(!PortraitMaskMath.usable(.005f),"empty mask is rejected");
+        check(PortraitMaskMath.usable(.25f),"realistic subject coverage accepted");
+        check(!PortraitMaskMath.usable(.995f),"near-full mask is rejected");
+        ExportOptions naturalOriginal = new ExportOptions(ColorLooks.ORIGINAL,
+                AspectRatioProfile.ORIGINAL,AspectRatioProfile.FIT,true)
+                .withQuality(OutputProfile.MAX_DETAIL);
+        check(PhotoPassthrough.allowed(naturalOriginal,"image/jpeg"),
+                "true original JPEG is eligible for byte-for-byte copy");
+        ExportOptions portraitEdit=naturalOriginal.withPortraitBokeh(true);
+        check(portraitEdit.portraitBokeh,"portrait effect persists in export options");
+        check(!PhotoPassthrough.allowed(portraitEdit,"image/jpeg"),
+                "AI portrait edit must not use unchanged JPEG copy");
+        check(!VideoPassthrough.allowed(portraitEdit,"video/mp4"),
+                "AI portrait edit must not silently pass through a video");
+        check(portraitEdit.withQuality(OutputProfile.HD).portraitBokeh,
+                "AI portrait effect survives quality setting");
+        check(portraitEdit.withSocialProfile(SocialExportProfile.WHATSAPP_STATUS).portraitBokeh,
+                "AI portrait effect survives social platform selection");
+        check(portraitEdit.forRatio(AspectRatioProfile.PORTRAIT_9_16).portraitBokeh,
+                "AI portrait effect survives ratio change");
+        check(portraitEdit.withCustomSize(1350,1080).portraitBokeh,
+                "AI portrait effect survives custom canvas");
+        check(portraitEdit.withAdjustments(.2f,0f,0f).portraitBokeh,
+                "AI portrait effect survives manual color adjustments");
+        check(PhotoPassthrough.allowed(portraitEdit.withPortraitBokeh(false),"image/jpeg"),
+                "disabling portrait effect restores original copy eligibility");
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

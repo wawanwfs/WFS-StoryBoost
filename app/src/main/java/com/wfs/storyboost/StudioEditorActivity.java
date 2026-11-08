@@ -75,6 +75,7 @@ public final class StudioEditorActivity extends Activity {
     private String caption="";
     private int captionColor=Color.WHITE;
     private boolean muteAudio=false;
+    private boolean portraitBokeh=false;
     private TextView captionView;
     private Bitmap imagePreviewBitmap;
     private Runnable playTicker;
@@ -242,7 +243,12 @@ public final class StudioEditorActivity extends Activity {
         toolsScroll.addView(tabs);root.addView(toolsScroll,new LinearLayout.LayoutParams(-1,dp(62)));
         toolPane=column();toolPane.setPadding(dp(13),dp(8),dp(13),dp(10));
         toolPane.setBackground(StudioUi.solid(this,0xFF161D31,0));
-        root.addView(toolPane,new LinearLayout.LayoutParams(-1,dp(172)));
+        android.widget.ScrollView toolScroll=new android.widget.ScrollView(this);
+        toolScroll.setFillViewport(false);
+        toolScroll.setVerticalScrollBarEnabled(false);
+        toolScroll.setBackgroundColor(0xFF161D31);
+        toolScroll.addView(toolPane);
+        root.addView(toolScroll,new LinearLayout.LayoutParams(-1,dp(188)));
         showTool(isVideo?0:2);
         setContentView(root);
     }
@@ -329,17 +335,29 @@ public final class StudioEditorActivity extends Activity {
         ExportOptions options=options();
         io.execute(()->{
             Bitmap rendered=null;
-            try{rendered=PhotoEngine.originalPreview(this,mediaUri,options);}catch(Exception ignored){}
+            String failure=null;
+            try{
+                rendered=options.portraitBokeh&&!compareOriginal?
+                        PhotoEngine.portraitPreview(this,mediaUri,options):
+                        PhotoEngine.originalPreview(this,mediaUri,options);
+            }catch(Exception ex){failure=ex.getMessage();}
             Bitmap finalBitmap=rendered;
+            String errorMessage=failure;
             runOnUiThread(()->{
                 if(destroyed||token!=renderToken){if(finalBitmap!=null)finalBitmap.recycle();return;}
-                if(finalBitmap==null){previewLabel.setText("Gambar tidak bisa ditampilkan");return;}
+                if(finalBitmap==null){
+                    previewLabel.setText(errorMessage==null?"Gambar tidak bisa ditampilkan":
+                            "AI Portrait gagal: "+errorMessage);
+                    return;
+                }
+                previewLabel.setText(options.portraitBokeh&&!compareOriginal?
+                        "AI PORTRAIT BOKEH • PREVIEW":"LIVE PHOTO PREVIEW");
                 Bitmap oldBitmap=imagePreviewBitmap;
                 photo.setImageBitmap(finalBitmap);
                 imagePreviewBitmap=finalBitmap;
                 // The same color matrix is used for the photo export engine.
-                photo.setColorFilter(compareOriginal?null:
-                        PhotoEngine.colorFilter(options));
+                photo.setColorFilter(compareOriginal||options.portraitBokeh?
+                        null:PhotoEngine.colorFilter(options));
                 photo.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 for(int i=0;i<thumbStrip.getChildCount();i++){
                     View old=thumbStrip.getChildAt(i);
@@ -386,9 +404,11 @@ public final class StudioEditorActivity extends Activity {
         compareOriginal=!compareOriginal;
         compareButton.setText(compareOriginal?"✦ Sesudah":"↔ Sebelum");
         if(!isVideo){
-            photo.setColorFilter(compareOriginal?null:
-                    PhotoEngine.colorFilter(options()));
-            previewLabel.setText(compareOriginal?"SEBELUM • ASLI":"PRATINJAU FILTER");
+            if(portraitBokeh)refreshImagePreview();
+            else{
+                photo.setColorFilter(compareOriginal?null:PhotoEngine.colorFilter(options()));
+                previewLabel.setText(compareOriginal?"SEBELUM • ASLI":"PRATINJAU FILTER");
+            }
             updateCaptionPreview();
         }else toast("Video preview menampilkan sumber; hasil filter terlihat setelah ekspor.");
     }
@@ -398,7 +418,8 @@ public final class StudioEditorActivity extends Activity {
                 trimStartMs,trimEndMs,focusX,focusY).withQuality(quality)
                 .withAdjustments(brightness,contrast,saturation)
                 .withCaption(caption,captionColor).withMute(muteAudio)
-                .withSocialProfile(socialProfile));
+                .withSocialProfile(socialProfile)
+                .withPortraitBokeh(!isVideo&&portraitBokeh));
     }
     private ExportOptions withCustomIfRequired(ExportOptions o){
         return o.ratio==AspectRatioProfile.CUSTOM?
@@ -708,7 +729,24 @@ public final class StudioEditorActivity extends Activity {
                 "Terdeteksi: "+aiResult.label+" ("+Math.round(aiResult.confidence*100)+
                 "%), wajah: "+aiResult.faces,11,MUTED,false);
         toolPane.addView(aiStatus);
-        gap(toolPane,7);
+        gap(toolPane,8);
+        LinearLayout portraitLine=row();
+        portraitLine.addView(txt("AI Portrait Bokeh • blur latar",12,TEXT,true),
+                new LinearLayout.LayoutParams(0,dp(40),1f));
+        Switch portraitSwitch=new Switch(this);
+        portraitSwitch.setContentDescription("Aktifkan AI Portrait Bokeh");
+        portraitSwitch.setChecked(portraitBokeh);
+        portraitSwitch.setOnCheckedChangeListener((v,checked)->{
+            portraitBokeh=checked;
+            if(checked)compareOriginal=false;
+            compareButton.setText("↔ Sebelum");
+            refreshImagePreview();
+        });
+        portraitLine.addView(portraitSwitch);
+        toolPane.addView(portraitLine);
+        toolPane.addView(txt("Pakai model segmentasi sungguhan; tepi rambut bisa kurang akurat.",
+                10,MUTED,false));
+        gap(toolPane,8);
         LinearLayout commands=row();
         Button analyze=btn(aiRunning?"Memproses...":"✧ Analisis AI",true);
         analyze.setEnabled(!aiRunning);

@@ -11,6 +11,7 @@ public final class ExportOptions {
     public final boolean muteAudio;
     public final int socialProfile;
     public final int customWidth,customHeight;
+    public final boolean portraitBokeh;
 
     public ExportOptions(int preset,int ratio,int frameStyle,boolean fullHd){
         this(preset,ratio,frameStyle,fullHd,0,0,0.5f,0.5f);
@@ -21,11 +22,11 @@ public final class ExportOptions {
     public ExportOptions(int preset,int ratio,int frameStyle,boolean fullHd,long start,long end,
                          float focusX,float focusY){
         this(preset,ratio,frameStyle,fullHd?OutputProfile.FULL_HD:OutputProfile.HD,
-                start,end,focusX,focusY,0f,0f,0f,"",0xFFFFFFFF,false,SocialExportProfile.CUSTOM,0,0);
+                start,end,focusX,focusY,0f,0f,0f,"",0xFFFFFFFF,false,SocialExportProfile.CUSTOM,0,0,false);
     }
     private ExportOptions(int preset,int ratio,int frameStyle,int quality,long start,long end,
                           float focusX,float focusY,float brightness,float contrast,
-                          float saturation,String caption,int captionColor,boolean mute,int socialProfile,int customWidth,int customHeight){
+                          float saturation,String caption,int captionColor,boolean mute,int socialProfile,int customWidth,int customHeight,boolean portraitBokeh){
         ClipWindow.validate(start,end);
         OutputProfile.normalized(quality);
         if(!Float.isFinite(focusX)||!Float.isFinite(focusY)||focusX<0||focusX>1||focusY<0||focusY>1)
@@ -42,12 +43,13 @@ public final class ExportOptions {
         SocialExportProfile.get(socialProfile);
         this.socialProfile=socialProfile;
         this.customWidth=customWidth;this.customHeight=customHeight;
+        this.portraitBokeh=portraitBokeh;
     }
     private static boolean valid(float x){return Float.isFinite(x)&&x>=-1f&&x<=1f;}
     private ExportOptions copy(int ratio,int style,int quality,float brightness,float contrast,
                                float saturation,String caption,int captionColor,boolean mute){
         return new ExportOptions(preset,ratio,style,quality,trimStartMs,trimEndMs,focusX,focusY,
-                brightness,contrast,saturation,caption,captionColor,mute,socialProfile,customWidth,customHeight);
+                brightness,contrast,saturation,caption,captionColor,mute,socialProfile,customWidth,customHeight,portraitBokeh);
     }
     public ExportOptions withQuality(int quality){
         return copy(ratio,frameStyle,quality,brightness,contrast,saturation,caption,captionColor,muteAudio);
@@ -78,14 +80,20 @@ public final class ExportOptions {
         int nextQuality=profile==SocialExportProfile.CUSTOM?qualityMode:OutputProfile.FULL_HD;
         return new ExportOptions(preset,nextRatio,frameStyle,nextQuality,
                 trimStartMs,trimEndMs,focusX,focusY,brightness,contrast,saturation,
-                caption,captionColor,muteAudio,profile,customWidth,customHeight);
+                caption,captionColor,muteAudio,profile,customWidth,customHeight,portraitBokeh);
     }
     /** Explicit custom width/height; copied through all derived variants. */
     public ExportOptions withCustomSize(int width,int height){
         AspectRatioProfile.validateCustom(width,height);
         return new ExportOptions(preset,AspectRatioProfile.CUSTOM,frameStyle,qualityMode,
                 trimStartMs,trimEndMs,focusX,focusY,brightness,contrast,saturation,
-                caption,captionColor,muteAudio,SocialExportProfile.CUSTOM,width,height);
+                caption,captionColor,muteAudio,SocialExportProfile.CUSTOM,width,height,portraitBokeh);
+    }
+    /** Machine-learning portrait cutout and background blur, for photographs only. */
+    public ExportOptions withPortraitBokeh(boolean enabled){
+        return new ExportOptions(preset,ratio,frameStyle,qualityMode,trimStartMs,trimEndMs,
+                focusX,focusY,brightness,contrast,saturation,caption,captionColor,muteAudio,
+                socialProfile,customWidth,customHeight,enabled);
     }
     public boolean hasColorAdjustments(){
         return brightness!=0f || contrast!=0f || saturation!=0f;

@@ -20,8 +20,8 @@ android {
         applicationId 'com.wfs.storyboost.studio'
         minSdk 29
         targetSdk 35
-        versionCode 26
-        versionName '2.6.0'
+        versionCode 27
+        versionName '2.7.0'
     }
 
     signingConfigs {
@@ -65,4 +65,6 @@ dependencies {
     // Bundled on-device ML models: no photo upload or first-run model download.
     implementation 'com.google.mlkit:face-detection:16.1.7'
     implementation 'com.google.mlkit:image-labeling:17.0.9'
+    // Bundled offline ML selfie segmentation (beta), used only for still-photo portrait bokeh.
+    implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta6'
 }

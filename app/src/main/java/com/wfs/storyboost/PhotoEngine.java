@@ -35,11 +35,8 @@ public final class PhotoEngine {
         // The exact-copy path is intentionally opt-in: Original preset + original
         // aspect + Fit + Max Detail on JPEG. It preserves every original pixel
         // and EXIF byte instead of recompressing an already compressed image.
-        if (settings.preset==4 && settings.ratio==AspectRatioProfile.ORIGINAL
-                && settings.frameStyle==AspectRatioProfile.FIT
-                && settings.qualityMode==OutputProfile.MAX_DETAIL
-                && !settings.hasText() && !settings.hasColorAdjustments()
-                && "image/jpeg".equalsIgnoreCase(context.getContentResolver().getType(uri))) {
+        if (PhotoPassthrough.allowed(settings,
+                context.getContentResolver().getType(uri))) {
             AspectRatioProfile.Size nativeSize=MediaDimensions.read(context,uri);
             try(InputStream in=context.getContentResolver().openInputStream(uri)){
                 if(in==null)throw new IOException("Gambar tidak tersedia.");
@@ -77,8 +74,12 @@ public final class PhotoEngine {
                 }
                 FrameMath.Bounds b = FrameMath.center(oriented.getWidth(), oriented.getHeight(),
                         width, height, settings.frameStyle, settings.focusX, settings.focusY);
-                canvas.drawBitmap(oriented, null,
-                        new RectF(b.left, b.top, b.right, b.bottom), photoPaint);
+                if(settings.portraitBokeh){
+                    AiPortraitCompositor.draw(canvas,oriented,width,height,b,photoPaint);
+                }else{
+                    canvas.drawBitmap(oriented,null,
+                            new RectF(b.left,b.top,b.right,b.bottom),photoPaint);
+                }
                 if(settings.hasText())drawCaption(canvas,settings,width,height);
 
                 // Avoid excessive halos and memory usage on large images.
@@ -141,6 +142,39 @@ public final class PhotoEngine {
         }
     }
 
+    /**
+     * ML-based portrait preview at screen size. Its mask is independently generated
+     * from an upright downsampled source; color matrix is burned into bitmap.
+     */
+    public static Bitmap portraitPreview(Context context,Uri uri,ExportOptions settings)
+            throws IOException {
+        Bitmap source=decode(context,uri,1200);
+        if(source==null)throw new IOException("Foto tidak dapat dibaca");
+        Bitmap oriented=orient(context,uri,source);
+        if(oriented!=source)source.recycle();
+        Bitmap output=null;
+        try{
+            AspectRatioProfile.Size target=AspectRatioProfile.resolve(settings.ratio,
+                    settings.qualityMode,oriented.getWidth(),oriented.getHeight(),
+                    settings.frameStyle,settings.customWidth,settings.customHeight);
+            double factor=Math.min(1d,800d/Math.max(target.width,target.height));
+            int w=Math.max(2,(int)Math.round(target.width*factor));
+            int h=Math.max(2,(int)Math.round(target.height*factor));
+            output=Bitmap.createBitmap(w,h,Bitmap.Config.ARGB_8888);
+            Canvas canvas=new Canvas(output);
+            Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+            p.setColorFilter(colorFilter(settings));
+            FrameMath.Bounds b=FrameMath.center(oriented.getWidth(),oriented.getHeight(),
+                    w,h,settings.frameStyle,settings.focusX,settings.focusY);
+            AiPortraitCompositor.draw(canvas,oriented,w,h,b,p);
+            // Caption remains a separate live overlay in StudioEditorActivity.
+            return output;
+        }catch(IOException|RuntimeException e){
+            if(output!=null)output.recycle();
+            throw e;
+        }finally{oriented.recycle();}
+    }
+
     /** JPEG byte preview is decoded at screen resolution rather than 2-megapixel size. */
     public static Bitmap editedPreview(byte[] jpeg) {
         BitmapFactory.Options opts = new BitmapFactory.Options();
@@ -154,7 +188,7 @@ public final class PhotoEngine {
         return BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, opts);
     }
 
-    private static void drawBlurredBackground(Canvas canvas, Bitmap source,
+    static void drawBlurredBackground(Canvas canvas, Bitmap source,
                                                int width, int height) {
         // Downsample + double box blur for a soft fill; foreground stays untouched.
         final int lowW = 64;

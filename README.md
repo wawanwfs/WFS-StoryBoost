@@ -1,8 +1,24 @@
-# WFS StoryBoost — Creative Editing Studio v2.6
+# WFS StoryBoost — Creative Editing Studio v2.7
 
 **Android offline-first.** Antarmuka editor non-destruktif dengan workflow proyek, timeline satu media, filter, trim, split-export, konversi rasio, dan kualitas ekspor sumber-asli.
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
+
+## WFS StoryBoost v2.7 — AI Portrait Bokeh (On-device, beta)
+
+### Yang benar-benar berubah
+- **AI Portrait Bokeh:** segmentasi orang memakai model **Google ML Kit Selfie Segmentation** bundled (`segmentation-selfie:16.0.0-beta6`), mode `SINGLE_IMAGE_MODE`. Model membuat mask alpha, lalu editor menggambar **piksel wajah/badan dari foto asli** di atas latar yang diblur. Tidak memodifikasi identitas atau fitur wajah.
+- **Live AI Portrait preview:** saat sakelar aktif, editor menampilkan hasil segmentasi pada frame edit saat ini. Tombol **Sebelum / Sesudah** dapat membandingkan foto sumber dan efek AI. Photo export JPEG menjalankan komposisi dengan segmentasi lagi pada sumber resolusi lebih tinggi agar hasil tidak hanya bergantung preview.
+- **Original file protection:** ketika AI Portrait aktif, mode byte-for-byte JPEG otomatis dinonaktifkan sehingga efek benar-benar ikut ke ekspor. Pilihan rasio/kualitas/custom/social tetap mempertahankan setelan AI.
+- **Memori:** mask dibuat pada citra maksimal sisi 768 px; model tetap berjalan offline, dan ekspor foto resolusi besar mungkin memerlukan RAM tambahan.
+- **Fallback:** apabila subjek tidak terdeteksi, mask hampir seluruh frame, model gagal, atau memori tidak cukup, proses mengembalikan pesan error—bukan berpura-pura berhasil menghapus background.
+- **UI:** panel AI Photo kini dapat digulir sehingga tombol analisis, sakelar Portrait Bokeh, rekomendasi look, dan smart crop dapat diakses di layar kecil.
+- **Tidak ada AI super-resolution/deblur/denoise model dalam rilis ini.** Background blur berbasis model segmentasi nyata, tetapi mengembalikan detail foto buram perlu model terpisah. Kompresi WA/IG/TikTok tetap tidak dapat dijamin hilang.
+
+### Penting sebelum rilis publik
+API selfie segmentation Google berada di tahap **beta**. Bentuk rambut, aksesori transparan, kondisi minim cahaya, serta beberapa orang dalam bingkai dapat memunculkan artefak mask. Uji foto orang asli dan perangkat fisik sebelum dianggap final. Jangan gunakan data wajah untuk upload/cloud; implementasi ini offline-only.
+
+Lihat [PROGRESS.md](docs/PROGRESS.md) untuk estimasi capaian roadmap dan [NEXT_PROMPT.md](docs/NEXT_PROMPT.md) untuk instruksi pengembangan berikutnya.
 
 ## Baru v2.6 — Rasio Custom + AI Photo Studio
 
@@ -55,7 +71,7 @@
 UI ini menargetkan pengalaman aplikasi editor profesional, **bukan salinan CapCut**. V2.2 masih editor **satu media per proyek**, bukan timeline multi-layer dengan animasi keyframe, efek premium, green screen, penghilangan latar, musik multi-track, atau AI upscale. Fitur tersebut membutuhkan modul yang belum diterapkan. Mode ekspor tetap tergantung codec ponsel. Kompresi WhatsApp/Instagram setelah unggah tidak dapat dicegah aplikasi.
 
 ## Pasang
-Buka [Actions: Build and verify WFS StoryBoost APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml), pilih run sukses terbaru, unduh `WFS-StoryBoost-v2.6.0-Debug-APK`, **ekstrak ZIP**, lalu instal `app-debug.apk`. Jika pemasangan update gagal karena kunci signing debug berbeda, hapus versi debug lama terlebih dahulu atau gunakan release signing stabil dengan GitHub Secrets.
+Buka [Actions: Build and verify WFS StoryBoost APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml), pilih run sukses terbaru, unduh `WFS-StoryBoost-v2.7.0-Debug-APK`, **ekstrak ZIP**, lalu instal `app-debug.apk`. Jika pemasangan update gagal karena kunci signing debug berbeda, hapus versi debug lama terlebih dahulu atau gunakan release signing stabil dengan GitHub Secrets.
 
 ## Pengembangan / QA
 Aplikasi memakai Android Java 17 / Media3. Workflow menjalankan tes geometri, `assembleDebug`, `apksigner`, `zipalign`, lalu install & launch emulator. Untuk testing HP fisik, lihat `tests/TEST_PLAN.md`. Screenshot editor dari emulator bukan jaminan semua pemrosesan media lolos pengujian perangkat nyata.
@@ -66,9 +82,9 @@ Aplikasi memakai Android Java 17 / Media3. Workflow menjalankan tes geometri, `a
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)
 
-> **v2.6.0 • Premium Studio UI + Source-Aware Quality Engine.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
+> **v2.7.0 • Premium Studio UI + Source-Aware Quality Engine.** CI menghasilkan **APK debug** jika workflow berhasil. Peningkatan warna dan ketajaman berbasis filter (bukan AI generatif). WhatsApp tetap dapat mengompresi Status, jadi kualitas media setelah unggah tidak bisa dijamin identik dengan berkas ekspor.
 
-## ✨ Baru di v2.6.0
+## ✨ Baru di v2.7.0
 - **Premium Visual Hero** memakai panorama matahari terbenam dan ilustrasi kota pada Canvas Android, tidak bergantung koneksi internet atau poster AI.
 - **Quick Studio 6 menu**: Enhance Foto, Enhance Video, Ubah Rasio, Batch Export, Filter Premium, Lihat Hasil.
 - **Preset chip tanpa radio circle**; navigasi editor, hasil dan pilihan rasio tetap aktif.
@@ -128,14 +144,14 @@ Konversi rasio **tidak memutar** isi media. **Fit** menjaga seluruh foto/video d
 
 ## 🧪 Bukti pengujian UI & instalasi
 
-Workflow membangun APK, memvalidasi signature dan launcher, memasang APK di Android emulator API 35, meluncurkan MainActivity, lalu merekam **screenshot aktual home app** sebagai artifact `WFS-StoryBoost-v2.6.0-Emulator-Screenshot`. Screenshot adalah UI aplikasi nyata, bukan poster AI.
+Workflow membangun APK, memvalidasi signature dan launcher, memasang APK di Android emulator API 35, meluncurkan MainActivity, lalu merekam **screenshot aktual home app** sebagai artifact `WFS-StoryBoost-v2.7.0-Emulator-Screenshot`. Screenshot adalah UI aplikasi nyata, bukan poster AI.
 
 ## 📥 Download APK (via GitHub Actions)
 
 1. Buka tab [**Actions**](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml).
 2. Pilih workflow **Build and verify WFS StoryBoost APK**.
 3. Buka run terbaru dengan status **Success** (atau klik **Run workflow** jika diperlukan).
-4. Unduh artifact **WFS-StoryBoost-v2.6.0-Debug-APK** dan ekstrak ZIP-nya.
+4. Unduh artifact **WFS-StoryBoost-v2.7.0-Debug-APK** dan ekstrak ZIP-nya.
 5. Instal `app-debug.apk` di Android 10 atau versi lebih baru (aktifkan izin pemasangan aplikasi dari sumber tersebut saat diminta).
 
 > Artifact tersedia **hanya setelah build sukses**. Debug APK ditandatangani kunci debug sementara; untuk update stabil gunakan signed release dengan GitHub Secrets. v1.7 memakai package baru untuk menghindari konflik dengan versi lama. Jangan mengunggah kunci signing atau password ke repository.
@@ -148,7 +164,7 @@ Syarat: **JDK 17**, **Android SDK API 36 + Build Tools 35**, Android Studio atau
 powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
 ```
 
-Jika sukses, APK debug berada pada `dist/WFS-StoryBoost-v2.6.0-debug.apk`.
+Jika sukses, APK debug berada pada `dist/WFS-StoryBoost-v2.7.0-debug.apk`.
 
 ## ✅ Pengujian
 

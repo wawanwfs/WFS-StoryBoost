@@ -2,6 +2,18 @@
 # Two independent Android instrumentation processes with actual DocumentsUI.
 # The file fixture is generated on the emulator; no user media leaves the device.
 set -euo pipefail
+# Keep diagnostic evidence strictly limited to the synthetic test fixture UI.
+# Never log user-provided media or private gallery content.
+on_exit() {
+  local code=$?
+  if (( code != 0 )); then
+    echo "Capturing failed real DocumentsUI picker screenshot / hierarchy"
+    adb exec-out screencap -p > qa-picker-failure.png 2>/dev/null || true
+    adb shell uiautomator dump /sdcard/qa-picker-failure.xml >/dev/null 2>&1 || true
+    adb pull /sdcard/qa-picker-failure.xml qa-picker-failure.xml >/dev/null 2>&1 || true
+  fi
+}
+trap on_exit EXIT
 APP=com.wfs.storyboost.studio
 TEST_PACKAGE="$APP.test"
 RUNNER="$TEST_PACKAGE/androidx.test.runner.AndroidJUnitRunner"

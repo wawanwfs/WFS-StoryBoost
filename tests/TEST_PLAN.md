@@ -187,3 +187,20 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 
 - [ ] On 320x640 emulator, Editor title stays one line, Undo/Redo and Export buttons all visible and clickable.
 - [ ] In photo mode no disabled video seekbar consumes vertical space; video mode retains working seekbar.
+
+## Beta2 instrumented coverage — 2026-11-08
+
+The [successful candidate CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42491741331) ran **4 instrumented tests on API 29** and **5 on API 35**, plus separate APK build and API 35 install/smoke jobs. The photo import test simulates the SAF `ACTION_OPEN_DOCUMENT` result; it is not a real picker-interaction test.
+
+- [x] Android Activity photo changes, persisted draft, fresh Home/Recent resume, decoded JPEG 1080×1920 and unchanged SHA256 source.
+- [x] Corrupt draft and missing/deleted URI safe rejection; Clear Recent cleanup.
+- [x] Generated H.264/AAC, silent, rotated and malformed MP4 inspection on Android.
+- [x] API35 Media3 trim encoder: actual 1080×1920 H.264/AAC output, A/V duration and drift assertions.
+- [x] API35 captured PNG screenshots at 320×640 and 1080×2400 with pixel dimension verification.
+- [ ] Actual Android DocumentsUI interaction, process death/force-stop/reopen and third-party URI revocation.
+- [ ] Repeated import versus explicit resume, physical gesture crop, Undo/Redo and before-after drag through real output.
+- [ ] Full split, merge, cancellation and unsupported/low-memory codec QA across physical devices.
+- [ ] Rights-cleared real photos for bokeh hair/glasses/multiple people, DnCNN low light/chroma/tile-seam tests and device CPU/RAM.
+- [ ] Two independent owner-signed APK builds with same certificate and successful `adb install -r`.
+
+Do not count tests as new roadmap modules. Current ledger remains 23 of 32 unique features. Debug artifacts are not stable signed production builds.

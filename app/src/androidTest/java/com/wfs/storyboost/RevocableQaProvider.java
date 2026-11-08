@@ -52,9 +52,9 @@ public final class RevocableQaProvider extends ContentProvider {
         if(!"r".equals(mode)||uri==null||uri.getPathSegments().size()!=2
                 ||!"document".equals(uri.getPathSegments().get(0)))
             throw new FileNotFoundException("Unsupported test document");
-        if(getContext().checkCallingUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                !=PackageManager.PERMISSION_GRANTED)
-            throw new FileNotFoundException("QA source read grant absent or revoked");
+        // Manifest signature-level readPermission is enforced by Android
+        // ContentProvider transport. This owner process can only open the
+        // private synthetic fixture after the platform admits the URI grant.
         File file=new File(getContext().getFilesDir(),FIXTURE_FILE);
         if(!file.exists()){
             Bitmap image=Bitmap.createBitmap(240,360,Bitmap.Config.ARGB_8888);

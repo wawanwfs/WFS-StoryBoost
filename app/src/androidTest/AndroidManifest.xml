@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Only test APK defines this signature read permission. The production
+         app does not request it; OS URI grant is therefore required. -->
+    <permission
+        android:name="com.wfs.storyboost.qa.READ_DOCUMENT"
+        android:protectionLevel="signature" />
     <application>
         <provider
             android:name="com.wfs.storyboost.RevocableQaProvider"
             android:authorities="com.wfs.storyboost.studio.qa.docs"
             android:exported="true"
+            android:readPermission="com.wfs.storyboost.qa.READ_DOCUMENT"
             android:grantUriPermissions="true" />
     </application>
 </manifest>

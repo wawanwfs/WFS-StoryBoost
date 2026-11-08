@@ -225,6 +225,7 @@ jobs:
             bash scripts/qa-video-fixtures.sh
             bash scripts/fetch-dncnn-model.sh
             gradle --no-daemon :app:connectedDebugAndroidTest
+            bash scripts/qa-process-death-local.sh
       - name: Publish Android instrumentation reports
         if: always()
         uses: actions/upload-artifact@v4

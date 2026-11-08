@@ -236,8 +236,8 @@ public final class VideoExportQa {
             finish();
         }
         void finish(){
-            if(engine!=null)engine.cancel();
-            if(merge!=null)merge.cancel();
+            // Persist the failure FIRST. On a stuck MediaCodec, Transformer.cancel()
+            // can block; QA must report the timeout independently of codec cleanup.
             log.append("stage=").append(stage).append('\n');
             log.append("checks=").append(checks).append('\n');
             log.append("totalElapsedMs=").append(SystemClock.elapsedRealtime()-totalStart).append('\n');
@@ -245,6 +245,12 @@ public final class VideoExportQa {
                 out.write(log.toString().getBytes(StandardCharsets.UTF_8));
             }catch(Exception e){Log.e(TAG,"Cannot write QA report",e);}
             Log.i(TAG,log.toString().replace('\n',';'));
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{
+                try{if(engine!=null)engine.cancel();}
+                catch(RuntimeException cancelError){Log.w(TAG,"Video QA cancel failed",cancelError);}
+                try{if(merge!=null)merge.cancel();}
+                catch(RuntimeException cancelError){Log.w(TAG,"Merge QA cancel failed",cancelError);}
+            });
         }
     }
 }

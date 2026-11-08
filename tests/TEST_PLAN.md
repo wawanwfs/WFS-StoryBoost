@@ -79,3 +79,18 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] MP4 with Asli/Original/Fit/Max Detail/no trim: output SHA-256 matches input.
 - [ ] Enhanced MP4 and JPEG: original must not be copied unchanged; preview and share remain functional.
 - [ ] Check screenshot in 320x640 and large resolution: no overflow, no invisible buttons, no clipped labels.
+
+## v2.2 Project workspace and timeline QA
+- [ ] Android emulator: launcher goes to `StudioHomeActivity`, demo opens `StudioEditorActivity`.
+- [ ] Photo Editor / Video Editor tiles open gallery picker filtered to their type.
+- [ ] New Project accepts URI via Storage Access Framework and grants persisted read permission when available.
+- [ ] Recent project can reopen with correct URI; Clear recent never deletes original gallery files.
+- [ ] Editor photo preview loads; ratio 9:16,16:9,1:1,4:5 and Original change preview aspect.
+- [ ] Filter chips update photo live preview, and exported JPEG uses same PhotoEngine filter.
+- [ ] Frame Fit/Crop/Blur, focus X/Y controls all work.
+- [ ] Video thumbnails from actual MediaMetadataRetriever frames, play, pause, seek and trim input work.
+- [ ] Split at playhead creates two independent MP4 exports, preserving audio track if present.
+- [ ] Dual-ratio export for photos/videos; progress, Gallery and share ACTION_SEND.
+- [ ] Crop severe warning provides safe Blur alternative; test 1920x1080 source into 9:16.
+- [ ] Android low memory and 4K HEVC source: gracefully report unsupported codec or memory, never claim detail creation.
+- [ ] Screen-size snapshots for home/editor at small 320x640 emulator and 1080x2400 phone.

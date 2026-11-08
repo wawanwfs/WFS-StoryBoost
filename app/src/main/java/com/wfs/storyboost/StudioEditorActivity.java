@@ -1,0 +1,663 @@
+package com.wfs.storyboost;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.media.MediaMetadataRetriever;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.Gravity;
+import android.view.View;
+import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.HorizontalScrollView;
+import android.widget.SeekBar;
+import android.widget.TextView;
+import android.widget.VideoView;
+import android.widget.Switch;
+import android.widget.Toast;
+import java.io.File;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/**
+ * A real single-source timeline editor with playback, frame thumbnails, trim, split-export,
+ * non-destructive ratio/crop/filter settings and the same high-quality export engines
+ * used by Quick Enhance. No mocked upload or buttons.
+ */
+public final class StudioEditorActivity extends Activity {
+    private static final int BG=StudioUi.BG,TEXT=StudioUi.TEXT,MUTED=StudioUi.MUTED;
+    private final Handler handler=new Handler(Looper.getMainLooper());
+    private final ExecutorService io=Executors.newSingleThreadExecutor();
+    private final ArrayDeque<RenderJob> exports=new ArrayDeque<>();
+    private VideoEngine activeVideoEngine;
+    private Uri mediaUri,lastExport;
+    private boolean isVideo,isDemo,destroyed,exportBusy,exportCancelled;
+    private long durationMs=0,trimStartMs=0,trimEndMs=0,splitMs=-1;
+    private int ratio=0,preset=1,framing=AspectRatioProfile.FIT,quality=OutputProfile.MAX_DETAIL;
+    private float focusX=.5f,focusY=.5f;
+    private int completed,failed;
+    private boolean dualOutput=false;
+    private TextView timeLabel,qualityLabel,trimSummary,sourceLabel,exportStatus,previewLabel;
+    private ImageView photo;
+    private VideoView video;
+    private SeekBar seekbar;
+    private FrameLayout canvasArea,outputCanvas;
+    private LinearLayout toolPane,thumbStrip;
+    private Button playButton,exportButton,compareButton;
+    private android.app.AlertDialog exportDialog;
+    private android.widget.ProgressBar exportProgress;
+    private boolean compareOriginal=false;
+    private Bitmap imagePreviewBitmap;
+    private Runnable playTicker;
+    private int renderToken=0;
+    private final int dp(int a){return StudioUi.dp(this,a);}
+    private TextView txt(String s,int size,int col,boolean bold){return StudioUi.text(this,s,size,col,bold);}
+    private Button btn(String s,boolean primary){return StudioUi.button(this,s,primary);}
+    private void gap(LinearLayout l,int n){StudioUi.gap(l,this,n);}
+    private LinearLayout row(){return StudioUi.row(this);}
+    private LinearLayout column(){return StudioUi.column(this);}
+    private LinearLayout card(int padding){return StudioUi.card(this,padding);}
+    private static final class RenderJob {
+        final ExportOptions options;
+        final String title;
+        RenderJob(ExportOptions o,String title){options=o;this.title=title;}
+    }
+
+    @Override public void onCreate(Bundle state){
+        super.onCreate(state);
+        getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);
+        String from=getIntent().getStringExtra("media_uri");
+        if(from==null||from.isEmpty()){finish();return;}
+        mediaUri=Uri.parse(from);isDemo=getIntent().getBooleanExtra("demo",false);
+        String mime=getContentResolver().getType(mediaUri);
+        isVideo=(mime!=null&&mime.startsWith("video/"))
+                ||from.toLowerCase(Locale.US).matches(".*\\.(mp4|mov|m4v|webm)(\\?.*)?$");
+        ratio=getIntent().getIntExtra("ratio",0);
+        if(ratio<0||ratio>AspectRatioProfile.ORIGINAL)ratio=0;
+        if(isVideo){
+            durationMs=MediaProbe.duration(this,mediaUri);
+            if(durationMs<=0)durationMs=30000;
+        }
+        build();
+        if(isVideo){renderThumbnails();startTicker();}
+        else refreshImagePreview();
+        canvasArea.post(this::layoutPreviewCanvas);
+        refreshSourceMetadata();
+    }
+    private void build(){
+        LinearLayout root=column();root.setBackgroundColor(BG);root.setFitsSystemWindows(true);
+        // Editor header
+        LinearLayout header=row();header.setPadding(dp(11),dp(7),dp(12),dp(8));
+        Button back=btn("‹",false);
+        back.setTextSize(26);
+        header.addView(back,new LinearLayout.LayoutParams(dp(44),dp(46)));
+        back.setOnClickListener(v->finish());
+        LinearLayout title=column();
+        title.addView(txt("Studio Editor",19,TEXT,true));gap(title,4);
+        title.addView(txt(isVideo?"VIDEO PROJECT":"PHOTO PROJECT",10,StudioUi.CYAN,true));
+        LinearLayout.LayoutParams titleLp=new LinearLayout.LayoutParams(0,-2,1f);titleLp.leftMargin=dp(8);
+        header.addView(title,titleLp);
+        exportButton=btn("Ekspor  ↗",true);
+        header.addView(exportButton,new LinearLayout.LayoutParams(dp(100),dp(44)));
+        exportButton.setOnClickListener(v->confirmExport());
+        root.addView(header);
+
+        // Aspect-specific media monitor; Canvas body expands to available screen height.
+        canvasArea=new FrameLayout(this);canvasArea.setBackgroundColor(0xFF050811);
+        root.addView(canvasArea,new LinearLayout.LayoutParams(-1,0,1f));
+        outputCanvas=new FrameLayout(this);
+        outputCanvas.setBackground(StudioUi.solid(this,0xFF171D2B,8));
+        outputCanvas.setClipToOutline(true);
+        photo=new ImageView(this);photo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        photo.setBackgroundColor(Color.BLACK);photo.setContentDescription("Pratinjau foto");
+        video=new VideoView(this);video.setBackgroundColor(Color.BLACK);
+        outputCanvas.addView(photo,new FrameLayout.LayoutParams(-1,-1));
+        outputCanvas.addView(video,new FrameLayout.LayoutParams(-1,-1));
+        if(isVideo){
+            photo.setVisibility(View.GONE);video.setVisibility(View.VISIBLE);
+            video.setVideoURI(mediaUri);
+            video.setOnPreparedListener(p->{
+                try{p.setLooping(false);video.seekTo((int)Math.min(trimStartMs,Integer.MAX_VALUE));}
+                catch(Exception ignored){}
+            });
+            video.setOnCompletionListener(mp->{if(playButton!=null)playButton.setText("▶");});
+        }else{video.setVisibility(View.GONE);}
+        canvasArea.addView(outputCanvas,new FrameLayout.LayoutParams(dp(180),dp(250),Gravity.CENTER));
+        previewLabel=txt(isVideo?"VIDEO SOURCE PREVIEW":"LIVE PHOTO PREVIEW",9,StudioUi.GREEN,true);
+        previewLabel.setPadding(dp(9),dp(5),dp(9),dp(5));
+        previewLabel.setBackground(StudioUi.solid(this,0xCE13233A,8));
+        FrameLayout.LayoutParams labelLp=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.LEFT);
+        labelLp.leftMargin=dp(12);labelLp.topMargin=dp(12);
+        canvasArea.addView(previewLabel,labelLp);
+        TextView policy=txt("Edit non-destruktif • Media asli tetap aman",9,MUTED,false);
+        policy.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams policyLp=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM);
+        policyLp.bottomMargin=dp(8);canvasArea.addView(policy,policyLp);
+        canvasArea.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            if(r-l!=or-ol||b-t!=ob-ot)layoutPreviewCanvas();
+        });
+
+        // Transport / time / compare
+        LinearLayout transport=row();transport.setPadding(dp(13),dp(7),dp(13),dp(5));
+        playButton=btn(isVideo?"▶":"◉",false);
+        transport.addView(playButton,new LinearLayout.LayoutParams(dp(45),dp(40)));
+        playButton.setOnClickListener(v->togglePlay());
+        timeLabel=txt(isVideo?"00:00 / "+clock(durationMs):"FOTO  •  1 FRAME",12,TEXT,true);
+        LinearLayout.LayoutParams clockLp=new LinearLayout.LayoutParams(0,-1,1f);clockLp.leftMargin=dp(12);
+        transport.addView(timeLabel,clockLp);
+        compareButton=btn("↔ Sebelum",false);
+        transport.addView(compareButton,new LinearLayout.LayoutParams(dp(104),dp(39)));
+        compareButton.setOnClickListener(v->toggleCompare());
+        root.addView(transport);
+        seekbar=new SeekBar(this);seekbar.setMax(1000);seekbar.setProgress(0);
+        seekbar.setProgressTintList(android.content.res.ColorStateList.valueOf(StudioUi.LAVENDER));
+        seekbar.setThumbTintList(android.content.res.ColorStateList.valueOf(StudioUi.CYAN));
+        seekbar.setEnabled(isVideo);
+        seekbar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(SeekBar s,int progress,boolean user){
+                if(!user||!isVideo)return;
+                long pos=Math.round(durationMs*(progress/1000d));
+                video.seekTo((int)Math.min(Integer.MAX_VALUE,pos));
+                timeLabel.setText(clock(pos)+" / "+clock(durationMs));
+            }
+            @Override public void onStartTrackingTouch(SeekBar s){}
+            @Override public void onStopTrackingTouch(SeekBar s){}
+        });
+        root.addView(seekbar,new LinearLayout.LayoutParams(-1,dp(32)));
+
+        // Timeline with real frames; images occupy a single still strip.
+        LinearLayout timelineCard=column();
+        timelineCard.setPadding(dp(13),dp(4),dp(13),dp(9));
+        timelineCard.setBackgroundColor(0xFF101729);
+        LinearLayout tlRow=row();
+        tlRow.addView(txt("TIMELINE  •  "+(isVideo?"VIDEO":"STILL PHOTO"),10,StudioUi.CYAN,true),
+                new LinearLayout.LayoutParams(0,-2,1f));
+        sourceLabel=txt("Membaca sumber…",10,MUTED,false);tlRow.addView(sourceLabel);
+        timelineCard.addView(tlRow);gap(timelineCard,8);
+        HorizontalScrollView scroll=new HorizontalScrollView(this);
+        scroll.setHorizontalScrollBarEnabled(false);
+        thumbStrip=row();thumbStrip.setPadding(dp(4),dp(2),dp(4),dp(2));
+        scroll.addView(thumbStrip);
+        timelineCard.addView(scroll,new LinearLayout.LayoutParams(-1,dp(59)));
+        root.addView(timelineCard);
+
+        // Tool selector; panel below contains real controls for each mode.
+        HorizontalScrollView toolsScroll=new HorizontalScrollView(this);
+        toolsScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout tabs=row();tabs.setPadding(dp(9),dp(8),dp(9),dp(8));
+        String[] labels={"✂  Trim","▯  Rasio","✦  Filter","◧  Frame","☷  Ekspor"};
+        for(int i=0;i<labels.length;i++){
+            final int tab=i;
+            Button b=btn(labels[i],false);b.setTextSize(12);
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(i==0?91:94),dp(44));
+            if(i>0)p.leftMargin=dp(7);
+            tabs.addView(b,p);b.setOnClickListener(v->showTool(tab));
+        }
+        toolsScroll.addView(tabs);root.addView(toolsScroll,new LinearLayout.LayoutParams(-1,dp(62)));
+        toolPane=column();toolPane.setPadding(dp(13),dp(8),dp(13),dp(10));
+        toolPane.setBackground(StudioUi.solid(this,0xFF161D31,0));
+        root.addView(toolPane,new LinearLayout.LayoutParams(-1,dp(168)));
+        showTool(isVideo?0:2);
+        setContentView(root);
+    }
+    private void layoutPreviewCanvas(){
+        if(canvasArea==null||outputCanvas==null)return;
+        int w=canvasArea.getWidth()-dp(28),h=canvasArea.getHeight()-dp(17);
+        if(w<=0||h<=0)return;
+        double aspect=9d/16d;
+        switch(ratio){
+            case AspectRatioProfile.LANDSCAPE_16_9:aspect=16d/9d;break;
+            case AspectRatioProfile.SQUARE_1_1:aspect=1d;break;
+            case AspectRatioProfile.PORTRAIT_4_5:aspect=4d/5d;break;
+            case AspectRatioProfile.ORIGINAL:
+                try{
+                    AspectRatioProfile.Size size=MediaDimensions.read(this,mediaUri);
+                    aspect=(double)size.width/size.height;
+                }catch(Exception ignored){}
+                break;
+            default:break;
+        }
+        int newW=Math.min(w,(int)Math.floor(h*aspect));
+        int newH=Math.min(h,(int)Math.floor(newW/aspect));
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(
+                Math.max(dp(50),newW),Math.max(dp(50),newH),Gravity.CENTER);
+        outputCanvas.setLayoutParams(lp);
+        if(photo!=null){
+            photo.setScaleType(framing==AspectRatioProfile.CROP?
+                    ImageView.ScaleType.CENTER_CROP:ImageView.ScaleType.FIT_CENTER);
+        }
+    }
+    private void refreshSourceMetadata(){
+        io.execute(()->{
+            try{
+                AspectRatioProfile.Size d=MediaDimensions.read(this,mediaUri);
+                QualityAdvisor.Report q=QualityAdvisor.analyze(
+                        d.width,d.height,1080,1920,AspectRatioProfile.CROP);
+                runOnUiThread(()->{
+                    sourceLabel.setText(d.width+"×"+d.height);
+                    if(isVideo)previewLabel.setText("VIDEO SOURCE • FILTER SAAT EKSPOR");
+                });
+            }catch(Exception ex){runOnUiThread(()->sourceLabel.setText("Resolusi tak terbaca"));}
+        });
+    }
+    private void renderThumbnails(){
+        io.execute(()->{
+            MediaMetadataRetriever reader=new MediaMetadataRetriever();
+            try{
+                reader.setDataSource(this,mediaUri);
+                final int n=8;
+                for(int i=0;i<n&&!destroyed;i++){
+                    long us=((durationMs*Math.max(0,i))/(n-1))*1000L;
+                    Bitmap frame=reader.getFrameAtTime(us,MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                    if(frame==null)continue;
+                    Bitmap thumb=Bitmap.createScaledBitmap(frame,dp(60),dp(58),true);
+                    if(thumb!=frame)frame.recycle();
+                    final int index=i;
+                    runOnUiThread(()->{
+                        if(destroyed){thumb.recycle();return;}
+                        ImageView tile=new ImageView(this);
+                        tile.setImageBitmap(thumb);tile.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                        tile.setBackground(StudioUi.solid(this,0xFF243047,7));tile.setClipToOutline(true);
+                        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(60),dp(56));
+                        if(thumbStrip.getChildCount()>0)p.leftMargin=dp(3);
+                        thumbStrip.addView(tile,p);
+                        tile.setOnClickListener(v->{
+                            long ms=Math.round(durationMs*index/(double)(n-1));
+                            video.seekTo((int)Math.min(ms,Integer.MAX_VALUE));
+                            seekbar.setProgress((int)(1000d*ms/durationMs));
+                        });
+                    });
+                }
+            }catch(Exception ex){
+                runOnUiThread(()->thumbStrip.addView(txt("Preview thumbnail tidak tersedia",12,MUTED,false)));
+            }finally{try{reader.release();}catch(Exception ignored){}}
+        });
+    }
+    private void refreshImagePreview(){
+        if(isVideo)return;
+        final int token=++renderToken;
+        ExportOptions options=options();
+        io.execute(()->{
+            Bitmap rendered=null;
+            try{rendered=PhotoEngine.originalPreview(this,mediaUri,options);}catch(Exception ignored){}
+            Bitmap finalBitmap=rendered;
+            runOnUiThread(()->{
+                if(destroyed||token!=renderToken){if(finalBitmap!=null)finalBitmap.recycle();return;}
+                if(finalBitmap==null){previewLabel.setText("Gambar tidak bisa ditampilkan");return;}
+                Bitmap oldBitmap=imagePreviewBitmap;
+                photo.setImageBitmap(finalBitmap);
+                imagePreviewBitmap=finalBitmap;
+                // The same color matrix is used for the photo export engine.
+                photo.setColorFilter(compareOriginal?null:
+                        options.preset==4?null:PhotoEngine.colorFilter(options.preset));
+                photo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                for(int i=0;i<thumbStrip.getChildCount();i++){
+                    View old=thumbStrip.getChildAt(i);
+                    if(old instanceof ImageView)((ImageView)old).setImageDrawable(null);
+                }
+                thumbStrip.removeAllViews();
+                ImageView tile=new ImageView(this);tile.setImageBitmap(finalBitmap);
+                tile.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                tile.setBackground(StudioUi.solid(this,0xFF263452,6));tile.setClipToOutline(true);
+                thumbStrip.addView(tile,new LinearLayout.LayoutParams(dp(70),dp(55)));
+                thumbStrip.addView(txt("  STILL IMAGE • Non-destructive",11,MUTED,false));
+                if(oldBitmap!=null&&oldBitmap!=finalBitmap)oldBitmap.recycle();
+            });
+        });
+    }
+    private void togglePlay(){
+        if(!isVideo){toast("Gunakan filter dan rasio untuk mengedit foto.");return;}
+        if(video.isPlaying()){video.pause();playButton.setText("▶");}
+        else{
+            if(video.getCurrentPosition()>=durationMs-300)video.seekTo((int)trimStartMs);
+            video.start();playButton.setText("Ⅱ");
+        }
+    }
+    private void startTicker(){
+        playTicker=new Runnable(){
+            @Override public void run(){
+                if(destroyed||!isVideo)return;
+                if(video!=null&&video.getVisibility()==View.VISIBLE){
+                    int pos=video.getCurrentPosition();
+                    if(pos>=0&&durationMs>0){
+                        seekbar.setProgress((int)Math.min(1000,1000d*pos/durationMs));
+                        timeLabel.setText(clock(pos)+" / "+clock(durationMs));
+                        if(trimEndMs>0&&pos>=trimEndMs&&video.isPlaying()){
+                            video.pause();playButton.setText("▶");
+                        }
+                    }
+                }
+                handler.postDelayed(this,250);
+            }
+        };
+        handler.post(playTicker);
+    }
+    private void toggleCompare(){
+        compareOriginal=!compareOriginal;
+        compareButton.setText(compareOriginal?"✦ Sesudah":"↔ Sebelum");
+        if(!isVideo){
+            photo.setColorFilter(compareOriginal?null:
+                    preset==4?null:PhotoEngine.colorFilter(preset));
+            previewLabel.setText(compareOriginal?"SEBELUM • ASLI":"PRATINJAU FILTER");
+        }else toast("Video preview menampilkan sumber; hasil filter terlihat setelah ekspor.");
+    }
+    private ExportOptions options(){
+        return new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
+                trimStartMs,trimEndMs,focusX,focusY).withQuality(quality);
+    }
+    private void refreshSettings(){
+        layoutPreviewCanvas();
+        if(!isVideo)refreshImagePreview();
+    }
+    private void showTool(int which){
+        toolPane.removeAllViews();
+        switch(which){
+            case 0:toolTrim();break;
+            case 1:toolRatio();break;
+            case 2:toolFilters();break;
+            case 3:toolFraming();break;
+            default:toolExport();break;
+        }
+    }
+    private void toolbarTitle(String title,String sub){
+        toolPane.addView(txt(title,13,TEXT,true));gap(toolPane,4);
+        toolPane.addView(txt(sub,10,MUTED,false));gap(toolPane,9);
+    }
+    private void addChips(String[] titles,int checked,java.util.function.IntConsumer onChoose){
+        HorizontalScrollView scroll=new HorizontalScrollView(this);
+        scroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout line=row();
+        for(int i=0;i<titles.length;i++){
+            final int k=i;
+            Button b=btn(titles[i],i==checked);
+            b.setTextSize(11);
+            b.setBackground(i==checked?StudioUi.gradient(this,0xFF9A5AE4,0xFF486DE2,13):
+                    StudioUi.solid(this,0xFF26334B,13));
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(43));
+            if(i>0)p.leftMargin=dp(7);
+            line.addView(b,p);b.setOnClickListener(v->onChoose.accept(k));
+        }
+        scroll.addView(line);toolPane.addView(scroll,new LinearLayout.LayoutParams(-1,dp(48)));
+    }
+    private void toolRatio(){
+        toolbarTitle("Canvas Ratio","Ubah orientasi tanpa memutar subjek.");
+        addChips(new String[]{"9:16","16:9","1:1","4:5","Asli"},ratio,i->{
+            ratio=i;refreshSettings();showTool(1);
+        });
+        gap(toolPane,6);
+        toolPane.addView(txt("Untuk menghindari crop ekstrem, gunakan Fit atau Blur.",10,StudioUi.GREEN,false));
+    }
+    private void toolFilters(){
+        toolbarTitle("Color Looks","Natural • Film tone • Vibrant • Night • Asli.");
+        addChips(new String[]{"Natural","Cinematic","Vibrant","Soft Night","Asli"},preset,i->{
+            preset=i;refreshSettings();showTool(2);
+        });
+        gap(toolPane,6);
+        toolPane.addView(txt(isVideo?"Filter video diproses saat ekspor.":"Geser tombol Sebelum untuk membandingkan.",10,StudioUi.GREEN,false));
+    }
+    private void toolFraming(){
+        toolbarTitle("Framing & Crop","Fit = utuh • Crop = penuh • Blur = latar kabur.");
+        addChips(new String[]{"Fit","Crop","Blur"},framing,i->{
+            framing=i;refreshSettings();showTool(3);
+        });
+        gap(toolPane,5);
+        LinearLayout focus=row();
+        TextView info=txt("Fokus X/Y",11,MUTED,true);
+        focus.addView(info);
+        Button x=btn("X: "+Math.round(focusX*100)+"%",false);
+        Button y=btn("Y: "+Math.round(focusY*100)+"%",false);
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(35),1f);p.leftMargin=dp(8);
+        focus.addView(x,p);
+        LinearLayout.LayoutParams p2=new LinearLayout.LayoutParams(0,dp(35),1f);p2.leftMargin=dp(7);
+        focus.addView(y,p2);
+        x.setOnClickListener(v->focusPicker(true));
+        y.setOnClickListener(v->focusPicker(false));
+        toolPane.addView(focus);
+    }
+    private void focusPicker(boolean x){
+        SeekBar slider=new SeekBar(this);slider.setMax(100);
+        slider.setProgress(Math.round((x?focusX:focusY)*100));
+        new AlertDialog.Builder(this).setTitle(x?"Posisi horizontal crop":"Posisi vertikal crop")
+                .setView(slider).setNegativeButton("Batal",null)
+                .setPositiveButton("Terapkan",(d,w)->{
+                    if(x)focusX=slider.getProgress()/100f;
+                    else focusY=slider.getProgress()/100f;
+                    refreshSettings();showTool(3);
+                }).show();
+    }
+    private void toolTrim(){
+        if(!isVideo){
+            toolbarTitle("Photo Duration","Foto statis tidak memiliki track waktu.");
+            toolPane.addView(txt("Gunakan Filter, Rasio, Frame atau Ekspor.",12,MUTED,false));
+            return;
+        }
+        toolbarTitle("Trim & Split","Geser posisi trim; Split mengekspor dua segmen terpisah.");
+        int max=Math.max(1,(int)Math.min(36000,durationMs/1000));
+        LinearLayout startRow=row();
+        TextView label=txt("Mulai  "+clock(trimStartMs),11,TEXT,true);
+        startRow.addView(label,new LinearLayout.LayoutParams(dp(108),dp(30)));
+        SeekBar start=new SeekBar(this);start.setMax(max);
+        start.setProgress((int)(trimStartMs/1000));
+        startRow.addView(start,new LinearLayout.LayoutParams(0,dp(30),1f));
+        toolPane.addView(startRow);
+        LinearLayout endRow=row();
+        TextView endLabel=txt("Akhir  "+clock(trimEndMs>0?trimEndMs:durationMs),11,TEXT,true);
+        endRow.addView(endLabel,new LinearLayout.LayoutParams(dp(108),dp(30)));
+        SeekBar end=new SeekBar(this);end.setMax(max);
+        end.setProgress((int)((trimEndMs>0?trimEndMs:durationMs)/1000));
+        endRow.addView(end,new LinearLayout.LayoutParams(0,dp(30),1f));
+        toolPane.addView(endRow);
+        SeekBar.OnSeekBarChangeListener listener=new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(SeekBar s,int progress,boolean user){
+                if(!user)return;
+                long lower=start.getProgress()*1000L;
+                long upper=Math.min(durationMs,Math.max(1000L,end.getProgress()*1000L));
+                if(lower>=upper){toast("Waktu akhir harus lebih besar daripada awal.");return;}
+                trimStartMs=lower;trimEndMs=upper;
+                label.setText("Mulai  "+clock(trimStartMs));endLabel.setText("Akhir  "+clock(trimEndMs));
+            }
+            @Override public void onStartTrackingTouch(SeekBar s){}
+            @Override public void onStopTrackingTouch(SeekBar s){}
+        };
+        start.setOnSeekBarChangeListener(listener);end.setOnSeekBarChangeListener(listener);
+        LinearLayout bottom=row();
+        Button split=btn(splitMs>0?"✂ Split: "+clock(splitMs):"✂ Split di playhead",false);
+        Button reset=btn("Reset",false);
+        bottom.addView(split,new LinearLayout.LayoutParams(0,dp(38),2f));
+        LinearLayout.LayoutParams resetLp=new LinearLayout.LayoutParams(0,dp(38),1f);
+        resetLp.leftMargin=dp(9);bottom.addView(reset,resetLp);
+        split.setOnClickListener(v->{
+            long play=video.getCurrentPosition();
+            long upper=trimEndMs>0?trimEndMs:durationMs;
+            if(play<=trimStartMs+500||play>=upper-500){
+                toast("Geser playhead ke tengah rentang sebelum Split.");return;
+            }
+            splitMs=play;split.setText("✂ Split: "+clock(splitMs));
+            toast("Ekspor akan menghasilkan dua segmen video.");
+        });
+        reset.setOnClickListener(v->{
+            splitMs=-1;trimStartMs=0;trimEndMs=0;showTool(0);
+        });
+        toolPane.addView(bottom);
+    }
+    private void toolExport(){
+        toolbarTitle("Output Quality","Max Detail menjaga resolusi sumber sampai batas perangkat.");
+        addChips(new String[]{"HD","1080p","Max Detail"},quality,i->{
+            quality=i;showTool(4);
+        });
+        LinearLayout dual=row();dual.addView(txt("Ekspor 9:16 dan 16:9 sekaligus",11,TEXT,true),
+                new LinearLayout.LayoutParams(0,-1,1f));
+        Switch dualSwitch=new Switch(this);dualSwitch.setChecked(dualOutput);
+        dualSwitch.setOnCheckedChangeListener((v,b)->dualOutput=b);dual.addView(dualSwitch);
+        toolPane.addView(dual);
+    }
+    private void confirmExport(){
+        if(exportBusy)return;
+        if(framing==AspectRatioProfile.CROP){
+            try{
+                AspectRatioProfile.Size original=MediaDimensions.read(this,mediaUri);
+                AspectRatioProfile.Size output=AspectRatioProfile.resolve(ratio,quality,
+                        original.width,original.height,framing);
+                QualityAdvisor.Report report=QualityAdvisor.analyze(original.width,original.height,
+                        output.width,output.height,framing);
+                if(report.severeLoss()){
+                    new AlertDialog.Builder(this).setTitle("Crop mengurangi detail")
+                            .setMessage(report.description()+"\n\nPilih Blur untuk mempertahankan semua bagian gambar.")
+                            .setNegativeButton("Batal",null)
+                            .setNeutralButton("Ganti Blur",(dialog,v)->{
+                                framing=AspectRatioProfile.BLUR;refreshSettings();startExport();
+                            })
+                            .setPositiveButton("Tetap Crop",(dialog,v)->startExport()).show();
+                    return;
+                }
+            }catch(Exception ignored){}
+        }
+        startExport();
+    }
+    private void startExport(){
+        exports.clear();exportCancelled=false;exportBusy=true;completed=0;failed=0;
+        ExportOptions current;
+        try{current=options();}
+        catch(Exception ex){exportBusy=false;toast(ex.getMessage());return;}
+        ArrayList<ExportOptions> sequences=new ArrayList<>();
+        if(isVideo&&splitMs>0){
+            long ending=trimEndMs>0?trimEndMs:durationMs;
+            if(splitMs>trimStartMs&&splitMs<ending){
+                sequences.add(new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
+                        trimStartMs,splitMs,focusX,focusY).withQuality(quality));
+                sequences.add(new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
+                        splitMs,trimEndMs,focusX,focusY).withQuality(quality));
+            }
+        }
+        if(sequences.isEmpty())sequences.add(current);
+        int index=0;
+        for(ExportOptions sequence:sequences){
+            String prefix=sequences.size()>1?"Segmen "+(++index):"Hasil";
+            if(dualOutput){
+                exports.add(new RenderJob(sequence.forRatio(AspectRatioProfile.PORTRAIT_9_16),prefix+" 9:16"));
+                exports.add(new RenderJob(sequence.forRatio(AspectRatioProfile.LANDSCAPE_16_9),prefix+" 16:9"));
+            }else exports.add(new RenderJob(sequence,prefix));
+        }
+        LinearLayout dialogCard=card(16);
+        dialogCard.addView(txt("Sedang mengolah media",18,TEXT,true));gap(dialogCard,8);
+        exportStatus=txt("Memulai…",12,MUTED,false);dialogCard.addView(exportStatus);gap(dialogCard,12);
+        exportProgress=new android.widget.ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        exportProgress.setMax(100);dialogCard.addView(exportProgress,new LinearLayout.LayoutParams(-1,dp(6)));
+        exportDialog=new AlertDialog.Builder(this).setView(dialogCard)
+                .setNegativeButton("Batalkan",(d,w)->cancelExport()).setCancelable(false).create();
+        exportDialog.show();
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        runNextExport();
+    }
+    private void runNextExport(){
+        if(exportCancelled||exports.isEmpty()){finishExports();return;}
+        RenderJob job=exports.removeFirst();
+        exportStatus.setText("Mengekspor "+job.title+"…");
+        exportProgress.setIndeterminate(isVideo?false:true);exportProgress.setProgress(0);
+        if(!isVideo){
+            io.execute(()->{
+                try{
+                    PhotoEngine.Result result=PhotoEngine.process(this,mediaUri,job.options);
+                    Uri saved=MediaSaver.savePhoto(this,result.jpeg,fileName("jpg"));
+                    runOnUiThread(()->{
+                        if(destroyed)return;
+                        lastExport=saved;completed++;
+                        exportProgress.setProgress(100);runNextExport();
+                    });
+                }catch(Exception ex){runOnUiThread(()->failExport(ex.getMessage()));}
+            });
+        }else{
+            activeVideoEngine=new VideoEngine();
+            try{
+                activeVideoEngine.start(this,mediaUri,job.options,new VideoEngine.Listener(){
+                    @Override public void onSuccess(File source,AspectRatioProfile.Size dims){
+                        io.execute(()->{
+                            try{
+                                Uri saved=MediaSaver.saveVideo(StudioEditorActivity.this,source,fileName("mp4"));
+                                runOnUiThread(()->{
+                                    if(destroyed)return;
+                                    lastExport=saved;completed++;
+                                    if(activeVideoEngine!=null)activeVideoEngine.cleanup();
+                                    runNextExport();
+                                });
+                            }catch(Exception ex){runOnUiThread(()->failExport(ex.getMessage()));}
+                        });
+                    }
+                    @Override public void onError(String message){failExport(message);}
+                });
+                handler.post(new Runnable(){
+                    @Override public void run(){
+                        if(destroyed||!exportBusy||activeVideoEngine==null)return;
+                        int pos=activeVideoEngine.progress();
+                        if(pos>=0&&!exportCancelled)exportProgress.setProgress(pos);
+                        handler.postDelayed(this,400);
+                    }
+                });
+            }catch(Exception ex){failExport(ex.getMessage());}
+        }
+    }
+    private void failExport(String error){
+        failed++;
+        if(activeVideoEngine!=null){activeVideoEngine.cleanup();activeVideoEngine=null;}
+        toast("Ekspor gagal: "+error);runNextExport();
+    }
+    private void cancelExport(){
+        exportCancelled=true;exports.clear();
+        if(activeVideoEngine!=null){activeVideoEngine.cancel();activeVideoEngine=null;}
+        exportBusy=false;
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if(exportDialog!=null)exportDialog.dismiss();
+    }
+    private void finishExports(){
+        exportBusy=false;
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if(exportDialog!=null)exportDialog.dismiss();
+        if(exportCancelled){toast("Antrean ekspor dibatalkan.");return;}
+        new AlertDialog.Builder(this)
+                .setTitle(completed>0?"Ekspor selesai":"Ekspor gagal")
+                .setMessage(completed+" berhasil • "+failed+" gagal.\n"+
+                        (completed>0?"Media telah disimpan ke Galeri/WFS StoryBoost.":"Coba format lain atau mode HD."))
+                .setPositiveButton("Selesai",null)
+                .setNeutralButton(completed>0?"Bagikan":"Tutup",(dialog,w)->{if(completed>0)shareLast();})
+                .show();
+    }
+    private void shareLast(){
+        if(lastExport==null)return;
+        Intent send=new Intent(Intent.ACTION_SEND);
+        send.setType(isVideo?"video/mp4":"image/jpeg");
+        send.putExtra(Intent.EXTRA_STREAM,lastExport);
+        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(Intent.createChooser(send,"Bagikan hasil"));
+    }
+    private String fileName(String ext){
+        return "WFS_STUDIO_"+System.currentTimeMillis()+"_"+Math.abs(System.nanoTime()%9999)+"."+ext;
+    }
+    private static String clock(long ms){
+        long seconds=Math.max(0,ms/1000);
+        return String.format(Locale.US,"%02d:%02d",seconds/60,seconds%60);
+    }
+    private void toast(String value){Toast.makeText(this,value,Toast.LENGTH_SHORT).show();}
+    @Override protected void onPause(){super.onPause();if(video!=null&&video.isPlaying())video.pause();}
+    @Override protected void onDestroy(){
+        destroyed=true;handler.removeCallbacksAndMessages(null);
+        if(activeVideoEngine!=null)activeVideoEngine.cancel();
+        if(video!=null)video.stopPlayback();
+        if(photo!=null)photo.setImageDrawable(null);
+        if(imagePreviewBitmap!=null)imagePreviewBitmap.recycle();
+        io.shutdownNow();
+        super.onDestroy();
+    }
+}

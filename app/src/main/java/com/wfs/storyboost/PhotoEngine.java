@@ -230,7 +230,7 @@ public final class PhotoEngine {
         return Bitmap.createBitmap(src, 0, 0, src.getWidth(), src.getHeight(), matrix, true);
     }
 
-    private static ColorMatrixColorFilter colorFilter(int preset) {
+    static ColorMatrixColorFilter colorFilter(int preset) {
         float sat = preset == 0 ? 1.055f : preset == 1 ? 1.12f
                 : preset == 2 ? 1.21f : 1.075f;
         float contrast = preset == 0 ? 1.035f : preset == 1 ? 1.07f

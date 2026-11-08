@@ -46,6 +46,7 @@ jobs:
           "$TOOLS/aapt" dump badging "$APK" | tee "$RUNNER_TEMP/apk-badging.txt"
           grep -q "package: name='com.wfs.storyboost.studio'" "$RUNNER_TEMP/apk-badging.txt"
           grep -q "application-label:'WFS StoryBoost'" "$RUNNER_TEMP/apk-badging.txt"
+          grep -q "com.wfs.storyboost.StudioHomeActivity" "$RUNNER_TEMP/apk-badging.txt"
           unzip -Z1 "$APK" | grep -q '^res/mipmap-anydpi-v26/ic_launcher'
           echo "### Debug APK validated" >> "$GITHUB_STEP_SUMMARY"
           echo "Install package: com.wfs.storyboost.studio (Android 10+)." >> "$GITHUB_STEP_SUMMARY"
@@ -53,7 +54,7 @@ jobs:
       - name: Publish debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: WFS-StoryBoost-v2.1.0-Debug-APK
+          name: WFS-StoryBoost-v2.2.0-Debug-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - name: Configure stable release signing if secrets exist
@@ -90,7 +91,7 @@ jobs:
         if: steps.signing.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: WFS-StoryBoost-v2.1.0-Release-Signed
+          name: WFS-StoryBoost-v2.2.0-Release-Signed
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
@@ -102,7 +103,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: WFS-StoryBoost-v2.1.0-Debug-APK
+          name: WFS-StoryBoost-v2.2.0-Debug-APK
           path: smoke-apk
       - name: Allow Android emulator KVM
         run: |
@@ -117,25 +118,22 @@ jobs:
           emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
             adb install smoke-apk/app-debug.apk
-            adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.MainActivity
+            adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity
             sleep 4
             adb shell pidof com.wfs.storyboost.studio
             adb shell screencap -p /sdcard/storyboost-home.png
             adb pull /sdcard/storyboost-home.png storyboost-home.png
             # Bottom tabs at x=160 (Editor), x=267 (Hasil) on the 320x640 emulator.
-            adb shell input tap 160 570
-            sleep 2
+            adb shell am force-stop com.wfs.storyboost.studio
+            adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity --ez qa_demo true
+            sleep 6
             adb shell pidof com.wfs.storyboost.studio
+            adb shell dumpsys activity activities | grep -q 'StudioEditorActivity'
             adb shell screencap -p /sdcard/storyboost-editor.png
             adb pull /sdcard/storyboost-editor.png storyboost-editor.png
-            adb shell input tap 266 570
-            sleep 2
-            adb shell pidof com.wfs.storyboost.studio
-            adb shell screencap -p /sdcard/storyboost-results.png
-            adb pull /sdcard/storyboost-results.png storyboost-results.png
       - name: Upload real app screenshot for UI inspection
         uses: actions/upload-artifact@v4
         with:
-          name: WFS-StoryBoost-v2.1.0-Emulator-Screenshot
+          name: WFS-StoryBoost-v2.2.0-Emulator-Screenshot
           path: storyboost-*.png
           if-no-files-found: error

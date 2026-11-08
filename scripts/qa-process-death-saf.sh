@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # End-to-end Android DocumentsUI selection with independent instrumentation PIDs.
-# Only synthetic MediaStore data is created. Google Photos is isolated on QA
-# emulators and restored on exit; this does not certify that provider's picker.
+# Only synthetic MediaStore data is created. Default isolated run preserves
+# beta3 evidence; WFS_PHOTOS_ENABLED=1 keeps Photos active to check picker
+# compatibility (not selection or persistence of a Photos-owned URI).
 set -euo pipefail
 APP=com.wfs.storyboost.studio
 RUNNER="$APP.test/androidx.test.runner.AndroidJUnitRunner"
@@ -22,7 +23,9 @@ cleanup() {
   exit "$status"
 }
 trap cleanup EXIT
-if adb shell pm list packages | grep -Fq 'com.google.android.apps.photos'; then
+if [[ "${WFS_PHOTOS_ENABLED:-0}" == "1" ]]; then
+  echo "Google Photos remains enabled: validating DocumentsUI coexistence, NOT Photos URI grants"
+elif adb shell pm list packages | grep -Fq 'com.google.android.apps.photos'; then
   disabled="$(adb shell pm disable-user --user 0 com.google.android.apps.photos 2>&1 || true)"
   if [[ "$disabled" != *disabled-user* ]]; then
     echo "Cannot isolate native DocumentsUI: $disabled" >&2

@@ -20,6 +20,7 @@ import java.util.ArrayList;
 public final class StudioHomeActivity extends Activity {
     private static final int PICK=802;
     private int requestedRatio=0;
+    private boolean requestedAi=false;
     private LinearLayout recentCard;
     private TextView emptyRecent;
     private ScrollView mainScroll;
@@ -49,7 +50,7 @@ public final class StudioHomeActivity extends Activity {
         ImageView logo=new ImageView(this);logo.setImageResource(R.mipmap.ic_launcher);
         header.addView(logo,new LinearLayout.LayoutParams(d(49),d(49)));
         LinearLayout identity=StudioUi.column(this);identity.addView(text("WFS StoryBoost",20,TEXT,true));
-        gap(identity,3);identity.addView(text("CREATIVE EDITING SUITE  /  v2.4",10,StudioUi.CYAN,true));
+        gap(identity,3);identity.addView(text("CREATIVE EDITING SUITE  /  v2.6",10,StudioUi.CYAN,true));
         LinearLayout.LayoutParams identityLp=new LinearLayout.LayoutParams(0,-2,1);
         identityLp.leftMargin=d(8);header.addView(identity,identityLp);
         TextView settings=text("⚙",23,StudioUi.LAVENDER,true);
@@ -96,9 +97,13 @@ public final class StudioHomeActivity extends Activity {
         second.addView(tile("◫","Coba Editor","Media demo offline",0xFF2D988F,()->tryDemo()),lp2);
         content.addView(second);gap(content,10);
         LinearLayout third=StudioUi.row(this);
-        LinearLayout merge=tile("≡","Gabung Banyak Klip","Susun dan satukan sampai 10 video",0xFF4B96B8,
+        LinearLayout merge=tile("≡","Merge Studio","Gabungkan banyak video",0xFF4B96B8,
                 ()->startActivity(new Intent(this,StudioMergeActivity.class)));
-        third.addView(merge,new LinearLayout.LayoutParams(-1,d(111)));
+        third.addView(merge,new LinearLayout.LayoutParams(0,d(112),1f));
+        LinearLayout ai=tile("✧","AI Photo","Analisis & smart crop",0xFF9972D3,
+                ()->choose(0,"image/*",true));
+        LinearLayout.LayoutParams aiLp=new LinearLayout.LayoutParams(0,d(112),1f);
+        aiLp.leftMargin=d(10);third.addView(ai,aiLp);
         content.addView(third);
         gap(content,19);
 
@@ -153,9 +158,11 @@ public final class StudioHomeActivity extends Activity {
         label.setGravity(Gravity.CENTER);parent.addView(label,new LinearLayout.LayoutParams(0,-1,1f));
         label.setOnClickListener(v->action.run());
     }
-    private void choose(int ratio){choose(ratio,"*/*");}
-    private void choose(int ratio,String mime){
+    private void choose(int ratio){choose(ratio,"*/*",false);}
+    private void choose(int ratio,String mime){choose(ratio,mime,false);}
+    private void choose(int ratio,String mime,boolean aiMode){
         requestedRatio=ratio;
+        requestedAi=aiMode;
         Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
         pick.addCategory(Intent.CATEGORY_OPENABLE);
         pick.setType(mime);
@@ -172,15 +179,19 @@ public final class StudioHomeActivity extends Activity {
         Uri uri=data.getData();
         try{getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}
         catch(Exception ignored){}
-        saveRecent(uri);openEditor(uri,requestedRatio,false);
+        saveRecent(uri);openEditor(uri,requestedRatio,false,requestedAi);
     }
     private void tryDemo(){
         try{openEditor(StudioDemoMedia.generate(this),0,true);}
         catch(Exception e){toast("Demo gagal: "+e.getMessage());}
     }
     private void openEditor(Uri uri,int ratio,boolean demo){
+        openEditor(uri,ratio,demo,false);
+    }
+    private void openEditor(Uri uri,int ratio,boolean demo,boolean ai){
         Intent i=new Intent(this,StudioEditorActivity.class);
         i.putExtra("media_uri",uri.toString());i.putExtra("ratio",ratio);i.putExtra("demo",demo);
+        i.putExtra("auto_ai",ai);
         startActivity(i);
     }
     private void saveRecent(Uri uri){

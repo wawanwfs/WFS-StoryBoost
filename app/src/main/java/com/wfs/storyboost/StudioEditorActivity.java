@@ -54,6 +54,11 @@ public final class StudioEditorActivity extends Activity {
     private int completed,failed;
     private boolean dualOutput=false;
     private int socialProfile=SocialExportProfile.CUSTOM;
+    private int customWidth=1080,customHeight=1920;
+    private AiPhotoAnalyzer.Result aiResult;
+    private boolean aiRunning=false,aiAutoStart=false;
+    private TextView aiStatus;
+    private Button aiApplyButton;
     private int lookScrollX=0;
     private SocialSafeZoneView safeZoneView;
     private TextView timeLabel,qualityLabel,trimSummary,sourceLabel,exportStatus,previewLabel;
@@ -97,14 +102,18 @@ public final class StudioEditorActivity extends Activity {
         isVideo=(mime!=null&&mime.startsWith("video/"))
                 ||from.toLowerCase(Locale.US).matches(".*\\.(mp4|mov|m4v|webm)(\\?.*)?$");
         ratio=getIntent().getIntExtra("ratio",0);
-        if(ratio<0||ratio>AspectRatioProfile.ORIGINAL)ratio=0;
+        if(ratio<0||ratio>=AspectRatioProfile.count())ratio=0;
+        aiAutoStart=getIntent().getBooleanExtra("auto_ai",false);
         if(isVideo){
             durationMs=MediaProbe.duration(this,mediaUri);
             if(durationMs<=0)durationMs=30000;
         }
         build();
         if(isVideo){renderThumbnails();startTicker();}
-        else refreshImagePreview();
+        else{
+            refreshImagePreview();
+            if(aiAutoStart){showTool(8);startAiAnalysis();}
+        }
         canvasArea.post(this::layoutPreviewCanvas);
         refreshSourceMetadata();
     }
@@ -222,7 +231,7 @@ public final class StudioEditorActivity extends Activity {
         toolsScroll.setHorizontalScrollBarEnabled(false);
         LinearLayout tabs=row();tabs.setPadding(dp(9),dp(8),dp(9),dp(8));
         String[] labels={"✂  Trim","▯  Rasio","✦  Filter","◧  Frame",
-                "☼  Adjust","Aa  Teks","♫  Audio","☷  Ekspor"};
+                "☼  Adjust","Aa  Teks","♫  Audio","☷  Ekspor","✧  AI Photo"};
         for(int i=0;i<labels.length;i++){
             final int tab=i;
             Button b=btn(labels[i],false);b.setTextSize(12);
@@ -242,18 +251,11 @@ public final class StudioEditorActivity extends Activity {
         int w=canvasArea.getWidth()-dp(28),h=canvasArea.getHeight()-dp(17);
         if(w<=0||h<=0)return;
         double aspect=9d/16d;
-        switch(ratio){
-            case AspectRatioProfile.LANDSCAPE_16_9:aspect=16d/9d;break;
-            case AspectRatioProfile.SQUARE_1_1:aspect=1d;break;
-            case AspectRatioProfile.PORTRAIT_4_5:aspect=4d/5d;break;
-            case AspectRatioProfile.ORIGINAL:
-                try{
-                    AspectRatioProfile.Size size=MediaDimensions.read(this,mediaUri);
-                    aspect=(double)size.width/size.height;
-                }catch(Exception ignored){}
-                break;
-            default:break;
-        }
+        try{
+            AspectRatioProfile.Size nativeSize=MediaDimensions.read(this,mediaUri);
+            aspect=AspectRatioProfile.aspect(ratio,nativeSize.width,nativeSize.height,
+                    customWidth,customHeight);
+        }catch(Exception ignored){}
         int newW=Math.min(w,(int)Math.floor(h*aspect));
         int newH=Math.min(h,(int)Math.floor(newW/aspect));
         FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(
@@ -391,11 +393,16 @@ public final class StudioEditorActivity extends Activity {
         }else toast("Video preview menampilkan sumber; hasil filter terlihat setelah ekspor.");
     }
     private ExportOptions options(){
-        return new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
+        return withCustomIfRequired(
+                new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
                 trimStartMs,trimEndMs,focusX,focusY).withQuality(quality)
                 .withAdjustments(brightness,contrast,saturation)
                 .withCaption(caption,captionColor).withMute(muteAudio)
-                .withSocialProfile(socialProfile);
+                .withSocialProfile(socialProfile));
+    }
+    private ExportOptions withCustomIfRequired(ExportOptions o){
+        return o.ratio==AspectRatioProfile.CUSTOM?
+                o.withCustomSize(customWidth,customHeight):o;
     }
     private void refreshSettings(){
         layoutPreviewCanvas();
@@ -411,6 +418,8 @@ public final class StudioEditorActivity extends Activity {
             case 4:toolAdjust();break;
             case 5:toolText();break;
             case 6:toolAudio();break;
+            case 7:toolExport();break;
+            case 8:toolAiPhoto();break;
             default:toolExport();break;
         }
     }
@@ -435,12 +444,42 @@ public final class StudioEditorActivity extends Activity {
         scroll.addView(line);toolPane.addView(scroll,new LinearLayout.LayoutParams(-1,dp(48)));
     }
     private void toolRatio(){
-        toolbarTitle("Canvas Ratio","Ubah orientasi tanpa memutar subjek.");
-        addChips(new String[]{"9:16","16:9","1:1","4:5","Asli"},ratio,i->{
-            ratio=i;socialProfile=SocialExportProfile.CUSTOM;refreshSettings();showTool(1);
+        toolbarTitle("Canvas Ratio","11 standar + ukuran custom. Semua berlaku saat ekspor.");
+        addChips(AspectRatioProfile.labels(),ratio,i->{
+            if(i==AspectRatioProfile.CUSTOM){promptCustomSize();return;}
+            ratio=i;socialProfile=SocialExportProfile.CUSTOM;
+            refreshSettings();showTool(1);
         });
-        gap(toolPane,6);
-        toolPane.addView(txt("Untuk menghindari crop ekstrem, gunakan Fit atau Blur.",10,StudioUi.GREEN,false));
+        gap(toolPane,5);
+        Button custom=btn("✎  Ukuran custom: "+customWidth+" × "+customHeight,false);
+        custom.setTextSize(11);
+        custom.setOnClickListener(v->promptCustomSize());
+        toolPane.addView(custom,new LinearLayout.LayoutParams(-1,dp(35)));
+    }
+    private void promptCustomSize(){
+        LinearLayout inputs=column();inputs.setPadding(dp(20),dp(12),dp(20),dp(7));
+        android.widget.EditText w=new android.widget.EditText(this);
+        android.widget.EditText h=new android.widget.EditText(this);
+        w.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        h.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        w.setSingleLine(true);h.setSingleLine(true);
+        w.setText(String.valueOf(customWidth));h.setText(String.valueOf(customHeight));
+        w.setHint("Lebar piksel");h.setHint("Tinggi piksel");
+        inputs.addView(txt("Lebar (px)",11,TEXT,true));inputs.addView(w);
+        gap(inputs,8);inputs.addView(txt("Tinggi (px)",11,TEXT,true));inputs.addView(h);
+        new AlertDialog.Builder(this).setTitle("Custom canvas • hingga 8,3 MP")
+                .setView(inputs).setNegativeButton("Batal",null)
+                .setPositiveButton("Terapkan",(d,v)->{
+                    try{
+                        int width=Integer.parseInt(w.getText().toString().trim());
+                        int height=Integer.parseInt(h.getText().toString().trim());
+                        AspectRatioProfile.validateCustom(width,height);
+                        customWidth=width;customHeight=height;
+                        ratio=AspectRatioProfile.CUSTOM;
+                        socialProfile=SocialExportProfile.CUSTOM;
+                        refreshSettings();showTool(1);
+                    }catch(Exception e){toast("Ukuran tidak valid: "+e.getMessage());}
+                }).show();
     }
     private void toolFilters(){
         ColorLooks.Look selectedLook=ColorLooks.get(preset);
@@ -657,6 +696,73 @@ public final class StudioEditorActivity extends Activity {
         toolPane.addView(txt("Mode mute menghilangkan track audio output. Preview tetap memutar audio asli.",11,MUTED,false));
     }
 
+    private void toolAiPhoto(){
+        if(isVideo){
+            toolbarTitle("AI Photo","Fitur ini menganalisis foto, bukan video.");
+            toolPane.addView(txt("Pilih Photo Editor untuk menggunakan ML Kit.",11,MUTED,false));
+            return;
+        }
+        toolbarTitle("AI Photo Studio","ML Kit offline • deteksi wajah + isi foto • tidak mengubah wajah.");
+        aiStatus=txt(aiResult==null?(aiRunning?"Menganalisis foto...":
+                "Ketuk Analisis AI untuk mendapatkan rekomendasi."):
+                "Terdeteksi: "+aiResult.label+" ("+Math.round(aiResult.confidence*100)+
+                "%), wajah: "+aiResult.faces,11,MUTED,false);
+        toolPane.addView(aiStatus);
+        gap(toolPane,7);
+        LinearLayout commands=row();
+        Button analyze=btn(aiRunning?"Memproses...":"✧ Analisis AI",true);
+        analyze.setEnabled(!aiRunning);
+        commands.addView(analyze,new LinearLayout.LayoutParams(0,dp(38),1f));
+        analyze.setOnClickListener(v->startAiAnalysis());
+        aiApplyButton=btn("Gunakan Look",false);
+        aiApplyButton.setEnabled(aiResult!=null);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(38),1f);
+        lp.leftMargin=dp(8);commands.addView(aiApplyButton,lp);
+        aiApplyButton.setOnClickListener(v->applyAiLook());
+        toolPane.addView(commands);
+        gap(toolPane,7);
+        if(aiResult!=null){
+            toolPane.addView(txt(aiResult.suggestion.reason+
+                    (aiResult.partial?" • analisis sebagian":""),
+                    10,StudioUi.GREEN,false));
+            if(aiResult.suggestion.hasFace){
+                Button smart=btn("⌖ Terapkan AI Smart Crop (posisi wajah)",false);
+                smart.setTextSize(11);
+                smart.setOnClickListener(v->{
+                    focusX=aiResult.suggestion.focusX;
+                    focusY=aiResult.suggestion.focusY;
+                    framing=AspectRatioProfile.CROP;
+                    refreshSettings();toast("Smart Crop wajah aktif. Periksa sebelum ekspor.");
+                });
+                toolPane.addView(smart,new LinearLayout.LayoutParams(-1,dp(35)));
+            }
+        }
+    }
+    private void startAiAnalysis(){
+        if(isVideo||aiRunning)return;
+        aiRunning=true;aiResult=null;
+        if(aiStatus!=null)aiStatus.setText("Menjalankan model AI di perangkat...");
+        AiPhotoAnalyzer.analyze(this,mediaUri,new AiPhotoAnalyzer.Callback(){
+            @Override public void onResult(AiPhotoAnalyzer.Result result){
+                if(destroyed)return;
+                aiRunning=false;aiResult=result;showTool(8);
+            }
+            @Override public void onError(String detail){
+                if(destroyed)return;
+                aiRunning=false;aiResult=null;
+                showTool(8);
+                if(aiStatus!=null)aiStatus.setText("AI belum berhasil: "+detail);
+            }
+        });
+    }
+    private void applyAiLook(){
+        if(aiResult==null)return;
+        preset=aiResult.suggestion.colorLook;
+        refreshSettings();
+        toast("AI merekomendasikan: "+ColorLooks.get(preset).name);
+        showTool(8);
+    }
+
     private void toolExport(){
         toolbarTitle("Social Export","Pilih tujuan unggahan; kualitas tidak menjamin tanpa kompresi.");
         Button destination=btn("▯  "+SocialExportProfile.get(socialProfile).name+"  ▾",false);
@@ -699,7 +805,7 @@ public final class StudioEditorActivity extends Activity {
             try{
                 AspectRatioProfile.Size original=MediaDimensions.read(this,mediaUri);
                 AspectRatioProfile.Size output=AspectRatioProfile.resolve(ratio,quality,
-                        original.width,original.height,framing);
+                        original.width,original.height,framing,customWidth,customHeight);
                 QualityAdvisor.Report report=QualityAdvisor.analyze(original.width,original.height,
                         output.width,output.height,framing);
                 if(report.severeLoss()){
@@ -725,16 +831,16 @@ public final class StudioEditorActivity extends Activity {
         if(isVideo&&splitMs>0){
             long ending=trimEndMs>0?trimEndMs:durationMs;
             if(splitMs>trimStartMs&&splitMs<ending){
-                sequences.add(new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
+                sequences.add(withCustomIfRequired(new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
                         trimStartMs,splitMs,focusX,focusY).withQuality(quality)
                         .withAdjustments(brightness,contrast,saturation)
                         .withCaption(caption,captionColor).withMute(muteAudio)
-                        .withSocialProfile(socialProfile));
-                sequences.add(new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
+                        .withSocialProfile(socialProfile)));
+                sequences.add(withCustomIfRequired(new ExportOptions(preset,ratio,framing,quality!=OutputProfile.HD,
                         splitMs,trimEndMs,focusX,focusY).withQuality(quality)
                         .withAdjustments(brightness,contrast,saturation)
                         .withCaption(caption,captionColor).withMute(muteAudio)
-                        .withSocialProfile(socialProfile));
+                        .withSocialProfile(socialProfile)));
             }
         }
         if(sequences.isEmpty())sequences.add(current);

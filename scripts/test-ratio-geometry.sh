@@ -12,6 +12,7 @@ javac -d "$TMP" "$ROOT/app/src/main/java/com/wfs/storyboost/AspectRatioProfile.j
   "$ROOT/app/src/main/java/com/wfs/storyboost/ClipWindow.java" \
   "$ROOT/app/src/main/java/com/wfs/storyboost/ExportOptions.java" \
   "$ROOT/app/src/main/java/com/wfs/storyboost/ColorLooks.java" \
+  "$ROOT/app/src/main/java/com/wfs/storyboost/AiPhotoPolicy.java" \
   "$ROOT/app/src/main/java/com/wfs/storyboost/SocialExportProfile.java" \
   "$ROOT/app/src/main/java/com/wfs/storyboost/QualityAdvisor.java" \
   "$ROOT/app/src/main/java/com/wfs/storyboost/VideoPassthrough.java" \

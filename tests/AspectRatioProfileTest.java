@@ -188,6 +188,62 @@ public final class AspectRatioProfileTest {
                 "manual caption position preserved");
         try{SocialExportProfile.get(7);throw new AssertionError("Invalid profile accepted");}
         catch(IllegalArgumentException expected){passed++;}
+        check(AspectRatioProfile.count()==12,"11 presets plus custom available");
+        check(AspectRatioProfile.labels().length==12,"ratio labels count");
+        expect(AspectRatioProfile.PORTRAIT_3_4,true,1920,1080,1080,1440);
+        expect(AspectRatioProfile.LANDSCAPE_4_3,true,1080,1920,1920,1440);
+        expect(AspectRatioProfile.LANDSCAPE_3_2,true,1080,1920,1920,1280);
+        expect(AspectRatioProfile.PORTRAIT_2_3,true,1920,1080,1080,1620);
+        expect(AspectRatioProfile.ULTRAWIDE_21_9,true,1920,1080,1920,822);
+        expect(AspectRatioProfile.ULTRATALL_9_21,true,1080,1920,822,1920);
+        expect(AspectRatioProfile.PORTRAIT_3_4,false,1920,1080,720,960);
+        expect(AspectRatioProfile.LANDSCAPE_4_3,false,1080,1920,1280,960);
+        expect(AspectRatioProfile.LANDSCAPE_3_2,false,1080,1920,1280,852);
+        expect(AspectRatioProfile.PORTRAIT_2_3,false,1920,1080,720,1080);
+        check(AspectRatioProfile.reverse(AspectRatioProfile.PORTRAIT_3_4)
+                ==AspectRatioProfile.LANDSCAPE_4_3,"3:4 reverse to 4:3");
+        check(AspectRatioProfile.reverse(AspectRatioProfile.LANDSCAPE_3_2)
+                ==AspectRatioProfile.PORTRAIT_2_3,"3:2 reverse to 2:3");
+        check(AspectRatioProfile.reverse(AspectRatioProfile.ULTRATALL_9_21)
+                ==AspectRatioProfile.ULTRAWIDE_21_9,"9:21 reverse");
+        check(AspectRatioProfile.aspect(AspectRatioProfile.CUSTOM,1200,800,1350,1080)==1.25d,
+                "custom ratio aspect");
+        AspectRatioProfile.Size custom=AspectRatioProfile.resolve(
+                AspectRatioProfile.CUSTOM,true,1500,1200,1350,1080);
+        check(custom.width==1350&&custom.height==1080,"custom photo dimensions");
+        AspectRatioProfile.Size customCrop=AspectRatioProfile.resolve(
+                AspectRatioProfile.CUSTOM,OutputProfile.MAX_DETAIL,1200,800,
+                AspectRatioProfile.CROP,1350,1080);
+        check(customCrop.width<=1200&&customCrop.height<=800,"custom crop does not upscale pixels");
+        ExportOptions customSettings=new ExportOptions(1,AspectRatioProfile.ORIGINAL,
+                AspectRatioProfile.FIT,true).withCustomSize(1350,1080);
+        check(customSettings.ratio==AspectRatioProfile.CUSTOM
+                &&customSettings.customWidth==1350&&customSettings.customHeight==1080,
+                "custom options retained");
+        check(customSettings.withQuality(OutputProfile.MAX_DETAIL).customWidth==1350,
+                "custom resolution retained across quality settings");
+        check(customSettings.withFrameStyle(AspectRatioProfile.CROP).customHeight==1080,
+                "custom height retained across framing");
+        try{AspectRatioProfile.resolve(AspectRatioProfile.CUSTOM,true,1080,1920);
+            throw new AssertionError("Missing custom width accepted");
+        }catch(IllegalArgumentException expected){passed++;}
+        try{AspectRatioProfile.validateCustom(4000,4000);
+            throw new AssertionError("Too large custom size accepted");
+        }catch(IllegalArgumentException expected){passed++;}
+        check(AiPhotoPolicy.suggest("Beach",.90f,0,.5f,.5f).colorLook==19,
+                "ML scene beach maps to Beach Light");
+        check(AiPhotoPolicy.suggest("Sunset",.91f,0,.5f,.5f).colorLook==20,
+                "ML scene sunset maps to Sunset Glow");
+        check(AiPhotoPolicy.suggest("Forest",.90f,0,.5f,.5f).colorLook==16,
+                "ML scene forest maps to Forest Green");
+        check(AiPhotoPolicy.suggest("Selfie",.91f,1,.75f,.25f).colorLook==21,
+                "face scene maps to Portrait Soft");
+        check(AiPhotoPolicy.suggest(null,0f,1,2f,-1f).focusX==1f,
+                "face focal x clamped");
+        check(AiPhotoPolicy.suggest(null,0f,1,2f,-1f).focusY==0f,
+                "face focal y clamped");
+        check(AiPhotoPolicy.suggest(null,0f,0,.5f,.5f).colorLook==0,
+                "unknown scene uses safe Natural look");
         System.out.println("PASS " + passed + " aspect geometry assertions");
     }
 

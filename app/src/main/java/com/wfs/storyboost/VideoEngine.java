@@ -66,7 +66,8 @@ public final class VideoEngine {
         long expectedDuration=ClipWindow.expectedDuration(MediaProbe.duration(context,source),
                 settings.trimStartMs,settings.trimEndMs);
         final AspectRatioProfile.Size target = AspectRatioProfile.resolve(settings.ratio,
-                settings.qualityMode, sourceSize.width, sourceSize.height, settings.frameStyle);
+                settings.qualityMode, sourceSize.width, sourceSize.height, settings.frameStyle,
+                settings.customWidth,settings.customHeight);
         temp = new File(context.getCacheDir(), "storyboost_" + System.nanoTime() + ".mp4");
         List<Effect> effects = new ArrayList<>();
         ColorLooks.Look look=ColorLooks.get(settings.preset);

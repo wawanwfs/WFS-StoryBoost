@@ -68,6 +68,7 @@ public final class MainActivity extends Activity {
     private RadioGroup presets;
     private Spinner ratioSpinner, frameSpinner, qualitySpinner, socialSpinner;
     private TextView ratioHint;
+    private int customWidth=1080,customHeight=1920;
     private Switch dualAspectSwitch;
     private EditText trimStartField,trimEndField;
     private SeekBar focusXSeek,focusYSeek;
@@ -252,30 +253,28 @@ public final class MainActivity extends Activity {
 
         editCard.addView(text("ASPECT RATIO", 11, CYAN, true));
         space(editCard, 8);
-        ratioSpinner = spinner(new String[]{
-                "9:16 · Story / Reels", "16:9 · Landscape",
-                "1:1 · Square", "4:5 · Feed Portrait", "Original · Rasio Sumber"
-        });
+        ratioSpinner=spinner(AspectRatioProfile.labels());
         editCard.addView(ratioSpinner);
-        space(editCard, 8);
-        final Button[] ratioChips = new Button[5];
-        String[] chipNames = {"9:16", "16:9", "1:1", "4:5", "Asli"};
-        LinearLayout chipBar = new LinearLayout(this);
+        space(editCard,8);
+        final Button[] ratioChips=new Button[AspectRatioProfile.count()];
+        android.widget.HorizontalScrollView ratioScroll=new android.widget.HorizontalScrollView(this);
+        ratioScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout chipBar=new LinearLayout(this);
         chipBar.setOrientation(LinearLayout.HORIZONTAL);
-        for (int i = 0; i < chipNames.length; i++) {
-            final int selected = i;
-            Button chip = button(chipNames[i], false);
-            chip.setTextSize(12);
-            chip.setMinimumHeight(dp(42));
-            chip.setMinHeight(dp(42));
-            chip.setPadding(0, dp(3), 0, dp(3));
-            chip.setOnClickListener(v -> ratioSpinner.setSelection(selected));
-            LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(0, dp(44), 1f);
-            if (i > 0) chipLp.leftMargin = dp(5);
-            chipBar.addView(chip, chipLp);
-            ratioChips[i] = chip;
+        for(int i=0;i<ratioChips.length;i++){
+            final int target=i;
+            Button chip=button(AspectRatioProfile.label(i),false);
+            chip.setTextSize(11);chip.setPadding(dp(3),dp(3),dp(3),dp(3));
+            chip.setOnClickListener(v->ratioSpinner.setSelection(target));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(65),dp(44));
+            if(i>0)lp.leftMargin=dp(5);
+            chipBar.addView(chip,lp);ratioChips[i]=chip;
         }
-        editCard.addView(chipBar);
+        ratioScroll.addView(chipBar);
+        editCard.addView(ratioScroll);
+        Button quickCustom=button("✎  Custom: "+customWidth+" × "+customHeight,false);
+        quickCustom.setOnClickListener(v->promptQuickCustom(quickCustom));
+        editCard.addView(quickCustom);
         Button reverseRatio = button("⇄  Tukar Portrait / Landscape", false);
         reverseRatio.setOnClickListener(v -> ratioSpinner.setSelection(
                 AspectRatioProfile.reverse(ratioSpinner.getSelectedItemPosition())));
@@ -413,7 +412,13 @@ public final class MainActivity extends Activity {
         column.addView(footer);
 
         SharedPreferences prefs = getPreferences(MODE_PRIVATE);
-        ratioSpinner.setSelection(Math.max(0, Math.min(4, prefs.getInt("ratio", 0))));
+        customWidth=prefs.getInt("custom_width",1080);
+        customHeight=prefs.getInt("custom_height",1920);
+        try{AspectRatioProfile.validateCustom(customWidth,customHeight);}
+        catch(Exception ignored){customWidth=1080;customHeight=1920;}
+        quickCustom.setText("✎  Custom: "+customWidth+" × "+customHeight);
+        ratioSpinner.setSelection(Math.max(0,Math.min(AspectRatioProfile.count()-1,
+                prefs.getInt("ratio",0))));
         frameSpinner.setSelection(Math.max(0, Math.min(2, prefs.getInt("frame", 0))));
         qualitySpinner.setSelection(Math.max(0, Math.min(2, prefs.getInt("quality", OutputProfile.MAX_DETAIL))));
         presets.check(1000 + Math.max(0, Math.min(ColorLooks.count()-1, prefs.getInt("preset", 1))));
@@ -445,6 +450,8 @@ public final class MainActivity extends Activity {
                     ratioChips[i].setBackground(round(i == position ? 0xFF7045B9 : INNER, 12));
                 }
                 updateRatioHint();
+                if(position==AspectRatioProfile.CUSTOM && !busy)
+                    promptQuickCustom(quickCustom);
             }
             @Override public void onNothingSelected(AdapterView<?> p) {}
         });
@@ -562,6 +569,34 @@ public final class MainActivity extends Activity {
             exportedVideoButton.setVisibility(View.GONE);
         }
     }
+    private void promptQuickCustom(Button trigger){
+        LinearLayout inputs=new LinearLayout(this);
+        inputs.setOrientation(LinearLayout.VERTICAL);
+        inputs.setPadding(dp(20),dp(8),dp(20),dp(7));
+        EditText w=new EditText(this),h=new EditText(this);
+        w.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        h.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        w.setSingleLine(true);h.setSingleLine(true);
+        w.setText(String.valueOf(customWidth));h.setText(String.valueOf(customHeight));
+        inputs.addView(text("Lebar piksel",12,TEXT,true));
+        inputs.addView(w);
+        inputs.addView(text("Tinggi piksel",12,TEXT,true));
+        inputs.addView(h);
+        new AlertDialog.Builder(this).setTitle("Custom Canvas • maksimum 8,3 MP")
+                .setView(inputs).setNegativeButton("Batal",null)
+                .setPositiveButton("Terapkan",(d,v)->{
+                    try{
+                        int width=Integer.parseInt(w.getText().toString().trim());
+                        int height=Integer.parseInt(h.getText().toString().trim());
+                        AspectRatioProfile.validateCustom(width,height);
+                        customWidth=width;customHeight=height;
+                        ratioSpinner.setSelection(AspectRatioProfile.CUSTOM);
+                        trigger.setText("✎  Custom: "+width+" × "+height);
+                        updateRatioHint();
+                    }catch(Exception ex){status.setText("Ukuran custom salah: "+ex.getMessage());}
+                }).show();
+    }
+
     private void updateRatioHint() {
         if (ratioHint == null || ratioSpinner == null || qualitySpinner == null) return;
         int selected = qualitySpinner.getSelectedItemPosition();
@@ -571,7 +606,7 @@ public final class MainActivity extends Activity {
         } else {
             AspectRatioProfile.Size size = AspectRatioProfile.resolve(
                     ratioSpinner.getSelectedItemPosition(),
-                    selected == OutputProfile.FULL_HD, 1080, 1920);
+                    selected == OutputProfile.FULL_HD, 1080, 1920,customWidth,customHeight);
             ratioHint.setText("Kanvas ekspor " + size + " • "
                     + AspectRatioProfile.label(ratioSpinner.getSelectedItemPosition()));
         }
@@ -633,7 +668,7 @@ public final class MainActivity extends Activity {
             chosen.add(data.getData());
         }
         if(chosen.isEmpty())return;
-        final ExportOptions selected;
+        ExportOptions selected;
         try{
             selected=new ExportOptions(Math.max(0,presets.getCheckedRadioButtonId()-1000),
                 ratioSpinner.getSelectedItemPosition(),frameSpinner.getSelectedItemPosition(),
@@ -642,11 +677,14 @@ public final class MainActivity extends Activity {
                 .withQuality(qualitySpinner.getSelectedItemPosition())
                 .withSocialProfile(socialSpinner.getSelectedItemPosition());
         }catch(IllegalArgumentException e){status.setText(e.getMessage());return;}
+        if(selected.ratio==AspectRatioProfile.CUSTOM)
+            selected=selected.withCustomSize(customWidth,customHeight);
         if(selected.frameStyle==AspectRatioProfile.CROP){
             try {
                 AspectRatioProfile.Size nativeSize=MediaDimensions.read(this,chosen.get(0));
                 AspectRatioProfile.Size target=AspectRatioProfile.resolve(selected.ratio,
-                    selected.qualityMode,nativeSize.width,nativeSize.height,selected.frameStyle);
+                    selected.qualityMode,nativeSize.width,nativeSize.height,selected.frameStyle,
+                    selected.customWidth,selected.customHeight);
                 QualityAdvisor.Report advice=QualityAdvisor.analyze(nativeSize.width,
                         nativeSize.height,target.width,target.height,selected.frameStyle);
                 if(advice.severeLoss()){
@@ -678,6 +716,7 @@ public final class MainActivity extends Activity {
                 .putInt("ratio", queueOptions.ratio).putInt("frame", queueOptions.frameStyle)
                 .putInt("preset",queueOptions.preset).putInt("quality",queueOptions.qualityMode)
                 .putInt("social_profile",queueOptions.socialProfile)
+                .putInt("custom_width",customWidth).putInt("custom_height",customHeight)
                 .putBoolean("dual_ratio",dualAspectSwitch.isChecked())
                 .putString("trim_start",trimStartField.getText().toString())
                 .putString("trim_end",trimEndField.getText().toString())

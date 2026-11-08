@@ -62,7 +62,8 @@ public final class PhotoEngine {
 
         try {
             AspectRatioProfile.Size size = AspectRatioProfile.resolve(settings.ratio,
-                    settings.qualityMode, oriented.getWidth(), oriented.getHeight(), settings.frameStyle);
+                    settings.qualityMode, oriented.getWidth(), oriented.getHeight(), settings.frameStyle,
+                    settings.customWidth,settings.customHeight);
             int width = size.width, height = size.height;
             Bitmap output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             try {
@@ -99,6 +100,15 @@ public final class PhotoEngine {
         }
     }
 
+    /** Upright, bounded preview of the entire photo for ML Kit on-device inference. */
+    public static Bitmap aiInput(Context context,Uri uri)throws IOException{
+        Bitmap source=decode(context,uri,1200);
+        if(source==null)throw new IOException("Foto tidak terbaca.");
+        Bitmap oriented=orient(context,uri,source);
+        if(oriented!=source)source.recycle();
+        return oriented;
+    }
+
     /** Renders the untouched photo in the same output frame, downsampled for comparison UI. */
     public static Bitmap originalPreview(Context context, Uri uri, ExportOptions settings)
             throws IOException {
@@ -107,7 +117,8 @@ public final class PhotoEngine {
         if (oriented != source) source.recycle();
         try {
             AspectRatioProfile.Size resolved = AspectRatioProfile.resolve(settings.ratio,
-                    settings.qualityMode, oriented.getWidth(), oriented.getHeight(), settings.frameStyle);
+                    settings.qualityMode, oriented.getWidth(), oriented.getHeight(), settings.frameStyle,
+                    settings.customWidth,settings.customHeight);
             float shrink = Math.min(1f, 800f / Math.max(resolved.width, resolved.height));
             int width = Math.max(2, Math.round(resolved.width * shrink));
             int height = Math.max(2, Math.round(resolved.height * shrink));

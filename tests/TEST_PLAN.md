@@ -125,3 +125,14 @@ Inspect recorded MP4 video with MediaInfo or `ffprobe`: width, height, duration,
 - [ ] Landscape 1920x1080 to 9:16: Fit by default on social selection, never silently crop.
 - [ ] Platform upload QA on actual WhatsApp/Instagram/TikTok applications; no claim against server-side recompression.
 - [ ] Repeated social profile change does not damage previous project colors/clip bounds.
+
+## v2.6 AI Photo / 12 Ratio QA
+- [ ] Select 3:4,4:3,3:2,2:3,21:9,9:21 in both photo and video editors.
+- [ ] Custom 1350x1080 portrait, custom 2048x1152 landscape, custom 1080x1920 for story; verify MP4 and JPEG metadata.
+- [ ] Reject custom dimensions 0,5000,5000 or > 8.3 megapixels with clear error.
+- [ ] Quick Enhance batch and Studio Editor produce matching output ratio.
+- [ ] ML Kit bundled: offline airplane mode, detect a real face and propose face-aware crop without editing identity.
+- [ ] Label real sunset, beach, forest, and portrait pictures; recommendations may be wrong, always user-confirmed.
+- [ ] ML Kit analysis and repeated exit/re-entry: no crashes or bitmap leaks.
+- [ ] Test on Android 10 and Android 15 physical devices; both models packaged with APK.
+- [ ] No automatic AI upscaling / generative face editing; ensure README accuracy.

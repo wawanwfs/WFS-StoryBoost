@@ -20,8 +20,8 @@ android {
         applicationId 'com.wfs.storyboost.studio'
         minSdk 29
         targetSdk 35
-        versionCode 25
-        versionName '2.5.0'
+        versionCode 26
+        versionName '2.6.0'
     }
 
     signingConfigs {
@@ -62,4 +62,7 @@ dependencies {
     implementation 'androidx.media3:media3-transformer:1.11.1'
     implementation 'androidx.media3:media3-effect:1.11.1'
     implementation 'androidx.media3:media3-common:1.11.1'
+    // Bundled on-device ML models: no photo upload or first-run model download.
+    implementation 'com.google.mlkit:face-detection:16.1.7'
+    implementation 'com.google.mlkit:image-labeling:17.0.9'
 }

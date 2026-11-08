@@ -149,6 +149,13 @@ public class UiDraftFlowTest {
         assertNotNull("Not clickable "+label,target);
         assertTrue("Click failed "+label,target.performClick());
     }
+    // Must only be called on main thread: no nested runOnMainSync.
+    private StudioEditorActivity resumedEditorUnsafe(){
+        for(Activity a:ActivityLifecycleMonitorRegistry.getInstance()
+                .getActivitiesInStage(Stage.RESUMED))
+            if(a instanceof StudioEditorActivity)return (StudioEditorActivity)a;
+        throw new AssertionError("Editor was not RESUMED during crop measurement");
+    }
     private StudioEditorActivity resumedEditor(){
         long timeout=android.os.SystemClock.uptimeMillis()+6000L;
         do{
@@ -280,5 +287,119 @@ public class UiDraftFlowTest {
         assertEquals("",target.getSharedPreferences("studio-projects",Context.MODE_PRIVATE)
                 .getString("recent_0",""));
         assertNull(StudioDraftStore.load(target,source));
+    }
+
+    @Test public void gestureCropUndoRedoAndComparisonSliderStayConsistent() throws Exception {
+        try(ActivityScenario<StudioHomeActivity> home=importWithSafResult()){
+            // The canvas is relaid out asynchronously after changing framing.
+            // Finish the UI event before inspecting measured touch coordinates.
+            act(a->{
+                tap(a,"Frame",false);
+                tap(a,"Crop",false);
+            });
+            idle();
+            int measuredWidth=0,measuredHeight=0;
+            for(int attempt=0;attempt<25;attempt++){
+                int[] dims=new int[2];
+                instrument.runOnMainSync(()->{
+                    View layer=require(resumedEditorUnsafe(),
+                            "Drag to reposition image crop focus",true);
+                    dims[0]=layer.getWidth();dims[1]=layer.getHeight();
+                });
+                measuredWidth=dims[0];measuredHeight=dims[1];
+                if(measuredWidth>40&&measuredHeight>40)break;
+                android.os.SystemClock.sleep(160);
+            }
+            assertTrue("Crop layer remained unmeasured after layout: "+
+                    measuredWidth+"x"+measuredHeight,measuredWidth>40&&measuredHeight>40);
+            act(a->{
+                View touch=require(a,"Drag to reposition image crop focus",true);
+                assertEquals(View.VISIBLE,touch.getVisibility());
+                assertTrue("Crop viewport has no measured width",touch.getWidth()>40);
+                assertTrue("Crop viewport has no measured height",touch.getHeight()>40);
+                long now=android.os.SystemClock.uptimeMillis();
+                float y=touch.getHeight()*.5f;
+                android.view.MotionEvent down=android.view.MotionEvent.obtain(now,now,
+                        android.view.MotionEvent.ACTION_DOWN,touch.getWidth()*.80f,y,0);
+                android.view.MotionEvent move=android.view.MotionEvent.obtain(now,now+50,
+                        android.view.MotionEvent.ACTION_MOVE,touch.getWidth()*.25f,y,0);
+                android.view.MotionEvent up=android.view.MotionEvent.obtain(now,now+90,
+                        android.view.MotionEvent.ACTION_UP,touch.getWidth()*.25f,y,0);
+                try{
+                    assertTrue(touch.dispatchTouchEvent(down));
+                    assertTrue(touch.dispatchTouchEvent(move));
+                    assertTrue(touch.dispatchTouchEvent(up));
+                }finally{down.recycle();move.recycle();up.recycle();}
+            });
+            android.os.SystemClock.sleep(1250);
+            StudioDraftStore.Draft moved=StudioDraftStore.load(target,source);
+            assertNotNull("Crop focus not autosaved",moved);
+            assertTrue("Drag must change persisted focus X",moved.options.focusX>.70f);
+            assertEquals(AspectRatioProfile.CROP,moved.options.frameStyle);
+            act(a->tap(a,"Undo perubahan terakhir",true));
+            android.os.SystemClock.sleep(950);
+            StudioDraftStore.Draft undo=StudioDraftStore.load(target,source);
+            assertNotNull(undo);
+            assertEquals("Undo restored original crop focus",.5f,undo.options.focusX,.09f);
+            act(a->tap(a,"Redo perubahan",true));
+            android.os.SystemClock.sleep(950);
+            StudioDraftStore.Draft redo=StudioDraftStore.load(target,source);
+            assertNotNull(redo);
+            assertEquals("Redo restored gesture focus",moved.options.focusX,redo.options.focusX,.02f);
+            act(a->{
+                tap(a,"↔ Sebelum",false);
+                assertNotNull("Before/after button must toggle to After",
+                        locate(a.getWindow().getDecorView(),"✦ Sesudah",false));
+                tap(a,"✦ Sesudah",false);
+                assertNotNull("Comparison button should return to Before",
+                        locate(a.getWindow().getDecorView(),"↔ Sebelum",false));
+            });
+            PhotoEngine.Result first=PhotoEngine.process(target,source,
+                    redo.options);
+            PhotoEngine.Result second=PhotoEngine.process(target,source,
+                    redo.options.withFrameStyle(AspectRatioProfile.FIT));
+            assertFalse("Crop and Fit exports must have different pixels",
+                    java.util.Arrays.equals(first.jpeg,second.jpeg));
+            back();
+        }
+    }
+
+    @Test public void repeatedImportOfSameUriStartsFreshRatherThanResumingDraft() throws Exception {
+        try(ActivityScenario<StudioHomeActivity> first=importWithSafResult()){
+            act(editor->{
+                tap(editor,"Color Look: Vibrant",true);
+                tap(editor,"Teks",false);
+                EditText caption=(EditText)input(editor.getWindow().getDecorView());
+                assertNotNull(caption);
+                caption.setText("OLD SAVED EDIT");
+            });
+            back();
+        }
+        StudioDraftStore.Draft before=StudioDraftStore.load(target,source);
+        assertNotNull(before);
+        assertEquals(2,before.options.preset);
+        assertEquals("OLD SAVED EDIT",before.options.caption);
+        // A second ACTION_OPEN_DOCUMENT result points to the SAME source URI,
+        // but it is explicitly a fresh import, not a Recent-project action.
+        Intents.release();
+        intentsInitialized=false;
+        try(ActivityScenario<StudioHomeActivity> second=importWithSafResult()){
+            act(editor->{
+                assertFalse("Fresh import must not opt into saved draft",
+                        editor.getIntent().getBooleanExtra("resume_project",true));
+                try{
+                    java.lang.reflect.Field preset=StudioEditorActivity.class.getDeclaredField("preset");
+                    java.lang.reflect.Field caption=StudioEditorActivity.class.getDeclaredField("caption");
+                    preset.setAccessible(true);
+                    caption.setAccessible(true);
+                    assertEquals("New import inherited a previous Color Look",1,preset.getInt(editor));
+                    assertEquals("New import inherited old caption","",caption.get(editor));
+                }catch(ReflectiveOperationException ex){
+                    throw new AssertionError("Cannot inspect actual editor state",ex);
+                }
+            });
+            back();
+        }
+        assertArrayEquals("Reimport changed original bytes",originalDigest,digest(source));
     }
 }

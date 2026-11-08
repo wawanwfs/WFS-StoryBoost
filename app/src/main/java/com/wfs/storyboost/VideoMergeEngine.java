@@ -68,12 +68,18 @@ public final class VideoMergeEngine {
                             if(!info.video||info.durationMs<=0)
                                 throw new java.io.IOException("Output video tidak terbaca");
                             listener.onCompleted(intermediate);
-                        }catch(Exception ex){listener.onFailure(ex.getMessage());}
+                        }catch(Exception ex){
+                            clean();
+                            listener.onFailure(ex.getMessage());
+                        }
                     }
                     @Override public void onError(Composition result,ExportResult export,
                                                    ExportException ex){
-                        if(!cancelled)listener.onFailure(ex.getMessage()==null?
-                                "Perangkat tidak mendukung komposisi ini":ex.getMessage());
+                        if(cancelled)return;
+                        String message=ex.getMessage()==null?
+                                "Perangkat tidak mendukung komposisi ini":ex.getMessage();
+                        clean();
+                        listener.onFailure(message);
                     }
                 }).build();
         transformer.start(composition,intermediate.getAbsolutePath());

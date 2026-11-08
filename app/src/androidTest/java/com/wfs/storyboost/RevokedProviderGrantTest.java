@@ -36,9 +36,10 @@ public final class RevokedProviderGrantTest {
     private final Context owner=InstrumentationRegistry.getInstrumentation().getContext();
     private final Context target=InstrumentationRegistry.getInstrumentation().getTargetContext();
 
-    private static byte[] digest(File file)throws Exception{
+    private static byte[] digestUri(Context context,Uri uri)throws Exception{
         MessageDigest sha=MessageDigest.getInstance("SHA-256");
-        try(FileInputStream in=new FileInputStream(file)){
+        try(java.io.InputStream in=context.getContentResolver().openInputStream(uri)){
+            assertNotNull(in);
             byte[] chunk=new byte[8192];
             for(int n;(n=in.read(chunk))!=-1;)sha.update(chunk,0,n);
         }
@@ -81,27 +82,18 @@ public final class RevokedProviderGrantTest {
     }
     @Test public void androidUriGrantRevocationRejectsRecentAndRegrantRecovers()
             throws Exception {
-        File fixture=new File(owner.getFilesDir(),RevocableQaProvider.FIXTURE_FILE);
-        Bitmap bmp=Bitmap.createBitmap(240,360,Bitmap.Config.ARGB_8888);
-        try{
-            for(int y=0;y<360;y++)for(int x=0;x<240;x++)
-                bmp.setPixel(x,y,Color.rgb(75+x%120,80+y%130,(x+y)%240));
-            try(FileOutputStream out=new FileOutputStream(fixture)){
-                assertTrue("Unable to write synthetic JPEG",bmp.compress(
-                        Bitmap.CompressFormat.JPEG,90,out));
-            }
-        }finally{bmp.recycle();}
-        byte[] original=digest(fixture);
         Uri uri=Uri.parse("content://"+RevocableQaProvider.AUTHORITY+
-                "/document/qa-"+System.nanoTime()+".jpg");
+                "/document/fixture.jpg");
         int read=Intent.FLAG_GRANT_READ_URI_PERMISSION;
+        byte[] original;
         assertNotEquals("Test provider must have a different UID",owner.getApplicationInfo().uid,
                 target.getApplicationInfo().uid);
         try{
             assertFalse("Non-exported test provider unexpectedly readable without grant",
                     SourceAccess.canRead(target,uri));
-            owner.grantUriPermission(target.getPackageName(),uri,read);
+            owner.getContentResolver().call(uri,"qa-grant",target.getPackageName(),null);
             assertTrue("Real platform URI grant not honored",SourceAccess.canRead(target,uri));
+            original=digestUri(target,uri);
             ExportOptions options=new ExportOptions(ColorLooks.ORIGINAL,
                     AspectRatioProfile.PORTRAIT_9_16,AspectRatioProfile.FIT,true)
                     .withCaption("GRANT QA",Color.WHITE);
@@ -113,7 +105,7 @@ public final class RevokedProviderGrantTest {
             assertNotNull("Export from granted provider did not decode",exported);
             exported.recycle();
 
-            owner.revokeUriPermission(uri,read);
+            owner.getContentResolver().call(uri,"qa-revoke",target.getPackageName(),null);
             assertFalse("Revocation must prevent source read via target app",
                     SourceAccess.canRead(target,uri));
             try(ActivityScenario<StudioHomeActivity> home=
@@ -123,7 +115,7 @@ public final class RevokedProviderGrantTest {
                 assertNotNull("Access revocation must preserve non-destructive draft",
                         StudioDraftStore.load(target,uri));
                 // Recover without re-import and verify the same original.
-                owner.grantUriPermission(target.getPackageName(),uri,read);
+                owner.getContentResolver().call(uri,"qa-grant",target.getPackageName(),null);
                 assertTrue(SourceAccess.canRead(target,uri));
                 home.onActivity(a->click(a,"Media Proyek 1"));
                 assertEditor(true);
@@ -133,13 +125,13 @@ public final class RevokedProviderGrantTest {
                         if(a instanceof StudioEditorActivity)a.finish();
                 });
             }
-            assertArrayEquals("Provider's original bytes were changed",original,digest(fixture));
+            assertArrayEquals("Provider's original bytes were changed",original,digestUri(target,uri));
         }finally{
-            owner.revokeUriPermission(uri,read);
+            owner.getContentResolver().call(uri,"qa-revoke",target.getPackageName(),null);
             target.getSharedPreferences("studio-projects",Context.MODE_PRIVATE)
                     .edit().clear().commit();
             StudioDraftStore.clearAll(target);
-            if(!fixture.delete())fixture.deleteOnExit();
+
         }
     }
 }

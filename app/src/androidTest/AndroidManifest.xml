@@ -4,7 +4,7 @@
         <provider
             android:name="com.wfs.storyboost.RevocableQaProvider"
             android:authorities="com.wfs.storyboost.studio.qa.docs"
-            android:exported="false"
+            android:exported="true"
             android:grantUriPermissions="true" />
     </application>
 </manifest>

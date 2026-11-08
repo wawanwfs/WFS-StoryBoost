@@ -152,8 +152,13 @@ public class ProcessDeathSafTest {
         }
         return text.toString();
     }
+    private androidx.test.uiautomator.BySelector fixtureFile(){
+        // Search EditText may contain the same query; only click a file label.
+        return By.clazz("android.widget.TextView").text(
+                java.util.regex.Pattern.compile(".*"+PREFIX+".*"));
+    }
     private UiObject2 locateDownload(UiDevice device,String filename) {
-        UiObject2 file=device.wait(Until.findObject(By.textContains(PREFIX)),4000);
+        UiObject2 file=device.wait(Until.findObject(fixtureFile()),4000);
         if(file!=null)return file;
         // Real DocumentsUI may open on Recent or Photos. Select Downloads.
         UiObject2 nav=device.findObject(By.descContains("Show roots"));
@@ -163,7 +168,7 @@ public class ProcessDeathSafTest {
         if(!downloads)downloads=clickStable(device,By.text("Download"));
         assertTrue("DocumentsUI Downloads root not clickable. UI: "+
                 pickerDiagnostics(device),downloads);
-        file=device.wait(Until.findObject(By.textContains(PREFIX)),9000);
+        file=device.wait(Until.findObject(fixtureFile()),9000);
         if(file==null){
             UiObject2 search=device.findObject(By.descContains("Search"));
             if(search!=null){
@@ -172,7 +177,7 @@ public class ProcessDeathSafTest {
                 if(input!=null){
                     input.setText(PREFIX);
                     device.pressEnter();
-                    file=device.wait(Until.findObject(By.textContains(PREFIX)),8000);
+                    file=device.wait(Until.findObject(fixtureFile()),8000);
                 }
             }
         }
@@ -195,10 +200,13 @@ public class ProcessDeathSafTest {
             UiObject2 target=locateDownload(device,file);
             assertNotNull("Synthetic JPEG not visible in real DocumentsUI",target);
             assertTrue("DocumentsUI file selection was not clickable",clickStable(device,
-                    By.textContains(PREFIX)));
+                    fixtureFile()));
             inst.waitForIdleSync();
             StudioEditorActivity editor=waitForEditor();
-            assertNotNull("Real picker result did not launch app Editor",editor);
+            assertNotNull("Real picker result did not launch app Editor. Picker UI: "+
+                    pickerDiagnostics(device)+"; recent="+app().getSharedPreferences(
+                    "studio-projects",Context.MODE_PRIVATE).getString("recent_0",""),
+                    editor);
             inst.runOnMainSync(()->{
                 tap(editor,"Color Look: Vibrant",true);
                 tap(editor,"Teks",false);

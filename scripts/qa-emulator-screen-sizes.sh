@@ -43,5 +43,7 @@ PY
   echo "ERROR: emulator did not render requested screenshot dimensions ${w}x${h}" >&2
   return 1
 }
-capture 320 640 320
+# A 320px display at 160dpi is 320dp wide. 320dpi would be only 160dp
+# and falsely imply major clipping on an unrealistically narrow test device.
+capture 320 640 160
 capture 1080 2400 440

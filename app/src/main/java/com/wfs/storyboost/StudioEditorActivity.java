@@ -55,6 +55,8 @@ public final class StudioEditorActivity extends Activity {
     private VideoEngine activeVideoEngine;
     private Uri mediaUri,lastExport;
     private boolean isVideo,isDemo,destroyed,exportBusy,exportCancelled;
+    private java.util.concurrent.atomic.AtomicBoolean exportStop =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
     private long durationMs=0,trimStartMs=0,trimEndMs=0,splitMs=-1;
     private int ratio=0,preset=1,framing=AspectRatioProfile.FIT,quality=OutputProfile.MAX_DETAIL;
     private float focusX=.5f,focusY=.5f;
@@ -1080,6 +1082,7 @@ public final class StudioEditorActivity extends Activity {
     }
     private void startExport(){
         exports.clear();exportCancelled=false;exportBusy=true;
+        exportStop=new java.util.concurrent.atomic.AtomicBoolean(false);
         completed=0;failed=0;downgradedVideoExports=0;lastEncodedVideoCanvas="";
         ExportOptions current;
         try{current=options();}
@@ -1123,19 +1126,26 @@ public final class StudioEditorActivity extends Activity {
     private void runNextExport(){
         if(exportCancelled||exports.isEmpty()){finishExports();return;}
         RenderJob job=exports.removeFirst();
+        final java.util.concurrent.atomic.AtomicBoolean cancelToken=exportStop;
         exportStatus.setText("Mengekspor "+job.title+"…");
         exportProgress.setIndeterminate(isVideo?false:true);exportProgress.setProgress(0);
         if(!isVideo){
             io.execute(()->{
                 try{
                     PhotoEngine.Result result=PhotoEngine.process(this,mediaUri,job.options);
-                    Uri saved=MediaSaver.savePhoto(this,result.jpeg,fileName("jpg"));
+                    if(cancelToken.get())return;
+                    Uri saved=MediaSaver.savePhoto(this,result.jpeg,fileName("jpg"),cancelToken::get);
                     runOnUiThread(()->{
-                        if(destroyed)return;
+                        if(destroyed||cancelToken.get()){
+                            getContentResolver().delete(saved,null,null);
+                            return;
+                        }
                         lastExport=saved;completed++;
                         exportProgress.setProgress(100);runNextExport();
                     });
-                }catch(Exception ex){runOnUiThread(()->failExport(ex.getMessage()));}
+                }catch(Exception ex){
+                    if(!cancelToken.get())runOnUiThread(()->failExport(ex.getMessage()));
+                }
             });
         }else{
             activeVideoEngine=new VideoEngine();
@@ -1148,11 +1158,17 @@ public final class StudioEditorActivity extends Activity {
                 requestedVideoCanvas.set(activeVideoEngine.start(this,mediaUri,
                         job.options,new VideoEngine.Listener(){
                     @Override public void onSuccess(File source,AspectRatioProfile.Size dims){
+                        if(cancelToken.get())return;
                         io.execute(()->{
                             try{
-                                Uri saved=MediaSaver.saveVideo(StudioEditorActivity.this,source,fileName("mp4"));
+                                if(cancelToken.get())return;
+                                Uri saved=MediaSaver.saveVideo(StudioEditorActivity.this,source,
+                                        fileName("mp4"),cancelToken::get);
                                 runOnUiThread(()->{
-                                    if(destroyed)return;
+                                    if(destroyed||cancelToken.get()){
+                                        getContentResolver().delete(saved,null,null);
+                                        return;
+                                    }
                                     lastExport=saved;completed++;
                                     lastEncodedVideoCanvas=dims.width+"×"+dims.height;
                                     AspectRatioProfile.Size requested=requestedVideoCanvas.get();
@@ -1163,10 +1179,14 @@ public final class StudioEditorActivity extends Activity {
                                     if(activeVideoEngine!=null)activeVideoEngine.cleanup();
                                     runNextExport();
                                 });
-                            }catch(Exception ex){runOnUiThread(()->failExport(ex.getMessage()));}
+                            }catch(Exception ex){
+                                if(!cancelToken.get())runOnUiThread(()->failExport(ex.getMessage()));
+                            }
                         });
                     }
-                    @Override public void onError(String message){failExport(message);}
+                    @Override public void onError(String message){
+                        if(!cancelToken.get())failExport(message);
+                    }
                 }));
                 handler.post(new Runnable(){
                     @Override public void run(){
@@ -1180,12 +1200,13 @@ public final class StudioEditorActivity extends Activity {
         }
     }
     private void failExport(String error){
+        if(exportCancelled||exportStop.get()||destroyed)return;
         failed++;
         if(activeVideoEngine!=null){activeVideoEngine.cleanup();activeVideoEngine=null;}
         toast("Ekspor gagal: "+error);runNextExport();
     }
     private void cancelExport(){
-        exportCancelled=true;exports.clear();
+        exportCancelled=true;exportStop.set(true);exports.clear();
         if(activeVideoEngine!=null){activeVideoEngine.cancel();activeVideoEngine=null;}
         exportBusy=false;
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -1234,6 +1255,7 @@ public final class StudioEditorActivity extends Activity {
         super.onPause();
     }
     @Override protected void onDestroy(){
+        exportStop.set(true);
         destroyed=true;handler.removeCallbacksAndMessages(null);
         if(activeVideoEngine!=null)activeVideoEngine.cancel();
         if(video!=null)video.stopPlayback();

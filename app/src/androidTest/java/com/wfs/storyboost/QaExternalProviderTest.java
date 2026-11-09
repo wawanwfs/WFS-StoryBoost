@@ -98,8 +98,12 @@ public final class QaExternalProviderTest {
     private String uiText(UiDevice device){
         StringBuilder s=new StringBuilder();
         for(UiObject2 text:device.findObjects(By.clazz("android.widget.TextView"))){
-            String value=text.getText();
-            if(value!=null&&s.length()<2200)s.append('[').append(value).append(']');
+            try{
+                String value=text.getText();
+                if(value!=null&&s.length()<2200)s.append('[').append(value).append(']');
+            }catch(androidx.test.uiautomator.StaleObjectException stale){
+                // Accessibility trees can change while diagnostics are read.
+            }
         }
         return s.toString();
     }

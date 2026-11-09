@@ -231,9 +231,10 @@ jobs:
             # A distinct acceptance pass keeps Photos installed/enabled; it
             # verifies DocumentsUI coexistence, NOT Photo-provider URI grants.
             WFS_PHOTOS_ENABLED=1 bash scripts/qa-process-death-saf.sh
-            bash scripts/qa-external-provider.sh
+            # Keep neural memory evidence independent of provider picker flakes.
             bash scripts/qa-dncnn-memory.sh
             bash scripts/qa-dncnn-thread-matrix.sh
+            bash scripts/qa-external-provider.sh
       - name: Publish independent provider acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -27,6 +27,14 @@ adb install -r qa-provider/build/outputs/apk/debug/qa-provider-debug.apk
 adb install -r app/build/outputs/apk/debug/app-universal-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell pm enable --user 0 "$PROVIDER" >/dev/null 2>&1 || true
+consumer_uid="$(adb shell dumpsys package "$APP" | sed -n 's/.*userId=\([0-9][0-9]*\).*/\1/p' | head -1)"
+provider_uid="$(adb shell dumpsys package "$PROVIDER" | sed -n 's/.*userId=\([0-9][0-9]*\).*/\1/p' | head -1)"
+if [[ -z "$consumer_uid" || -z "$provider_uid" || "$consumer_uid" == "$provider_uid" ]];then
+  echo "Provider isolation failed: consumer UID $consumer_uid, source UID $provider_uid" >&2
+  exit 1
+fi
+echo "PROVED separate Android UIDs consumer=$consumer_uid provider=$provider_uid" |
+  tee qa-provider-results/uid-isolation.txt
 control(){
   local action="$1" answer
   answer="$(adb shell am broadcast --receiver-foreground \

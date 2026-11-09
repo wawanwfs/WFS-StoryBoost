@@ -292,6 +292,11 @@ public class VideoMediaQaTest {
         MediaProbe.Info info=MediaProbe.inspect(merged);
         assertTrue("Mixed composition must retain video",info.video);
         assertTrue("Mixed composition must retain first clip audio",info.audio);
+        MediaProbe.SampleTimeline timeline=MediaProbe.inspectSampleTimeline(merged);
+        assertTrue("Mixed merge has no encoded video samples",timeline.videoSamples>40);
+        assertTrue("Mixed merge AAC samples missing",timeline.audioSamples>30);
+        assertTrue("Mixed-order audio samples finish more than 250ms from video",
+                timeline.lastPtsDriftMs()<=250);
         assertTrue("No silent leg should truncate the second clip: "+info.durationMs,
                 Math.abs(info.durationMs-4000)<850);
         assertTrue(containsCodec(merged,"video/avc"));
@@ -299,6 +304,53 @@ public class VideoMediaQaTest {
         assertTrue("A/V track should cover sequence within 500ms: "+
                 info.audioDurationMs+"/"+info.videoDurationMs,
                 Math.abs(info.audioDurationMs-info.videoDurationMs)<500);
+    }
+
+    @Test(timeout=260000)
+    @SdkSuppress(minSdkVersion=35)
+    public void reverseMixedMergePadsSilentFirstClipAndKeepsRealSamplePts()throws Exception{
+        CountDownLatch done=new CountDownLatch(1);
+        AtomicReference<File> produced=new AtomicReference<>();
+        AtomicReference<String> failure=new AtomicReference<>();
+        mergeEngine=new VideoMergeEngine();
+        inst.runOnMainSync(()->{
+            try{
+                mergeEngine.start(ctx,java.util.Arrays.asList(silent,av),
+                        OutputProfile.FULL_HD,new VideoMergeEngine.Listener(){
+                    @Override public void onCompleted(File file){
+                        produced.set(file);done.countDown();
+                    }
+                    @Override public void onFailure(String msg){
+                        failure.set(msg);done.countDown();
+                    }
+                });
+            }catch(Exception e){failure.set(e.toString());done.countDown();}
+        });
+        assertTrue("Reverse mixed merge timeout",done.await(190,TimeUnit.SECONDS));
+        assertNull("Reverse mixed merge error "+failure.get(),failure.get());
+        File output=produced.get();
+        assertNotNull(output);
+        outputFiles.add(output);
+        MediaProbe.Info tracks=MediaProbe.inspect(output);
+        assertTrue(tracks.video);
+        assertTrue("Second clip AAC must be retained",tracks.audio);
+        assertTrue(containsCodec(output,"video/avc"));
+        assertTrue(containsCodec(output,"audio/mp4a-latm"));
+        assertTrue("Four-second video sequence was truncated: "+tracks.durationMs,
+                Math.abs(tracks.durationMs-4000)<850);
+        MediaProbe.SampleTimeline actual=MediaProbe.inspectSampleTimeline(output);
+        assertTrue("Expected actual encoded video frames",actual.videoSamples>=40);
+        assertTrue("Expected actual encoded AAC samples",actual.audioSamples>=30);
+        assertTrue("Video presentation timestamps do not reach end of composition: "+actual.lastVideoUs,
+                actual.lastVideoUs>=3_400_000);
+        assertTrue("Audio presentation timestamps do not reach end of composition: "+actual.lastAudioUs,
+                actual.lastAudioUs>=3_300_000);
+        assertTrue("Real sample PTS drift exceeds 250ms, track metadata alone is insufficient: "+
+                        actual.lastPtsDriftMs()+"ms",actual.lastPtsDriftMs()<=250);
+        android.util.Log.i("WfsMediaPtsQA","reverseMixed videoSamples="+actual.videoSamples+
+                " audioSamples="+actual.audioSamples+
+                " videoLastUs="+actual.lastVideoUs+" audioLastUs="+actual.lastAudioUs+
+                " driftMs="+actual.lastPtsDriftMs());
     }
 
     @Test(timeout=50000)

@@ -121,7 +121,11 @@ public final class DncnnTilingQaTest {
             long start=android.os.SystemClock.elapsedRealtime();
             AiDenoiseEngine.Result result;
             try {
-                result=AiDenoiseEngine.process(context,input,cpuThreads,xnnpackOverride);
+                // "default" now exercises the actual consumer entrypoint;
+                // explicit "on" reproduces legacy pre-beta6 memory behavior.
+                result=xnnpackOverride==null
+                        ?AiDenoiseEngine.process(context,input,cpuThreads)
+                        :AiDenoiseEngine.process(context,input,cpuThreads,xnnpackOverride);
             }finally{
                 sampleRunning.set(false);
                 sampler.interrupt();

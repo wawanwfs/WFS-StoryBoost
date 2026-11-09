@@ -133,13 +133,17 @@ public final class AiDenoiseEngine {
      * Normal user flow still uses the original automatic 1..3 thread policy.
      */
     static Result process(Context context,Bitmap source,int cpuThreads)throws IOException {
-        return process(context,source,cpuThreads,null);
+        // Beta6 measured 4x lower PSS on API29 and API35 when XNNPACK was
+        // disabled, with effectively identical pinned DnCNN pixel quality.
+        // Slower CPU inference is preferable to transient native OOM/LMK.
+        return process(context,source,cpuThreads,Boolean.FALSE);
     }
 
     /**
-     * Explicit XNNPACK override exists solely to compare kernel memory under
-     * instrumentation. null preserves the exact pre-beta6 interpreter defaults.
-     * The consumer API never passes an override unless separately validated.
+     * Explicit XNNPACK override is for controlled QA comparisons. null
+     * reproduces pre-beta6 implicit TFLite interpreter defaults (XNNPACK on).
+     * Consumer entrypoints always pass false and keep the same exact model.
+     * NEVER add a secret quality reduction or image downsampling here.
      */
     static Result process(Context context,Bitmap source,int cpuThreads,Boolean xnnpack)throws IOException {
         if(cpuThreads<1||cpuThreads>3)

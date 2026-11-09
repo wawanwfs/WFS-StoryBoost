@@ -63,12 +63,16 @@ for mode in ("default","off","on"):
 for mode in ("off","on"):
     assert abs(r[mode][1]-r["default"][1])<0.15,(mode,r)
     assert abs(r[mode][2]-r["default"][2])<0.015,(mode,r)
+# Mandatory evidence that the consumer backend is the low-memory one.
+assert r["default"][0] < r["on"][0]*0.65,("Production DnCNN still uses high-PSS backend",r)
+assert abs(r["default"][0]-r["off"][0]) < r["on"][0]*0.15,("Default differs from explicit XNNPACK off",r)
 with open("qa-backend-matrix/comparison.txt","w") as f:
     f.write("Measured sample PSS, not true physical peak RSS; never infer native ARM64 from x86_64\n")
     for mode in ("default","off","on"):
         f.write("%s avgPeakPssKB=%.0f pairedPsnr=%.6f pairedSsim=%.6f\n" %
                 (mode,*r[mode]))
-    f.write("This is an experiment; no implicit consumer backend change.\n")
+    f.write("Consumer default now explicitly disables XNNPACK; paired output remains bounded.\n")
+    f.write("ARM64 and physical low-RAM acceptance still outstanding.\n")
 print(open("qa-backend-matrix/comparison.txt").read())
 PY
 echo "PASS real paired DnCNN default/off/on cold-process benchmark, model invariant" |

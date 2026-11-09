@@ -32,6 +32,25 @@ public final class DncnnTilingQaTest {
             total+=Math.abs(gray(pixels[y*W+x])-gray(pixels[y*W+x-1]));
         return total/H;
     }
+    private static String memoryDetail(Debug.MemoryInfo memory){
+        return " pssKB="+memory.getTotalPss()+
+                " javaKB="+memory.getMemoryStat("summary.java-heap")+
+                " nativeKB="+memory.getMemoryStat("summary.native-heap")+
+                " graphicsKB="+memory.getMemoryStat("summary.graphics")+
+                " codeKB="+memory.getMemoryStat("summary.code")+
+                " stackKB="+memory.getMemoryStat("summary.stack");
+    }
+    private static int linuxThreads(){
+        try(java.io.BufferedReader reader=new java.io.BufferedReader(
+                new java.io.FileReader("/proc/self/status"))){
+            String line;
+            while((line=reader.readLine())!=null){
+                if(line.startsWith("Threads:"))return Integer.parseInt(
+                        line.substring("Threads:".length()).trim());
+            }
+        }catch(Exception ignored){}
+        return -1;
+    }
     @Test(timeout=160000)
     public void colorNoiseTiledDenoiseReportsPairedQualityAndSeamContinuity() throws Exception {
         Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
@@ -53,10 +72,53 @@ public final class DncnnTilingQaTest {
         try {
             Debug.MemoryInfo beforeMemory=new Debug.MemoryInfo();
             Debug.getMemoryInfo(beforeMemory);
+            int threadsBefore=linuxThreads();
+            long nativeBytesBefore=Debug.getNativeHeapAllocatedSize();
+            // In-process sampling avoids ADB/dumpsys polling latency: on
+            // Android 10 a complete four-tile inference can take only 4 seconds.
+            java.util.concurrent.atomic.AtomicBoolean sampleRunning=
+                    new java.util.concurrent.atomic.AtomicBoolean(true);
+            java.util.concurrent.atomic.AtomicInteger liveSamples=
+                    new java.util.concurrent.atomic.AtomicInteger();
+            java.util.concurrent.atomic.AtomicLong livePeakPssKb=
+                    new java.util.concurrent.atomic.AtomicLong();
+            java.util.concurrent.atomic.AtomicReference<String> livePeakBreakdown=
+                    new java.util.concurrent.atomic.AtomicReference<>("");
+            Thread sampler=new Thread(()->{
+                while(sampleRunning.get()){
+                    try{
+                        Debug.MemoryInfo snapshot=new Debug.MemoryInfo();
+                        Debug.getMemoryInfo(snapshot);
+                        long value=snapshot.getTotalPss();
+                        liveSamples.incrementAndGet();
+                        if(value>livePeakPssKb.get()){
+                            livePeakPssKb.set(value);
+                            livePeakBreakdown.set(memoryDetail(snapshot));
+                        }
+                        Thread.sleep(150);
+                    }catch(InterruptedException stop){
+                        Thread.currentThread().interrupt();
+                        break;
+                    }catch(RuntimeException cannotSample){
+                        Log.w(TAG,"Memory sample error: "+cannotSample.getMessage());
+                    }
+                }
+            },"WfsDncnnMemorySampler");
+            sampler.setDaemon(true);
+            sampler.start();
             long start=android.os.SystemClock.elapsedRealtime();
-            AiDenoiseEngine.Result result=AiDenoiseEngine.process(context,input);
+            AiDenoiseEngine.Result result;
+            try {
+                result=AiDenoiseEngine.process(context,input);
+            }finally{
+                sampleRunning.set(false);
+                sampler.interrupt();
+                sampler.join(2000);
+            }
             processed=result.bitmap;
             long elapsed=android.os.SystemClock.elapsedRealtime()-start;
+            assertTrue("No live in-process PSS samples",liveSamples.get()>0);
+            assertTrue("Invalid sampled peak PSS",livePeakPssKb.get()>0);
             assertNotNull(processed);
             assertEquals(W,processed.getWidth());
             assertEquals(H,processed.getHeight());
@@ -97,10 +159,21 @@ public final class DncnnTilingQaTest {
                     seamRight<=contextEdge*4+16);
             Debug.MemoryInfo afterMemory=new Debug.MemoryInfo();
             Debug.getMemoryInfo(afterMemory);
+            int threadsAfter=linuxThreads();
+            long nativeBytesAfter=Debug.getNativeHeapAllocatedSize();
             String measurements="syntheticRGB480x480 tiles="+result.stats.tiles+
                 " inferMs="+result.stats.inferenceMs+" pipelineMs="+result.stats.totalMs+
                 " elapsedMs="+elapsed+" pssBeforeKB="+beforeMemory.getTotalPss()+
                 " pssAfterKB="+afterMemory.getTotalPss()+
+                " pid="+android.os.Process.myPid()+
+                " threadsBefore="+threadsBefore+" threadsAfter="+threadsAfter+
+                " nativeHeapBeforeBytes="+nativeBytesBefore+
+                " nativeHeapAfterBytes="+nativeBytesAfter+
+                " liveSamples="+liveSamples.get()+
+                " sampledPeakPssKB="+livePeakPssKb.get()+
+                " sampledPeakMemory{"+livePeakBreakdown.get()+"}"+
+                " memBefore{"+memoryDetail(beforeMemory)+"}"+
+                " memAfter{"+memoryDetail(afterMemory)+"}"+
                 " psnr="+beforePsnr+"->"+afterPsnr+
                 " ssim="+beforeSsim+"->"+afterSsim+
                 " seam224="+seamLeft+" seam256="+seamRight;

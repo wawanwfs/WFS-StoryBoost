@@ -3,7 +3,6 @@ package com.wfs.storyboost;
 import static org.junit.Assert.*;
 import android.app.Activity;
 import android.app.Instrumentation;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -12,7 +11,6 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Process;
-import android.provider.MediaStore;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
@@ -88,30 +86,24 @@ public class ProcessDeathLocalTest {
         }while(android.os.SystemClock.uptimeMillis()<deadline);
         return null;
     }
+    /** Test LOCAL app-owned source persistence. The independent native
+     * DocumentsUI suite is responsible for exercising real SAF grants.
+     * Android 10 MediaStore publish ownership is not a substitute for either.
+     */
     private Uri createPhoto()throws Exception{
-        ContentValues cv=new ContentValues();
-        cv.put(MediaStore.Images.Media.DISPLAY_NAME,"wfs-pid-qa-"+System.nanoTime()+".jpg");
-        cv.put(MediaStore.Images.Media.MIME_TYPE,"image/jpeg");
-        cv.put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/WFS-StoryBoost-QA/");
-        // Explicitly publish the JPEG in MediaStore after writing. A private
-        // pending record is not a persistent gallery source across processes.
-        cv.put(MediaStore.Images.Media.IS_PENDING,1);
-        Uri uri=app().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,cv);
-        assertNotNull(uri);
+        java.io.File directory=new java.io.File(app().getFilesDir(),"qa-pid");
+        assertTrue("Cannot create private QA directory",directory.isDirectory()||directory.mkdirs());
+        java.io.File photo=java.io.File.createTempFile("wfs-pid-qa-",".jpg",directory);
         Bitmap img=Bitmap.createBitmap(640,960,Bitmap.Config.ARGB_8888);
         try{
             for(int y=0;y<960;y++)for(int x=0;x<640;x++)
                 img.setPixel(x,y,Color.rgb((x*2)%256,(y*4)%256,(x+y)%256));
-            try(OutputStream out=app().getContentResolver().openOutputStream(uri)){
-                assertNotNull(out);assertTrue(img.compress(Bitmap.CompressFormat.JPEG,93,out));
+            try(OutputStream out=new java.io.FileOutputStream(photo)){
+                assertTrue(img.compress(Bitmap.CompressFormat.JPEG,93,out));
             }
         }finally{img.recycle();}
-        ContentValues visible=new ContentValues();
-        visible.put(MediaStore.Images.Media.IS_PENDING,0);
-        assertEquals("Unable to publish synthetic MediaStore photo",
-                1,app().getContentResolver().update(uri,visible,null,null));
-        assertTrue("Source not readable immediately after publishing",
-                SourceAccess.canRead(app(),uri));
+        Uri uri=Uri.fromFile(photo);
+        assertTrue("App-owned local JPEG unreadable",SourceAccess.canRead(app(),uri));
         return uri;
     }
     @Test public void stageDraftBeforeForceStop()throws Exception{
@@ -157,6 +149,60 @@ public class ProcessDeathLocalTest {
                 app().getSharedPreferences(PREF,Context.MODE_PRIVATE).edit()
                 .putString("uri",uri.toString()).putString("sha",hash)
                 .putInt("pid",Process.myPid()).commit());
+    }
+    /**
+     * The shell runner MUST kill this foreground process while the method is
+     * still asleep. Closing ActivityScenario or returning from this method
+     * would call onPause and invalidate the no-lifecycle-save assertion.
+     */
+    @Test(timeout=145000)
+    public void stageForegroundEditAwaitAbruptForceStop()throws Exception{
+        phase("stageLive");
+        Uri uri=createPhoto();
+        String original=sha(app(),uri);
+        assertTrue(app().getSharedPreferences("studio-projects",Context.MODE_PRIVATE).edit()
+                .putString("recent_0",uri.toString()).commit());
+        Intent open=new Intent(app(),StudioEditorActivity.class);
+        open.putExtra("media_uri",uri.toString());
+        open.putExtra("resume_project",false);
+        // Do NOT use try-with-resources: stage will be terminated externally.
+        ActivityScenario<StudioEditorActivity> activity=ActivityScenario.launch(open);
+        activity.onActivity(editor->{
+            tap(editor,"Color Look: Vibrant",true);
+            tap(editor,"Teks",false);
+            EditText field=null;
+            java.util.ArrayDeque<View> queue=new java.util.ArrayDeque<>();
+            queue.add(editor.getWindow().getDecorView());
+            while(!queue.isEmpty()){
+                View view=queue.removeFirst();
+                if(view instanceof EditText){field=(EditText)view;break;}
+                if(view instanceof ViewGroup){
+                    ViewGroup group=(ViewGroup)view;
+                    for(int i=0;i<group.getChildCount();i++)queue.addLast(group.getChildAt(i));
+                }
+            }
+            assertNotNull("Foreground caption field absent",field);
+            field.setText("PERSISTED AFTER FORCE STOP");
+            tap(editor,"☷  Ekspor",false);
+            tap(editor,"1080p",false);
+        });
+        inst.waitForIdleSync();
+        StudioDraftStore.Draft committed=StudioDraftStore.load(app(),uri);
+        assertNotNull("Draft must be written BEFORE onPause",committed);
+        assertEquals(2,committed.options.preset);
+        assertEquals("PERSISTED AFTER FORCE STOP",committed.options.caption);
+        assertEquals(OutputProfile.FULL_HD,committed.options.qualityMode);
+        assertEquals(original,sha(app(),uri));
+        assertTrue(app().getSharedPreferences(PREF,Context.MODE_PRIVATE).edit()
+                .putString("uri",uri.toString()).putString("sha",original)
+                .putInt("pid",Process.myPid()).commit());
+        android.util.Log.i("WfsAutosaveCutQA",
+                "READY pid="+Process.myPid()+" draft=committed while editor RESUMED");
+        // If this resumes, the external kill never occurred: fail rather than
+        // claiming process-death acceptance on a normal activity finish.
+        Thread.sleep(120000L);
+        activity.close();
+        fail("External force-stop never interrupted foreground editor");
     }
     @Test public void verifyReopenAfterExternalForceStop()throws Exception{
         phase("verify");
@@ -220,7 +266,7 @@ public class ProcessDeathLocalTest {
             assertEquals("Original changed during export",p.getString("sha",""),sha(app(),uri));
             inst.runOnMainSync(resumed::finish);
         }
-        try{app().getContentResolver().delete(uri,null,null);}catch(Exception ignored){}
+        assertTrue("Cleanup of synthetic local photo failed",new java.io.File(uri.getPath()).delete());
         p.edit().clear().commit();
         app().getSharedPreferences("studio-projects",Context.MODE_PRIVATE).edit().clear().commit();
         StudioDraftStore.clearAll(app());

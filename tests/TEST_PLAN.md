@@ -1,3 +1,13 @@
+## Beta4 QA candidate gates
+
+- [ ] Local app-private media process death with qa-process-death-local.sh (not third-party MediaStore permission evidence).
+- [ ] Abrupt live Editor death with qa-process-death-pending.sh: completed look/caption/1080p changes, Editor still RESUMED, external adb force-stop before onPause, new PID, Recent, source SHA and decoded JPEG.
+- [ ] Genuine native ACTION_OPEN_DOCUMENT persisted grant on both APIs with Photos temporarily isolated, plus WFS_PHOTOS_ENABLED=1 compatibility pass. Enabled Photos is NOT a Photos URI test.
+- [ ] Two isolated real DnCNN inference runs with Java/native/graphics PSS/thread records and live sampled PSS on API29/35. Physical-device and five-process research pending.
+- [ ] Existing 24 Color Looks, Media3 mixed/split/merge/silent/rotated/cancel and byte-preservation gates stay green.
+- [ ] Build a distinct test-only revocable provider and prove external permission revoke, provider disable/deletion and Photos-owned URI. Keep separate from local MediaStore.
+- [ ] All four CI jobs green before merge. Retain 23/32 unique module count. No release without owner-signed independent install-r proof.
+
 # WFS StoryBoost — Manual Device QA Matrix v1.4.0
 
 Geometry tests (`bash scripts/test-ratio-geometry.sh`) cover 27 non-Android assertions. **They do not prove Android build or end-to-end behavior.** Before a production release, run this checklist on Android 10/12/14/16 (at least low-memory and flagship codecs).

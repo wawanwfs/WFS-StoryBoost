@@ -226,7 +226,19 @@ jobs:
             bash scripts/fetch-dncnn-model.sh
             gradle --no-daemon :app:connectedDebugAndroidTest
             bash scripts/qa-process-death-local.sh
+            bash scripts/qa-process-death-pending.sh
             bash scripts/qa-process-death-saf.sh
+            # A distinct acceptance pass keeps Photos installed/enabled; it
+            # verifies DocumentsUI coexistence, NOT Photo-provider URI grants.
+            WFS_PHOTOS_ENABLED=1 bash scripts/qa-process-death-saf.sh
+            bash scripts/qa-dncnn-memory.sh
+      - name: Publish abrupt-autosave process-death proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WFS-StoryBoost-beta4-Abrupt-Autosave-API${{ matrix.api }}
+          path: qa-autosave/
+          if-no-files-found: warn
       - name: Publish real DocumentsUI picker failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
@@ -235,6 +247,13 @@ jobs:
           path: |
             qa-picker-failure.png
             qa-picker-failure.xml
+          if-no-files-found: warn
+      - name: Upload repeat-process DnCNN memory evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WFS-StoryBoost-beta4-DnCNN-Memory-API${{ matrix.api }}
+          path: qa-memory/
           if-no-files-found: warn
       - name: Publish Android instrumentation reports
         if: always()

@@ -1,5 +1,13 @@
 # WFS StoryBoost — Creative Editing Studio v3.0.0-beta3
 
+## Beta4 QA candidate — acceptance pending
+
+The QA branch now persists completed editing actions synchronously rather than depending on an 800 ms queued autosave. A real Editor is killed externally by adb **while still RESUMED** (before onPause), and another process restores its Recent source, options and decoded export. Local process-death fixture now uses an app-private JPEG, avoiding Android 10 MediaStore permission ambiguity. A separate real Android DocumentsUI test continues to verify persisted grants.
+
+The branch profiles real DnCNN CPU inference in two separate PIDs on API29 and API35, with live sampled PSS and Java/native/graphics/thread breakdowns. The native picker is also tried with Photos enabled as well as isolated. **Picker coexistence with enabled Google Photos does not prove an actual Photos-owned URI works.** All new tests must pass before merging or calling them verified.
+
+Existing mixed audio/silent Media3 merge and 24 Color Look JPEG QA remain mandatory. Synchronous preferences writes need low-end UI latency measurements. True third-party grant revocation, physical low-RAM Android10, real portraits, stable release signing and lossless WA/IG uploads are **not certified**. Unique roadmap modules: **23/32 = 71.875%**, unchanged.
+
 **Android offline-first.** Antarmuka editor non-destruktif dengan workflow proyek, timeline satu media, filter, trim, split-export, konversi rasio, dan kualitas ekspor sumber-asli.
 
 [![Build APK](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml/badge.svg)](https://github.com/wawanwfs/WFS-StoryBoost/actions/workflows/build-apk.yml)

@@ -135,8 +135,12 @@ public final class StudioEditorActivity extends Activity {
         lastState=next;
         updateUndoButtons();
         if(!isDemo&&mediaUri!=null){
+            // A pending 800ms postDelayed task is lost if Android kills the
+            // foreground process without onPause. Commit completed edit events
+            // synchronously so Recent can recover after an abrupt force-stop.
+            // This writes only the small private draft, never source pixels.
             handler.removeCallbacks(draftWriter);
-            handler.postDelayed(draftWriter,800);
+            persistDraft();
         }
     }
     private void persistDraft(){
@@ -195,7 +199,7 @@ public final class StudioEditorActivity extends Activity {
             showTool(activeTool);refreshSettings();updateCaptionPreview();
         }finally{restoringHistory=false;updateUndoButtons();}
         handler.removeCallbacks(draftWriter);
-        handler.postDelayed(draftWriter,500);
+        persistDraft(); // Undo/Redo is a committed edit as well.
     }
     private static final class RenderJob {
         final ExportOptions options;

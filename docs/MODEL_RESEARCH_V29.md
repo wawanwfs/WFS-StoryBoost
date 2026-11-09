@@ -45,3 +45,8 @@ Next: repeat 5+ fresh-process runs with post-GC and separate Java/native/graphic
 ### Beta4 emulator diagnostic candidate
 
 The qa-dncnn-memory.sh script executes the pinned real DnCNN four-tile RGB fixture twice with different Android process IDs, collecting sampled live PSS, Java/native/graphics categories, native allocated heap, CPU inference duration and thread counts. These are emulator process measurements, not device-level peak RAM. No beta4 numeric memory result is asserted until its exact GitHub CI artifact is inspected. Repeat 5+ independent Android10 processes and compare controlled TFLite thread counts and physical low-RAM ARM64 before treating the prior API29 365,138 KB outlier as explained. Do not silently lower neural output resolution or weights to make memory appear better.
+
+
+### Beta5 controlled CPU threading benchmark
+
+The verified beta4 final run https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42538280137 showed API29 PSS peak samples 392587 and 395663 KB, API35 samples 403232 and 403084 KB, even though API35 post-inference was 65028 and 58572 KB. The inference transient is therefore a risk on both emulated Android versions. The beta5 QA matrix compares 1,2,3 CPU threads with identical pinned DnCNN weights, paired RGB fixture, PSNR/SSIM and seam assertions in five new Android10 process starts per thread setting and two per Android15 setting. These metrics are sampled process PSS, NOT physical device peak RSS. No production thread reduction or quality sacrifice is justified until measurements are independently verified. Low-RAM ARM64 certification remains unavailable.

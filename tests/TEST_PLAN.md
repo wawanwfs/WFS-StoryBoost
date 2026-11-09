@@ -1,3 +1,13 @@
+## Beta5 QA hard gates (candidate)
+
+- [ ] Independent-UID QA-only DocumentsProvider APK and real Android DocumentsUI picker on API29/35.
+- [ ] Native persisted grant, external force-stop, different PID Recent, decoded JPEG and preserved SHA.
+- [ ] Owner-controlled revoke, deleted/disabled provider, no accidental gallery source read, explicit reimport.
+- [ ] DnCNN pinned model CPU 1/2/3 threads x five fresh API29 processes and two fresh API35 processes each, quality and sampled transient memory intact.
+- [ ] Actual sample PTS and reversed mixed-order AAC/silent Media3 merge, plus all existing video and 24 Color Look regressions.
+- [ ] Verify final HEAD all four jobs green; keep PR draft and do not merge otherwise.
+- [ ] Google Photos-owned URI, real consented portraits, physical low-RAM ARM64 and stable owner-signed upgrade NOT proven.
+
 ## Beta4 QA candidate gates
 
 - [ ] Local app-private media process death with qa-process-death-local.sh (not third-party MediaStore permission evidence).

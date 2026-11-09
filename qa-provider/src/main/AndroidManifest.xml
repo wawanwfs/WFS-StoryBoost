@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- TEST-ONLY APK. Never bundle this provider inside the consumer app. -->
+    <application android:allowBackup="false" android:label="WFS QA Provider"
+        android:supportsRtl="true" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <provider android:name=".FixtureDocumentsProvider"
+            android:authorities="com.wfs.storyboost.qaprovider.documents"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
+        <!-- This explicit shell test control is QA-only and must never ship to users. -->
+        <receiver android:name=".FixtureControlReceiver" android:exported="true" />
+    </application>
+</manifest>

@@ -148,8 +148,12 @@ public class ProcessDeathSafTest {
     private String pickerDiagnostics(UiDevice device){
         StringBuilder text=new StringBuilder();
         for(UiObject2 item:device.findObjects(By.clazz("android.widget.TextView"))){
-            String value=item.getText();
-            if(value!=null&&text.length()<1600)text.append('[').append(value).append(']');
+            try {
+                String value=item.getText();
+                if(value!=null&&text.length()<1600)text.append('[').append(value).append(']');
+            }catch(androidx.test.uiautomator.StaleObjectException stale){
+                // Diagnostics must never mask the original native-picker failure.
+            }
         }
         for(UiObject2 item:device.findObjects(By.clazz("android.widget.Button"))){
             try{

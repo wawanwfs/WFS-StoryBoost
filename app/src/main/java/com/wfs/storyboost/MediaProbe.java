@@ -43,6 +43,56 @@ public final class MediaProbe {
         return new Info(v,a,fps>0f&&fps<=240f?fps:30f,
             Math.max(vd,ad)/1000,ad/1000,vd/1000);
     }
+    /** Last actual compressed sample timestamps, not just track header durations.
+     * The final sample duration is codec dependent, so these values represent
+     * presentation timestamps (PTS), NOT a sample-accurate endpoint duration.
+     */
+    public static final class SampleTimeline {
+        public final long firstVideoUs,lastVideoUs,firstAudioUs,lastAudioUs;
+        public final int videoSamples,audioSamples;
+        SampleTimeline(long fv,long lv,long fa,long la,int vc,int ac){
+            firstVideoUs=fv;lastVideoUs=lv;firstAudioUs=fa;lastAudioUs=la;
+            videoSamples=vc;audioSamples=ac;
+        }
+        public long lastPtsDriftMs(){
+            if(videoSamples==0||audioSamples==0)return -1;
+            return Math.abs(lastVideoUs-lastAudioUs)/1000;
+        }
+    }
+    public static SampleTimeline inspectSampleTimeline(File file)throws IOException{
+        MediaExtractor extractor=new MediaExtractor();
+        try{
+            extractor.setDataSource(file.getAbsolutePath());
+            long fv=-1,lv=-1,fa=-1,la=-1;int vc=0,ac=0;
+            for(int i=0;i<extractor.getTrackCount();i++){
+                String mime=extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME);
+                boolean video=mime!=null&&mime.startsWith("video/");
+                boolean audio=mime!=null&&mime.startsWith("audio/");
+                if(!video&&!audio)continue;
+                extractor.selectTrack(i);
+                // MediaExtractor's cursor may remain at EOF after scanning a
+                // different track. Explicitly seek back before each track.
+                extractor.seekTo(0,MediaExtractor.SEEK_TO_CLOSEST_SYNC);
+                for(int samples=0;samples<150000;samples++){
+                    long pts=extractor.getSampleTime();
+                    if(pts<0)break;
+                    if(video){
+                        if(fv<0)fv=pts;
+                        lv=Math.max(lv,pts);vc++;
+                    }else{
+                        if(fa<0)fa=pts;
+                        la=Math.max(la,pts);ac++;
+                    }
+                    if(!extractor.advance())break;
+                }
+                extractor.unselectTrack(i);
+            }
+            if(vc<1)throw new IOException("No video samples in exported media");
+            return new SampleTimeline(fv,lv,fa,la,vc,ac);
+        }catch(RuntimeException ex){throw new IOException("Cannot inspect media sample PTS",ex);}
+        finally{extractor.release();}
+    }
+
     public static long duration(Context c,Uri u){
         MediaMetadataRetriever r=new MediaMetadataRetriever();
         try{

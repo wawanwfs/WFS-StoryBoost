@@ -68,6 +68,12 @@ public final class DncnnTilingQaTest {
                     clamp(g+shared-chroma),clamp(b+shared));
         }
         Bitmap input=Bitmap.createBitmap(noisy,W,H,Bitmap.Config.ARGB_8888);
+        String configured=InstrumentationRegistry.getArguments()
+                .getString("wfs.ai.threads");
+        int cpuThreads=configured==null?Math.max(1,Math.min(3,
+                Runtime.getRuntime().availableProcessors())):
+                Integer.parseInt(configured);
+        assertTrue(cpuThreads>=1&&cpuThreads<=3);
         Bitmap processed=null;
         try {
             Debug.MemoryInfo beforeMemory=new Debug.MemoryInfo();
@@ -109,7 +115,7 @@ public final class DncnnTilingQaTest {
             long start=android.os.SystemClock.elapsedRealtime();
             AiDenoiseEngine.Result result;
             try {
-                result=AiDenoiseEngine.process(context,input);
+                result=AiDenoiseEngine.process(context,input,cpuThreads);
             }finally{
                 sampleRunning.set(false);
                 sampler.interrupt();
@@ -161,7 +167,8 @@ public final class DncnnTilingQaTest {
             Debug.getMemoryInfo(afterMemory);
             int threadsAfter=linuxThreads();
             long nativeBytesAfter=Debug.getNativeHeapAllocatedSize();
-            String measurements="syntheticRGB480x480 tiles="+result.stats.tiles+
+            String measurements="syntheticRGB480x480 qaCpuThreads="+cpuThreads+
+                " tiles="+result.stats.tiles+
                 " inferMs="+result.stats.inferenceMs+" pipelineMs="+result.stats.totalMs+
                 " elapsedMs="+elapsed+" pssBeforeKB="+beforeMemory.getTotalPss()+
                 " pssAfterKB="+afterMemory.getTotalPss()+

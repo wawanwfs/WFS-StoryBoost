@@ -37,7 +37,7 @@ jobs:
       - name: Fetch verified Qualcomm DnCNN model
         run: bash scripts/fetch-dncnn-model.sh
       - name: Build debug APK
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon :app:assembleDebug :qa-provider:assembleDebug
       - name: Verify debug APK signature, manifest, launcher and ZIP
         shell: bash
         run: |
@@ -141,31 +141,31 @@ jobs:
             adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity
             sleep 4
             adb shell pidof com.wfs.storyboost.studio
-            adb shell screencap -p /sdcard/storyboost-home.png
-            adb pull /sdcard/storyboost-home.png storyboost-home.png
+            adb exec-out screencap -p > storyboost-home.png
+            test -s storyboost-home.png
             # Bottom tabs at x=160 (Editor), x=267 (Hasil) on the 320x640 emulator.
             adb shell am force-stop com.wfs.storyboost.studio
             adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity --ez qa_demo true
             sleep 6
             adb shell pidof com.wfs.storyboost.studio
             adb shell dumpsys activity activities | grep -q 'StudioEditorActivity'
-            adb shell screencap -p /sdcard/storyboost-editor.png
-            adb pull /sdcard/storyboost-editor.png storyboost-editor.png
+            adb exec-out screencap -p > storyboost-editor.png
+            test -s storyboost-editor.png
             adb shell am force-stop com.wfs.storyboost.studio
             adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity --ez qa_merge true
             sleep 3
             adb shell pidof com.wfs.storyboost.studio
             adb shell dumpsys activity activities | grep -q 'StudioMergeActivity'
-            adb shell screencap -p /sdcard/storyboost-merge.png
-            adb pull /sdcard/storyboost-merge.png storyboost-merge.png
+            adb exec-out screencap -p > storyboost-merge.png
+            test -s storyboost-merge.png
             # Exercise bundled ML models on offline-generated demo and verify UI stays alive.
             adb shell am force-stop com.wfs.storyboost.studio
             adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity --ez qa_ai_demo true
             sleep 12
             adb shell pidof com.wfs.storyboost.studio
             adb shell dumpsys activity activities | grep -q 'StudioEditorActivity'
-            adb shell screencap -p /sdcard/storyboost-ai-photo.png
-            adb pull /sdcard/storyboost-ai-photo.png storyboost-ai-photo.png
+            adb exec-out screencap -p > storyboost-ai-photo.png
+            test -s storyboost-ai-photo.png
             # Script is one command: emulator runner executes script lines separately.
             bash scripts/qa-emulator-photo.sh
             bash scripts/qa-emulator-screen-sizes.sh
@@ -231,7 +231,17 @@ jobs:
             # A distinct acceptance pass keeps Photos installed/enabled; it
             # verifies DocumentsUI coexistence, NOT Photo-provider URI grants.
             WFS_PHOTOS_ENABLED=1 bash scripts/qa-process-death-saf.sh
+            # Keep neural memory evidence independent of provider picker flakes.
             bash scripts/qa-dncnn-memory.sh
+            bash scripts/qa-dncnn-thread-matrix.sh
+            bash scripts/qa-external-provider.sh
+      - name: Publish independent provider acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WFS-StoryBoost-beta5-External-Provider-API${{ matrix.api }}
+          path: qa-provider-results/
+          if-no-files-found: warn
       - name: Publish abrupt-autosave process-death proof
         if: always()
         uses: actions/upload-artifact@v4
@@ -254,6 +264,13 @@ jobs:
         with:
           name: WFS-StoryBoost-beta4-DnCNN-Memory-API${{ matrix.api }}
           path: qa-memory/
+          if-no-files-found: warn
+      - name: Upload API-specific cold-process CPU threading matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WFS-StoryBoost-beta5-DnCNN-Thread-Matrix-API${{ matrix.api }}
+          path: qa-thread-matrix/
           if-no-files-found: warn
       - name: Publish Android instrumentation reports
         if: always()

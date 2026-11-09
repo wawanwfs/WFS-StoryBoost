@@ -6,4 +6,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = 'WFSStoryBoost'
-include ':app'
+include ':app', ':qa-provider'

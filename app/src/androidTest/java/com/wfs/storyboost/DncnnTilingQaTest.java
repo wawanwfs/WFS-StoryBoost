@@ -74,6 +74,12 @@ public final class DncnnTilingQaTest {
                 Runtime.getRuntime().availableProcessors())):
                 Integer.parseInt(configured);
         assertTrue(cpuThreads>=1&&cpuThreads<=3);
+        String xnnpackArg=InstrumentationRegistry.getArguments()
+                .getString("wfs.ai.xnnpack","default");
+        assertTrue("Unknown XNNPACK QA mode: "+xnnpackArg,
+                "default".equals(xnnpackArg)||"on".equals(xnnpackArg)||"off".equals(xnnpackArg));
+        Boolean xnnpackOverride="default".equals(xnnpackArg)?null:
+                Boolean.valueOf("on".equals(xnnpackArg));
         Bitmap processed=null;
         try {
             Debug.MemoryInfo beforeMemory=new Debug.MemoryInfo();
@@ -115,7 +121,11 @@ public final class DncnnTilingQaTest {
             long start=android.os.SystemClock.elapsedRealtime();
             AiDenoiseEngine.Result result;
             try {
-                result=AiDenoiseEngine.process(context,input,cpuThreads);
+                // "default" now exercises the actual consumer entrypoint;
+                // explicit "on" reproduces legacy pre-beta6 memory behavior.
+                result=xnnpackOverride==null
+                        ?AiDenoiseEngine.process(context,input,cpuThreads)
+                        :AiDenoiseEngine.process(context,input,cpuThreads,xnnpackOverride);
             }finally{
                 sampleRunning.set(false);
                 sampler.interrupt();
@@ -154,6 +164,10 @@ public final class DncnnTilingQaTest {
             assertTrue(Double.isFinite(afterSsim));
             assertEquals("Bounded luminance correction must keep RGB channel differences",
                     0,chromaChanged);
+            // Prior validated paired synthetic reference ~28.80dB / .745 SSIM.
+            // Explicit backend toggles must not reduce perceptual quality in QA.
+            assertTrue("Backend degraded paired PSNR: "+afterPsnr,afterPsnr>=28.55);
+            assertTrue("Backend degraded paired SSIM: "+afterSsim,afterSsim>=0.730);
             // Tile 0 starts at x=0, tile 1 at x=224. Check that edges of the
             // 32px overlap are not sharp seams on a smooth paired gradient.
             double seamLeft=boundaryDifference(out,224);
@@ -168,6 +182,7 @@ public final class DncnnTilingQaTest {
             int threadsAfter=linuxThreads();
             long nativeBytesAfter=Debug.getNativeHeapAllocatedSize();
             String measurements="syntheticRGB480x480 qaCpuThreads="+cpuThreads+
+                " qaXnnpack="+xnnpackArg+
                 " tiles="+result.stats.tiles+
                 " inferMs="+result.stats.inferenceMs+" pipelineMs="+result.stats.totalMs+
                 " elapsedMs="+elapsed+" pssBeforeKB="+beforeMemory.getTotalPss()+
@@ -183,6 +198,7 @@ public final class DncnnTilingQaTest {
                 " memAfter{"+memoryDetail(afterMemory)+"}"+
                 " psnr="+beforePsnr+"->"+afterPsnr+
                 " ssim="+beforeSsim+"->"+afterSsim+
+                " pairedPsnr="+afterPsnr+" pairedSsim="+afterSsim+
                 " seam224="+seamLeft+" seam256="+seamRight;
             Log.i(TAG,measurements);
             System.out.println("DN CNN TILE QA "+measurements);

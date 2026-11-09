@@ -16,6 +16,18 @@ cleanup() {
     adb exec-out screencap -p > qa-picker-failure.png 2>/dev/null || true
     adb shell uiautomator dump /sdcard/qa-picker-failure.xml >/dev/null 2>&1 || true
     adb pull /sdcard/qa-picker-failure.xml qa-picker-failure.xml >/dev/null 2>&1 || true
+    echo "Picker failure: current Android activities" >&2
+    adb shell dumpsys activity activities 2>/dev/null |
+      grep -Ei 'topResumed|mResumed|documentsui|photopicker|storyboost|Recent' |
+      tail -n 35 || true
+    echo "Picker failure: focused window" >&2
+    adb shell dumpsys window 2>/dev/null |
+      grep -Ei 'mCurrentFocus|mFocusedApp' | tail -n 8 || true
+    if [[ -s qa-picker-failure.xml ]];then
+      echo "Picker failure: initial XML accessibility hierarchy" >&2
+      head -c 5500 qa-picker-failure.xml >&2
+      echo >&2
+    fi
   fi
   if [[ "$PHOTOS_DISABLED" == "1" ]]; then
     adb shell pm enable --user 0 com.google.android.apps.photos >/dev/null 2>&1 || true

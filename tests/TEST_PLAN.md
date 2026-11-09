@@ -1,3 +1,12 @@
+## Beta6 acceptance ledger — P0 strict
+
+- [x] Beta5: 4/4 green CI on final beta5 commit 7217cde9e66537a6ec5493198d22bb2217458144, including independent-UID QA provider owner revoke/delete/disable/reimport, real native DocumentsUI, two PIDs and unchanged source bytes.
+- [x] Controlled beta6 initial comparison: XNNPACK default/on/off 2 new Android29 and Android35 processes per setting, unmodified pinned model, real PSS and PSNR/SSIM evidence at run 42660914940.
+- [ ] **After candidate production switch**: default/off must produce lower mean live PSS than legacy on by at least 35%, still improve PSNR and SSIM without chroma changes or visible tile seam on both APIs. Two independent PIDs per setting required. Device physical certification remains separate.
+- [ ] Test early no-allocation denial on Android lowRamDevice, lowMemory or <512MiB available; preserve originals, no silent downsample and explicit user error.
+- [ ] Media3 actual delayed cancellation with 12-second synthetic H264/AAC after observed progress >0%; prove no success callback, cache MP4 leak, altered MediaStore source. Existing immediate cancellation, split, merge, audio/silent PTS, rotated dimension tests remain mandatory.
+- [ ] Android35 cold-start DocumentsUI timing regression: assert actual system package, retry only from app Home, capture focus activity and UI hierarchy if failed. Provider QA artifact must not appear in consumer APK manifest.
+- [ ] Run exact final-head CI with 4/4 green, and then only merge; do not infer physical ARM64, Google Photos-owned URI, stable-signing or portrait quality from emulators.
 ## Beta5 QA hard gates (candidate)
 
 - [ ] Independent-UID QA-only DocumentsProvider APK and real Android DocumentsUI picker on API29/35.

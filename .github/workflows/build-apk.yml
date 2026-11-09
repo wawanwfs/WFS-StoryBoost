@@ -53,6 +53,14 @@ jobs:
             grep -q "package: name='com.wfs.storyboost.studio'" "$RUNNER_TEMP/apk-badging-$ABI.txt"
             grep -q "application-label:'WFS StoryBoost'" "$RUNNER_TEMP/apk-badging-$ABI.txt"
             grep -q "com.wfs.storyboost.StudioHomeActivity" "$RUNNER_TEMP/apk-badging-$ABI.txt"
+            # The independent synthetic provider belongs ONLY in its QA APK.
+            # Never accidentally package its exported test-only control receiver
+            # or MANAGE_DOCUMENTS provider into the consumer app.
+            "$TOOLS/aapt" dump xmltree "$APK" AndroidManifest.xml > "$RUNNER_TEMP/apk-manifest-$ABI.txt"
+            if grep -Fq 'com.wfs.storyboost.qaprovider' "$RUNNER_TEMP/apk-manifest-$ABI.txt"; then
+              echo "SECURITY: independent QA DocumentsProvider leaked into consumer APK" >&2
+              exit 1
+            fi
             unzip -Z1 "$APK" | grep -q '^res/mipmap-anydpi-v26/ic_launcher'
             unzip -Z1 "$APK" | grep -q '^assets/models/dncnn_25[.]tflite$'
             echo "- $ABI APK validated: $(du -h "$APK" | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
@@ -234,7 +242,15 @@ jobs:
             # Keep neural memory evidence independent of provider picker flakes.
             bash scripts/qa-dncnn-memory.sh
             bash scripts/qa-dncnn-thread-matrix.sh
+            bash scripts/qa-dncnn-backend-matrix.sh
             bash scripts/qa-external-provider.sh
+      - name: Upload beta6 XNNPACK backend-isolation memory comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WFS-StoryBoost-beta6-DnCNN-Backend-API${{ matrix.api }}
+          path: qa-backend-matrix/
+          if-no-files-found: warn
       - name: Publish independent provider acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4

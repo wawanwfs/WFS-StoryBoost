@@ -1,6 +1,17 @@
 # WFS StoryBoost — Creative Editing Studio v3.0.0-beta3
 
-## Beta5 QA candidate — third-party provider, memory and MP4 PTS
+## Beta6 memory-first candidate — requires final-head CI
+
+Verified beta5 PR #6 merged to main as ad2d778f94442cfe4b7de26283e8e11236d2e80d after both [4/4 green beta5 CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42543978698) and prior native DocumentsUI, separate-UID provider, revoke/disabled/reimport acceptance on Android 10/15 x86_64 emulators.
+
+**Major beta6 diagnostic:** Six cold-process DnCNN TFLite tests per API (two each default/on/off) held the pinned model and RGB 480x480 four-tile input constant. API29 mean transient sampled PSS: old default 410484 KB, explicit XNNPACK off 106486 KB, on 415547 KB. API35: old default 406280 KB, off 95948 KB, on 406230 KB. Paired PSNR stayed ~28.80142 dB and SSIM ~0.74544; XNNPACK-off inference was ~1 second slower. Source: [beta6 initial 4/4 green diagnostic workflow](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42660914940). These are x86_64 emulator time-sampled PSS readings, not real ARM64 physical-device peak RSS.
+
+The beta6 QA branch explicitly disables the high-memory XNNPACK CPU backend in the **consumer entrypoint** and adds cross-backend paired-quality/memory gates; previous weights and full-resolution pixels are unchanged. A conservative system-pressure/low-RAM 512 MiB headroom check denies risky neural inference *without modifying original photos*. The new delayed Media3 cancellation test uses a real 12-second H264/AAC synthetic clip and asserts no callback/cache leak or source-byte modification.
+
+The Android 35 post-merge main workflow revealed an intermittent real DocumentsUI cold-launch picker timing failure; beta6 retries only when the consumer app is still foreground, with detailed window/UI diagnostics on failure. The standalone provider is QA-only and CI rejects its authority if bundled into consumer APK. None of the new changes are accepted until 4/4 final-head CI passes.
+
+Still **unverified:** physical Android10/15 ARM64 RAM/thermal, owner-selected Google Photos-owned URI, rights-cleared real-person face/hair portrait benchmarks, two independently owner-signed release upgrades, and comprehensive CapCut-level UX. WA/IG/TikTok can recompress uploads. Roadmap remains 23/32 = 71.875%; new QA gates do not increment modules.
+## Beta5 historical QA — accepted after 4/4 green CI
 
 Beta4 has been successfully merged as commit c6122bd532162508b7b60d62b5e740915fe86584 after 4/4 CI green (https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42538280137). Real still-resumed Editor force-stop and native DocumentsUI grant recovery passed on Android 29/35 emulators.
 

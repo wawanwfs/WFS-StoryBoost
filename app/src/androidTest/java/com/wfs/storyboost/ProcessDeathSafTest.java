@@ -257,6 +257,28 @@ public class ProcessDeathSafTest {
         }
         return false;
     }
+    /**
+     * Do not rely on one fixed accessibility tree or first-launch timing.
+     * A true DocumentsUI owner package must be foreground, not an Intent stub.
+     */
+    private boolean awaitNativeDocumentsUi(UiDevice device,long timeoutMs) {
+        long end=SystemClock.uptimeMillis()+timeoutMs;
+        while(SystemClock.uptimeMillis()<end){
+            try{
+                String pkg=device.getCurrentPackageName();
+                if("com.google.android.documentsui".equals(pkg)||
+                        "com.android.documentsui".equals(pkg)||
+                        device.hasObject(By.pkg("com.google.android.documentsui"))||
+                        device.hasObject(By.pkg("com.android.documentsui")))
+                    return true;
+            }catch(androidx.test.uiautomator.StaleObjectException ignored){
+                // System file UI is still rebuilding its accessibility tree.
+            }
+            SystemClock.sleep(250);
+        }
+        return false;
+    }
+
     @Test public void stageRealDocumentsUiImportAndDraft() throws Exception {
         phase("stage");
         String file=PREFIX+System.nanoTime()+".jpg";
@@ -265,10 +287,18 @@ public class ProcessDeathSafTest {
         UiDevice device=UiDevice.getInstance(inst);
         try(ActivityScenario<StudioHomeActivity> home=ActivityScenario.launch(StudioHomeActivity.class)){
             home.onActivity(a->tap(a,"Photo Editor",false));
-            assertTrue("Actual picker UI did not open",
-                    device.wait(Until.hasObject(By.pkg("com.google.android.documentsui")),5000)
-                    ||device.wait(Until.hasObject(By.pkg("com.android.documentsui")),5000)
-                    ||device.wait(Until.hasObject(By.text("Recent")),5000));
+            boolean realPicker=awaitNativeDocumentsUi(device,20000);
+            // On cold Android emulator boot the first click occasionally
+            // returns to Home before the system document activity launches.
+            // Retry only if OUR app is still foreground: never double-select
+            // an existing system picker or substitute a mocked result.
+            if(!realPicker&&app().getPackageName().equals(device.getCurrentPackageName())){
+                home.onActivity(a->tap(a,"Photo Editor",false));
+                realPicker=awaitNativeDocumentsUi(device,15000);
+            }
+            assertTrue("Actual DocumentsUI did not open. Foreground package="+
+                    device.getCurrentPackageName()+"; UI="+pickerDiagnostics(device),
+                    realPicker);
             UiObject2 target=locateDownload(device,file);
             assertNotNull("Synthetic JPEG not visible in real DocumentsUI",target);
             assertTrue("DocumentsUI document row could not be selected: "+

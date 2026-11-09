@@ -1,6 +1,7 @@
 package com.wfs.storyboost;
 
 import android.content.Context;
+import android.app.ActivityManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 
@@ -28,6 +29,10 @@ public final class AiDenoiseEngine {
     private static final int MAX_TILES=120;
     private static final long MAX_PIXELS=2_600_000L;
     private static final String MODEL="models/dncnn_25.tflite";
+    // Conservative fail-closed headroom for the ~400MB transient TFLite
+    // native PSS observed in x86_64 Android29/35 QA (not ARM64 proof).
+    // This check cannot reserve RAM and is not a physical low-RAM certification.
+    static final long MIN_AVAILABLE_HEADROOM_BYTES=512L*1024L*1024L;
     private AiDenoiseEngine(){}
 
     public static final class Stats{
@@ -89,6 +94,28 @@ public final class AiDenoiseEngine {
         // Blends 32-pixel overlap across neighboring neural tiles.
         return .05f+.95f*Math.min(1f,Math.min(p,TILE-1-p)/30f);
     }
+    /**
+     * Prevents starting a large temporary native inference allocation while
+     * Android reports overall system memory pressure. No silent downsampling.
+     * Pure inputs make denial behavior unit/instrumentation testable.
+     */
+    static boolean hasSafeMemoryBudget(boolean isLowRamDevice,boolean systemUnderPressure,
+                                       long availableBytes){
+        return !isLowRamDevice&&!systemUnderPressure&&
+                availableBytes>=MIN_AVAILABLE_HEADROOM_BYTES;
+    }
+    private static void checkMemoryBudget(Context context)throws IOException {
+        ActivityManager manager=(ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
+        if(manager==null)throw new IOException("Tidak bisa memeriksa RAM untuk AI Denoise");
+        ActivityManager.MemoryInfo memory=new ActivityManager.MemoryInfo();
+        manager.getMemoryInfo(memory);
+        if(!hasSafeMemoryBudget(manager.isLowRamDevice(),memory.lowMemory,memory.availMem)){
+            throw new IOException("AI Denoise membutuhkan ruang RAM kosong minimal 512 MiB " +
+                "dan perangkat tanpa status low-RAM. Foto asli tetap aman; " +
+                "tutup aplikasi lain atau coba di perangkat dengan RAM lebih besar.");
+        }
+    }
+
     private static int[] starts(int length){
         if(length<=TILE)return new int[]{0};
         int count=1+(length-TILE+STEP-1)/STEP;
@@ -106,6 +133,19 @@ public final class AiDenoiseEngine {
      * Normal user flow still uses the original automatic 1..3 thread policy.
      */
     static Result process(Context context,Bitmap source,int cpuThreads)throws IOException {
+        // Beta6 measured 4x lower PSS on API29 and API35 when XNNPACK was
+        // disabled, with effectively identical pinned DnCNN pixel quality.
+        // Slower CPU inference is preferable to transient native OOM/LMK.
+        return process(context,source,cpuThreads,Boolean.FALSE);
+    }
+
+    /**
+     * Explicit XNNPACK override is for controlled QA comparisons. null
+     * reproduces pre-beta6 implicit TFLite interpreter defaults (XNNPACK on).
+     * Consumer entrypoints always pass false and keep the same exact model.
+     * NEVER add a secret quality reduction or image downsampling here.
+     */
+    static Result process(Context context,Bitmap source,int cpuThreads,Boolean xnnpack)throws IOException {
         if(cpuThreads<1||cpuThreads>3)
             throw new IllegalArgumentException("DnCNN CPU threads must be 1..3");
         if(source==null||source.isRecycled())throw new IOException("Foto AI tidak tersedia");
@@ -116,6 +156,9 @@ public final class AiDenoiseEngine {
         int[] xs=starts(width),ys=starts(height);
         int tiles=xs.length*ys.length;
         if(tiles>MAX_TILES)throw new IOException("Jumlah tile AI melebihi kapasitas HP");
+        // Check memory *before* source.getPixels, direct model buffers or
+        // native TFLite tensor allocation. Never mutate the original bitmap.
+        checkMemoryBudget(context);
         long startTime=android.os.SystemClock.elapsedRealtime(),inference=0;
         try{
             int[] src=new int[(int)pixels];
@@ -124,6 +167,7 @@ public final class AiDenoiseEngine {
             ByteBuffer model=loadModel(context);
             Interpreter.Options opts=new Interpreter.Options();
             opts.setNumThreads(cpuThreads);
+            if(xnnpack!=null)opts.setUseXNNPACK(xnnpack.booleanValue());
             try(Interpreter tf=new Interpreter(model,opts)){
                 validate(tf);
                 tf.allocateTensors();

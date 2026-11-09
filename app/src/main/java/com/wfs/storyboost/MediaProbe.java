@@ -70,6 +70,9 @@ public final class MediaProbe {
                 boolean audio=mime!=null&&mime.startsWith("audio/");
                 if(!video&&!audio)continue;
                 extractor.selectTrack(i);
+                // MediaExtractor's cursor may remain at EOF after scanning a
+                // different track. Explicitly seek back before each track.
+                extractor.seekTo(0,MediaExtractor.SEEK_TO_CLOSEST_SYNC);
                 for(int samples=0;samples<150000;samples++){
                     long pts=extractor.getSampleTime();
                     if(pts<0)break;

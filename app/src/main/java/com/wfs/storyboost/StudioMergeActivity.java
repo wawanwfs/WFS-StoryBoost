@@ -46,6 +46,8 @@ public final class StudioMergeActivity extends Activity {
     private TextView count,info;
     private int quality=OutputProfile.FULL_HD,selected=-1;
     private boolean working,destroyed;
+    private java.util.concurrent.atomic.AtomicBoolean mergeStop=
+            new java.util.concurrent.atomic.AtomicBoolean(false);
     private ProgressBar progress;
     private AlertDialog dialog;
     private Uri lastSaved;
@@ -237,6 +239,8 @@ public final class StudioMergeActivity extends Activity {
         if(working)return;
         if(clips.isEmpty()){toast("Tambahkan video terlebih dahulu.");return;}
         working=true;
+        mergeStop=new java.util.concurrent.atomic.AtomicBoolean(false);
+        final java.util.concurrent.atomic.AtomicBoolean token=mergeStop;
         engine=new VideoMergeEngine();
         LinearLayout progressCard=StudioUi.card(this,17);
         progressCard.addView(txt("Sedang menggabungkan "+clips.size()+" klip",17,StudioUi.TEXT,true));
@@ -250,17 +254,28 @@ public final class StudioMergeActivity extends Activity {
         try{
             engine.start(this,new ArrayList<>(clips),quality,new VideoMergeEngine.Listener(){
                 @Override public void onCompleted(java.io.File file){
+                    if(token.get())return;
                     thumbs.execute(()->{
                         try{
+                            if(token.get())return;
                             Uri saved=MediaSaver.saveVideo(StudioMergeActivity.this,file,
-                                    "WFS_JOIN_"+System.currentTimeMillis()+".mp4");
+                                    "WFS_JOIN_"+System.currentTimeMillis()+".mp4",token::get);
                             runOnUiThread(()->{
+                                if(token.get()||destroyed){
+                                    getContentResolver().delete(saved,null,null);
+                                    return;
+                                }
                                 lastSaved=saved;engine.clean();finishMerge(null);
                             });
-                        }catch(Exception ex){runOnUiThread(()->finishMerge(ex.getMessage()));}
+                        }catch(Exception ex){
+                            if(!token.get())
+                                runOnUiThread(()->finishMerge(ex.getMessage()));
+                        }
                     });
                 }
-                @Override public void onFailure(String message){finishMerge(message);}
+                @Override public void onFailure(String message){
+                    if(!token.get())finishMerge(message);
+                }
             });
             main.post(new Runnable(){
                 @Override public void run(){
@@ -272,6 +287,7 @@ public final class StudioMergeActivity extends Activity {
         }catch(Exception e){finishMerge(e.getMessage());}
     }
     private void cancelMerge(){
+        mergeStop.set(true);
         if(engine!=null)engine.cancel();
         finishMerge("Penggabungan dibatalkan.");
     }
@@ -295,7 +311,7 @@ public final class StudioMergeActivity extends Activity {
     private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     @Override protected void onPause(){super.onPause();if(preview!=null)preview.pause();}
     @Override protected void onDestroy(){
-        destroyed=true;main.removeCallbacksAndMessages(null);
+        destroyed=true;mergeStop.set(true);main.removeCallbacksAndMessages(null);
         if(engine!=null&&working)engine.cancel();
         thumbs.shutdownNow();
         if(preview!=null)preview.stopPlayback();

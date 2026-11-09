@@ -27,8 +27,17 @@ adb install -r qa-provider/build/outputs/apk/debug/qa-provider-debug.apk
 adb install -r app/build/outputs/apk/debug/app-universal-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell pm enable --user 0 "$PROVIDER" >/dev/null 2>&1 || true
-consumer_uid="$(adb shell dumpsys package "$APP" | sed -n 's/.*userId=\([0-9][0-9]*\).*/\1/p' | head -1)"
-provider_uid="$(adb shell dumpsys package "$PROVIDER" | sed -n 's/.*userId=\([0-9][0-9]*\).*/\1/p' | head -1)"
+# PackageManager user IDs from public shell output, not queryPackageVisibility
+# inside the consumer app. Use exact package match to avoid .test suffix.
+adb shell pm list packages -U "$APP" | tr -d '\r' > qa-provider-results/consumer-package-uid.txt
+adb shell pm list packages -U "$PROVIDER" | tr -d '\r' > qa-provider-results/provider-package-uid.txt
+extract_uid(){
+  awk -v p="package:$1" '$1==p {
+    for(i=2;i<=NF;i++)if($i ~ /^uid:/){sub(/^uid:/,"",$i);print $i;exit}
+  }' "$2"
+}
+consumer_uid="$(extract_uid "$APP" qa-provider-results/consumer-package-uid.txt)"
+provider_uid="$(extract_uid "$PROVIDER" qa-provider-results/provider-package-uid.txt)"
 if [[ -z "$consumer_uid" || -z "$provider_uid" || "$consumer_uid" == "$provider_uid" ]];then
   echo "Provider isolation failed: consumer UID $consumer_uid, source UID $provider_uid" >&2
   exit 1

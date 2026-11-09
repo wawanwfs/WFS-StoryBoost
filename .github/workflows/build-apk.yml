@@ -141,31 +141,31 @@ jobs:
             adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity
             sleep 4
             adb shell pidof com.wfs.storyboost.studio
-            adb shell screencap -p /sdcard/storyboost-home.png
-            adb pull /sdcard/storyboost-home.png storyboost-home.png
+            adb exec-out screencap -p > storyboost-home.png
+            test -s storyboost-home.png
             # Bottom tabs at x=160 (Editor), x=267 (Hasil) on the 320x640 emulator.
             adb shell am force-stop com.wfs.storyboost.studio
             adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity --ez qa_demo true
             sleep 6
             adb shell pidof com.wfs.storyboost.studio
             adb shell dumpsys activity activities | grep -q 'StudioEditorActivity'
-            adb shell screencap -p /sdcard/storyboost-editor.png
-            adb pull /sdcard/storyboost-editor.png storyboost-editor.png
+            adb exec-out screencap -p > storyboost-editor.png
+            test -s storyboost-editor.png
             adb shell am force-stop com.wfs.storyboost.studio
             adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity --ez qa_merge true
             sleep 3
             adb shell pidof com.wfs.storyboost.studio
             adb shell dumpsys activity activities | grep -q 'StudioMergeActivity'
-            adb shell screencap -p /sdcard/storyboost-merge.png
-            adb pull /sdcard/storyboost-merge.png storyboost-merge.png
+            adb exec-out screencap -p > storyboost-merge.png
+            test -s storyboost-merge.png
             # Exercise bundled ML models on offline-generated demo and verify UI stays alive.
             adb shell am force-stop com.wfs.storyboost.studio
             adb shell am start -W -n com.wfs.storyboost.studio/com.wfs.storyboost.StudioHomeActivity --ez qa_ai_demo true
             sleep 12
             adb shell pidof com.wfs.storyboost.studio
             adb shell dumpsys activity activities | grep -q 'StudioEditorActivity'
-            adb shell screencap -p /sdcard/storyboost-ai-photo.png
-            adb pull /sdcard/storyboost-ai-photo.png storyboost-ai-photo.png
+            adb exec-out screencap -p > storyboost-ai-photo.png
+            test -s storyboost-ai-photo.png
             # Script is one command: emulator runner executes script lines separately.
             bash scripts/qa-emulator-photo.sh
             bash scripts/qa-emulator-screen-sizes.sh

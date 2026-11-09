@@ -98,6 +98,16 @@ public final class AiDenoiseEngine {
     }
 
     public static Result process(Context context,Bitmap source)throws IOException {
+        return process(context,source,Math.max(1,Math.min(3,
+                Runtime.getRuntime().availableProcessors())));
+    }
+
+    /** Exact CPU thread-count override for controlled QA comparisons.
+     * Normal user flow still uses the original automatic 1..3 thread policy.
+     */
+    static Result process(Context context,Bitmap source,int cpuThreads)throws IOException {
+        if(cpuThreads<1||cpuThreads>3)
+            throw new IllegalArgumentException("DnCNN CPU threads must be 1..3");
         if(source==null||source.isRecycled())throw new IOException("Foto AI tidak tersedia");
         int width=source.getWidth(),height=source.getHeight();
         long pixels=(long)width*height;
@@ -113,7 +123,7 @@ public final class AiDenoiseEngine {
             float[] sum=new float[(int)pixels],weight=new float[(int)pixels];
             ByteBuffer model=loadModel(context);
             Interpreter.Options opts=new Interpreter.Options();
-            opts.setNumThreads(Math.max(1,Math.min(3,Runtime.getRuntime().availableProcessors())));
+            opts.setNumThreads(cpuThreads);
             try(Interpreter tf=new Interpreter(model,opts)){
                 validate(tf);
                 tf.allocateTensors();

@@ -1,6 +1,14 @@
 # WFS StoryBoost — Creative Editing Studio v3.0.0-beta3
 
-## Beta4 QA candidate — acceptance pending
+## Beta5 QA candidate — third-party provider, memory and MP4 PTS
+
+Beta4 has been successfully merged as commit c6122bd532162508b7b60d62b5e740915fe86584 after 4/4 CI green (https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42538280137). Real still-resumed Editor force-stop and native DocumentsUI grant recovery passed on Android 29/35 emulators.
+
+New beta5 draft PR #6: a separately installed QA DocumentsProvider APK with an independent UID and synthetic original JPEG. Its external test runner exercises real ACTION_OPEN_DOCUMENT, read-grant persistence, force-stop, provider-owner revoke, deleted/disabled sources and explicit reimport. Another suite repeats pinned DnCNN TFLite inference using 1/2/3 CPU threads in separate cold Android processes with genuine paired PSNR/SSIM and in-process transient PSS. Video tests now inspect actual compressed-sample timestamps and the reversed mixed audio/silent merge order. All changes remain QA candidates until final-head CI passes.
+
+Beta4 showed transient sampled PSS near 400 MB on BOTH API29 and API35; API35 post-run PSS was much smaller, so post-run memory alone is misleading. Neither physical low-RAM phones, Google Photos-owned URI access, consented real portraits, stable owner signing nor full CapCut parity are proven. Roadmap remains 23/32=71.875%. WhatsApp/Instagram may recompress.
+
+## Beta4 historical QA (merged after all-green CI)
 
 The QA branch now persists completed editing actions synchronously rather than depending on an 800 ms queued autosave. A real Editor is killed externally by adb **while still RESUMED** (before onPause), and another process restores its Recent source, options and decoded export. Local process-death fixture now uses an app-private JPEG, avoiding Android 10 MediaStore permission ambiguity. A separate real Android DocumentsUI test continues to verify persisted grants.
 

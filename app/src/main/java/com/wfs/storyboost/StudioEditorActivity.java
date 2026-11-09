@@ -58,7 +58,8 @@ public final class StudioEditorActivity extends Activity {
     private long durationMs=0,trimStartMs=0,trimEndMs=0,splitMs=-1;
     private int ratio=0,preset=1,framing=AspectRatioProfile.FIT,quality=OutputProfile.MAX_DETAIL;
     private float focusX=.5f,focusY=.5f;
-    private int completed,failed;
+    private int completed,failed,downgradedVideoExports;
+    private String lastEncodedVideoCanvas="";
     private boolean dualOutput=false;
     private int socialProfile=SocialExportProfile.CUSTOM;
     private int customWidth=1080,customHeight=1920;
@@ -1078,7 +1079,8 @@ public final class StudioEditorActivity extends Activity {
         startExport();
     }
     private void startExport(){
-        exports.clear();exportCancelled=false;exportBusy=true;completed=0;failed=0;
+        exports.clear();exportCancelled=false;exportBusy=true;
+        completed=0;failed=0;downgradedVideoExports=0;lastEncodedVideoCanvas="";
         ExportOptions current;
         try{current=options();}
         catch(Exception ex){exportBusy=false;toast(ex.getMessage());return;}
@@ -1137,8 +1139,14 @@ public final class StudioEditorActivity extends Activity {
             });
         }else{
             activeVideoEngine=new VideoEngine();
+            // Media3 can downgrade a failed FHD encode to HD; record the
+            // actually requested dimensions so success cannot masquerade
+            // as a completed 1080p export in the user-facing result dialog.
+            final java.util.concurrent.atomic.AtomicReference<AspectRatioProfile.Size>
+                    requestedVideoCanvas=new java.util.concurrent.atomic.AtomicReference<>();
             try{
-                activeVideoEngine.start(this,mediaUri,job.options,new VideoEngine.Listener(){
+                requestedVideoCanvas.set(activeVideoEngine.start(this,mediaUri,
+                        job.options,new VideoEngine.Listener(){
                     @Override public void onSuccess(File source,AspectRatioProfile.Size dims){
                         io.execute(()->{
                             try{
@@ -1146,6 +1154,12 @@ public final class StudioEditorActivity extends Activity {
                                 runOnUiThread(()->{
                                     if(destroyed)return;
                                     lastExport=saved;completed++;
+                                    lastEncodedVideoCanvas=dims.width+"×"+dims.height;
+                                    AspectRatioProfile.Size requested=requestedVideoCanvas.get();
+                                    if(requested!=null &&
+                                            (requested.width!=dims.width||
+                                             requested.height!=dims.height))
+                                        downgradedVideoExports++;
                                     if(activeVideoEngine!=null)activeVideoEngine.cleanup();
                                     runNextExport();
                                 });
@@ -1153,7 +1167,7 @@ public final class StudioEditorActivity extends Activity {
                         });
                     }
                     @Override public void onError(String message){failExport(message);}
-                });
+                }));
                 handler.post(new Runnable(){
                     @Override public void run(){
                         if(destroyed||!exportBusy||activeVideoEngine==null)return;
@@ -1185,7 +1199,13 @@ public final class StudioEditorActivity extends Activity {
         new AlertDialog.Builder(this)
                 .setTitle(completed>0?"Ekspor selesai":"Ekspor gagal")
                 .setMessage(completed+" berhasil • "+failed+" gagal.\n"+
-                        (completed>0?"Media telah disimpan ke Galeri/WFS StoryBoost.":"Coba format lain atau mode HD."))
+                        (completed>0?"Media telah disimpan ke Galeri/WFS StoryBoost.":"Coba format lain atau mode HD.")+
+                        (lastEncodedVideoCanvas.isEmpty()?"":"\nResolusi video tersimpan: "+lastEncodedVideoCanvas)+
+                        (downgradedVideoExports>0?"\nPERINGATAN: "+
+                                downgradedVideoExports+
+                                " ekspor video diturunkan dari resolusi yang dipilih " +
+                                "karena encoder FHD tidak tersedia. " +
+                                "Periksa resolusi aktual sebelum dibagikan.":""))
                 .setPositiveButton("Selesai",null)
                 .setNeutralButton(completed>0?"Bagikan":"Tutup",(dialog,w)->{if(completed>0)shareLast();})
                 .show();

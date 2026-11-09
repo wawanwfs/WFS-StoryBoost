@@ -353,6 +353,75 @@ public class VideoMediaQaTest {
                 " driftMs="+actual.lastPtsDriftMs());
     }
 
+    @Test(timeout=160000)
+    @SdkSuppress(minSdkVersion=35)
+    public void cancelAfterRealMedia3ProgressPreservesOriginalAndCache() throws Exception {
+        // A longer RIGHTS-SAFE actual H264/AAC MP4 forces real async encoding.
+        Uri extended=importFixture("qa-h264-extended.mp4");
+        java.security.MessageDigest digest=java.security.MessageDigest.getInstance("SHA-256");
+        byte[] beforeHash;
+        try(InputStream in=ctx.getContentResolver().openInputStream(extended)){
+            assertNotNull(in);
+            byte[] buffer=new byte[32768];
+            for(int n;(n=in.read(buffer))>=0;){
+                if(n>0)digest.update(buffer,0,n);
+            }
+            beforeHash=digest.digest();
+        }
+        String[] initial=ctx.getCacheDir().list((dir,name)->
+                name.startsWith("storyboost_")&&name.endsWith(".mp4"));
+        java.util.Set<String> previous=new java.util.HashSet<>(java.util.Arrays.asList(
+                initial==null?new String[0]:initial));
+        java.util.concurrent.atomic.AtomicInteger callbacks=
+                new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger encodedProgress=
+                new java.util.concurrent.atomic.AtomicInteger(-1);
+        ExportOptions options=new ExportOptions(ColorLooks.ORIGINAL,
+                AspectRatioProfile.PORTRAIT_9_16,AspectRatioProfile.FIT,true,0,0)
+                .withQuality(OutputProfile.FULL_HD);
+        engine=new VideoEngine();
+        inst.runOnMainSync(()->engine.start(ctx,extended,options,new VideoEngine.Listener(){
+            @Override public void onSuccess(File file,AspectRatioProfile.Size dimensions){
+                callbacks.incrementAndGet();
+                outputFiles.add(file);
+            }
+            @Override public void onError(String error){callbacks.incrementAndGet();}
+        }));
+        long deadline=android.os.SystemClock.uptimeMillis()+65000L;
+        boolean actualProgress=false;
+        while(android.os.SystemClock.uptimeMillis()<deadline&&callbacks.get()==0){
+            inst.runOnMainSync(()->encodedProgress.set(engine.progress()));
+            int pct=encodedProgress.get();
+            if(pct>=1&&pct<100){
+                actualProgress=true;
+                break;
+            }
+            android.os.SystemClock.sleep(125);
+        }
+        assertTrue("Media3 never reported non-zero in-flight encoding progress; "+
+                "no delayed cancellation was proven: "+encodedProgress.get(),actualProgress);
+        inst.runOnMainSync(engine::cancel);
+        android.os.SystemClock.sleep(1600);
+        assertEquals("Cancelled export emitted a success/error callback",0,callbacks.get());
+        String[] after=ctx.getCacheDir().list((dir,name)->
+                name.startsWith("storyboost_")&&name.endsWith(".mp4"));
+        for(String file:after==null?new String[0]:after)
+            assertTrue("In-progress cancellation leaked partial encoded MP4 "+file,
+                    previous.contains(file));
+        digest.reset();
+        try(InputStream in=ctx.getContentResolver().openInputStream(extended)){
+            assertNotNull(in);
+            byte[] buffer=new byte[32768];
+            for(int n;(n=in.read(buffer))>=0;){
+                if(n>0)digest.update(buffer,0,n);
+            }
+        }
+        assertArrayEquals("Cancellation mutated original MediaStore fixture",
+                beforeHash,digest.digest());
+        android.util.Log.i("WfsMediaCancelQA","PASS delayed Media3 cancellation at progress="+
+                encodedProgress.get()+"%, no callback/cache leak, unchanged source bytes");
+    }
+
     @Test(timeout=50000)
     @SdkSuppress(minSdkVersion=35)
     public void cancellationOfRunningEncoderDeletesItsTemporaryOutput() throws Exception {

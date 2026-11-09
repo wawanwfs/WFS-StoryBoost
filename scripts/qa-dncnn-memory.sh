@@ -65,9 +65,15 @@ for attempt in 1 2; do
     tee "qa-memory/dncnn-process-$attempt-summary.txt"
   echo "$report" >> "qa-memory/dncnn-process-$attempt-summary.txt"
   echo "$report"
-  if (( samples_count == 0 )); then
-    echo "ERROR: no live meminfo PSS samples on Android (sampling parser must be fixed)" >&2
+  # The in-process 150ms Debug sampler is the required metric: ADB polling
+  # can miss a short API29 inference entirely. Never report zero as peak PSS.
+  if ! grep -Eq 'liveSamples=[1-9][0-9]* sampledPeakPssKB=[1-9][0-9]*' <<< "$report"; then
+    echo "ERROR: in-process PSS profiler missing or invalid" >&2
     exit 1
+  fi
+  if (( samples_count == 0 )); then
+    echo "NOTE: external ADB sampler missed this short inference; in-process PSS samples recorded" |
+      tee -a "qa-memory/dncnn-process-$attempt-summary.txt"
   fi
 done
 echo "PASS: two DnCNN inference runs in separate process IDs, with memory category snapshots"

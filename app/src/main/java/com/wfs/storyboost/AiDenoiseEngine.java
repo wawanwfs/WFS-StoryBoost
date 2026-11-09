@@ -106,6 +106,15 @@ public final class AiDenoiseEngine {
      * Normal user flow still uses the original automatic 1..3 thread policy.
      */
     static Result process(Context context,Bitmap source,int cpuThreads)throws IOException {
+        return process(context,source,cpuThreads,null);
+    }
+
+    /**
+     * Explicit XNNPACK override exists solely to compare kernel memory under
+     * instrumentation. null preserves the exact pre-beta6 interpreter defaults.
+     * The consumer API never passes an override unless separately validated.
+     */
+    static Result process(Context context,Bitmap source,int cpuThreads,Boolean xnnpack)throws IOException {
         if(cpuThreads<1||cpuThreads>3)
             throw new IllegalArgumentException("DnCNN CPU threads must be 1..3");
         if(source==null||source.isRecycled())throw new IOException("Foto AI tidak tersedia");
@@ -124,6 +133,7 @@ public final class AiDenoiseEngine {
             ByteBuffer model=loadModel(context);
             Interpreter.Options opts=new Interpreter.Options();
             opts.setNumThreads(cpuThreads);
+            if(xnnpack!=null)opts.setUseXNNPACK(xnnpack.booleanValue());
             try(Interpreter tf=new Interpreter(model,opts)){
                 validate(tf);
                 tf.allocateTensors();

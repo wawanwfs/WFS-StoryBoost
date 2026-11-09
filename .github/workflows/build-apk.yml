@@ -234,7 +234,15 @@ jobs:
             # Keep neural memory evidence independent of provider picker flakes.
             bash scripts/qa-dncnn-memory.sh
             bash scripts/qa-dncnn-thread-matrix.sh
+            bash scripts/qa-dncnn-backend-matrix.sh
             bash scripts/qa-external-provider.sh
+      - name: Upload beta6 XNNPACK backend-isolation memory comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WFS-StoryBoost-beta6-DnCNN-Backend-API${{ matrix.api }}
+          path: qa-backend-matrix/
+          if-no-files-found: warn
       - name: Publish independent provider acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4

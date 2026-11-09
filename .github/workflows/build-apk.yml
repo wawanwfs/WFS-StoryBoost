@@ -37,7 +37,7 @@ jobs:
       - name: Fetch verified Qualcomm DnCNN model
         run: bash scripts/fetch-dncnn-model.sh
       - name: Build debug APK
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon :app:assembleDebug :qa-provider:assembleDebug
       - name: Verify debug APK signature, manifest, launcher and ZIP
         shell: bash
         run: |
@@ -231,7 +231,15 @@ jobs:
             # A distinct acceptance pass keeps Photos installed/enabled; it
             # verifies DocumentsUI coexistence, NOT Photo-provider URI grants.
             WFS_PHOTOS_ENABLED=1 bash scripts/qa-process-death-saf.sh
+            bash scripts/qa-external-provider.sh
             bash scripts/qa-dncnn-memory.sh
+      - name: Publish independent provider acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WFS-StoryBoost-beta5-External-Provider-API${{ matrix.api }}
+          path: qa-provider-results/
+          if-no-files-found: warn
       - name: Publish abrupt-autosave process-death proof
         if: always()
         uses: actions/upload-artifact@v4

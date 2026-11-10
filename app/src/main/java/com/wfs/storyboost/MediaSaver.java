@@ -85,24 +85,40 @@ public final class MediaSaver {
         }
     }
 
-    /** Byte-for-byte original MP4 copy. Used only with the explicit 'Asli' preset. */
+    /** Byte-for-byte original MP4 copy; no decode/re-encode.
+     * Cancellation never mutates source bytes and removes the output row.
+     */
     public static Uri copyOriginalMp4(Context context, Uri input, String name) throws IOException {
+        return copyOriginalMp4(context,input,name,()->false);
+    }
+    public static Uri copyOriginalMp4(Context context, Uri input, String name,
+                                      BooleanSupplier token) throws IOException {
+        rejectCancellation(token);
         ContentResolver resolver=context.getContentResolver();
         Uri destination=resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                 metadata(name,"video/mp4",Environment.DIRECTORY_MOVIES));
         if(destination==null)throw new IOException("Tidak bisa membuat video di galeri.");
-        try(InputStream in=resolver.openInputStream(input);
-            OutputStream out=resolver.openOutputStream(destination)){
-            if(in==null||out==null)throw new IOException("File sumber/tujuan tak tersedia");
-            byte[] bytes=new byte[128*1024];int length;
-            while((length=in.read(bytes))!=-1)out.write(bytes,0,length);
-        } catch(Exception e){
+        try {
+            rejectCancellation(token);
+            try(InputStream in=resolver.openInputStream(input);
+                OutputStream out=resolver.openOutputStream(destination)){
+                if(in==null||out==null)throw new IOException("File sumber/tujuan tak tersedia");
+                byte[] bytes=new byte[128*1024];
+                int length;
+                while((length=in.read(bytes))!=-1){
+                    rejectCancellation(token);
+                    out.write(bytes,0,length);
+                }
+            }
+            rejectCancellation(token);
+            // Publish only after the source MP4 copy has flushed and closed.
+            publish(resolver,destination);
+            rejectCancellation(token);
+            return destination;
+        } catch(Exception error) {
             resolver.delete(destination,null,null);
-            throw new IOException("Gagal menyalin video sumber",e);
+            throw new IOException("Gagal menyalin video sumber",error);
         }
-        // Publish only after the MP4 stream has been completely flushed and closed.
-        publish(resolver,destination);
-        return destination;
     }
 
     private static ContentValues metadata(String name, String mime, String directory) {

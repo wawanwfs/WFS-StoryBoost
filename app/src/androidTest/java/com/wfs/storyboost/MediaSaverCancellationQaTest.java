@@ -95,6 +95,53 @@ public final class MediaSaverCancellationQaTest {
                 "PASS photo cancellation before publish; no pending rows; unchanged source");
     }
 
+    @Test public void byteForByteOriginalMp4CopyCanCancelWithoutDeletingSource()
+            throws Exception {
+        android.content.ContentValues values=new android.content.ContentValues();
+        String sourceName=uniqueName("mp4");
+        values.put(MediaStore.MediaColumns.DISPLAY_NAME,sourceName);
+        values.put(MediaStore.MediaColumns.MIME_TYPE,"video/mp4");
+        values.put(MediaStore.MediaColumns.IS_PENDING,1);
+        Uri source=ctx.getContentResolver().insert(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,values);
+        assertNotNull(source);
+        byte[] original=new byte[520_000];
+        new Random(61443L).nextBytes(original);
+        try{
+            try(java.io.OutputStream out=ctx.getContentResolver().openOutputStream(source)){
+                assertNotNull(out);
+                out.write(original);
+            }
+            android.content.ContentValues publish=new android.content.ContentValues();
+            publish.put(MediaStore.MediaColumns.IS_PENDING,0);
+            assertEquals(1,ctx.getContentResolver().update(source,publish,null,null));
+            String targetName=uniqueName("mp4");
+            AtomicInteger polls=new AtomicInteger();
+            try{
+                MediaSaver.copyOriginalMp4(ctx,source,targetName,
+                        ()->polls.incrementAndGet()>=4);
+                fail("Byte-for-byte copy ignored cancellation after first data chunk");
+            }catch(IOException expected){
+                assertTrue("Cancelled source copy did not cross chunk boundary",
+                        polls.get()>=4);
+            }
+            assertNoRows(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,targetName);
+            try(java.io.InputStream in=ctx.getContentResolver().openInputStream(source)){
+                assertNotNull(in);
+                java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();
+                byte[] buffer=new byte[8192];
+                for(int n;(n=in.read(buffer))!=-1;)bytes.write(buffer,0,n);
+                assertArrayEquals("Original scoped MP4 mutated during cancellation",
+                        original,bytes.toByteArray());
+            }
+            android.util.Log.i("WfsMediaSaveCancelQA",
+                    "PASS original-byte MP4 copy cancelled; original Gallery row unaffected");
+        }finally{
+            assertEquals("Could not cleanup own synthetic source",1,
+                    ctx.getContentResolver().delete(source,null,null));
+        }
+    }
+
     @Test public void cancelledBeforeInsertNeverCreatesGalleryRow()throws Exception{
         File source=File.createTempFile("qa-cancel-before-", ".bin",ctx.getCacheDir());
         try{

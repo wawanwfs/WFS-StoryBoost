@@ -60,7 +60,9 @@ public final class MainActivity extends Activity {
         ExportJob(Uri uri,ExportOptions options){this.uri=uri;this.options=options;}
     }
     private final ArrayDeque<ExportJob> pending = new ArrayDeque<>();
-    private final VideoEngine videos = new VideoEngine();
+    private VideoEngine videos = new VideoEngine();
+    private java.util.concurrent.atomic.AtomicBoolean queueStop =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
     private ProgressBar progress;
     private TextView status, count, outputLabel;
     private Button selectButton, shareButton, cancelButton;
@@ -724,6 +726,7 @@ public final class MainActivity extends Activity {
                 .putInt("focus_x",focusXSeek.getProgress())
                 .putInt("focus_y",focusYSeek.getProgress()).apply();
         total = pending.size(); done = 0; failed = 0; aborted = false; busy = true;
+        queueStop=new java.util.concurrent.atomic.AtomicBoolean(false);
         selectButton.setEnabled(false); selectButton.setAlpha(0.55f);
         cancelButton.setVisibility(View.VISIBLE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -737,6 +740,7 @@ public final class MainActivity extends Activity {
             return;
         }
         ExportJob job=pending.removeFirst();
+        final java.util.concurrent.atomic.AtomicBoolean token=queueStop;
         Uri input=job.uri;
         int current = done + failed + 1;
         status.setText("Memproses file " + current + " dari " + total);
@@ -744,9 +748,9 @@ public final class MainActivity extends Activity {
         progress.setProgress(0);
         String mime = getContentResolver().getType(input);
         if (mime != null && mime.startsWith("video/")) {
-            processVideo(input,job.options);
+            processVideo(input,job.options,token);
         } else if (mime != null && mime.startsWith("image/")) {
-            processPhoto(input,job.options);
+            processPhoto(input,job.options,token);
         } else {
             failed++;
             outputLabel.setText("Jenis file tak didukung: " + (mime == null ? "unknown" : mime));
@@ -754,12 +758,18 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private void processPhoto(Uri input, ExportOptions settings) {
+    private void processPhoto(Uri input, ExportOptions settings,
+                              java.util.concurrent.atomic.AtomicBoolean token) {
         progress.setIndeterminate(true);
         io.execute(() -> {
             try {
                 PhotoEngine.Result result = PhotoEngine.process(this, input, settings);
-                Uri saved = MediaSaver.savePhoto(this, result.jpeg, filename("jpg"));
+                if(token.get())return;
+                Uri saved = MediaSaver.savePhoto(this, result.jpeg, filename("jpg"),token::get);
+                if(token.get()){
+                    getContentResolver().delete(saved,null,null);
+                    return;
+                }
                 // Preview must never cause a successfully saved export to be marked failed.
                 Bitmap before = null, after = null;
                 try {
@@ -773,6 +783,12 @@ public final class MainActivity extends Activity {
                 }
                 final Bitmap originalPreview = before, processedPreview = after;
                 runOnUiThread(() -> {
+                    if(token.get()){
+                        getContentResolver().delete(saved,null,null);
+                        if(originalPreview!=null)originalPreview.recycle();
+                        if(processedPreview!=null)processedPreview.recycle();
+                        return;
+                    }
                     progress.setIndeterminate(false);
                     progress.setProgress(100);
                     done++;
@@ -786,12 +802,13 @@ public final class MainActivity extends Activity {
                     processNext();
                 });
             } catch (Exception ex) {
-                runOnUiThread(() -> errorAndContinue(ex));
+                if(!token.get())runOnUiThread(() -> errorAndContinue(ex));
             }
         });
     }
 
-    private void processVideo(Uri input, ExportOptions settings) {
+    private void processVideo(Uri input, ExportOptions settings,
+                              java.util.concurrent.atomic.AtomicBoolean token) {
         // Explicit original/no-edit preset: never needlessly decode/re-encode
         // an MP4 that already contains the final pixels and audio.
         if(VideoPassthrough.allowed(settings,getContentResolver().getType(input))){
@@ -800,8 +817,13 @@ public final class MainActivity extends Activity {
                 try{
                     if(!MediaProbe.inspect(this,input).video)
                         throw new java.io.IOException("Sumber tidak memiliki track video");
-                    Uri saved=MediaSaver.copyOriginalMp4(this,input,filename("mp4"));
+                    if(token.get())return;
+                    Uri saved=MediaSaver.copyOriginalMp4(this,input,filename("mp4"),token::get);
                     runOnUiThread(()->{
+                        if(token.get()){
+                            getContentResolver().delete(saved,null,null);
+                            return;
+                        }
                         progress.setIndeterminate(false);
                         progress.setProgress(100);done++;
                         lastSaved=saved;lastType="video/mp4";
@@ -814,23 +836,35 @@ public final class MainActivity extends Activity {
                         outputLabel.setText("MP4 asli disimpan byte-for-byte tanpa penurunan kualitas.");
                         updateShare();processNext();
                     });
-                }catch(Exception ex){runOnUiThread(()->errorAndContinue(ex));}
+                }catch(Exception ex){
+                    if(!token.get())runOnUiThread(()->errorAndContinue(ex));
+                }
             });
             return;
         }
         videoActive = true;
         progress.setIndeterminate(false);
+        final VideoEngine worker=new VideoEngine();
+        videos=worker;
         try {
-            videos.start(this, input, settings, new VideoEngine.Listener() {
+            worker.start(this, input, settings, new VideoEngine.Listener() {
                 @Override
                 public void onSuccess(File file, AspectRatioProfile.Size dimensions) {
+                    if(token.get())return;
                     videoActive = false;
                     stopPulse();
                     progress.setProgress(100);
                     io.execute(() -> {
                         try {
-                            Uri saved = MediaSaver.saveVideo(MainActivity.this, file, filename("mp4"));
+                            if(token.get())return;
+                            Uri saved = MediaSaver.saveVideo(MainActivity.this, file,
+                                    filename("mp4"),token::get);
                             runOnUiThread(() -> {
+                                if(token.get()){
+                                    getContentResolver().delete(saved,null,null);
+                                    worker.cleanup();
+                                    return;
+                                }
                                 done++;
                                 lastSaved = saved; lastType = "video/mp4";
                                 preview.clearImages();
@@ -845,12 +879,12 @@ public final class MainActivity extends Activity {
                                         + AspectRatioProfile.label(settings.ratio)
                                         + ") disimpan di Movies/WFS StoryBoost");
                                 updateShare();
-                                videos.cleanup();
+                                worker.cleanup();
                                 processNext();
                             });
                         } catch (Exception ex) {
-                            runOnUiThread(() -> {
-                                videos.cleanup();
+                            if(!token.get())runOnUiThread(() -> {
+                                worker.cleanup();
                                 errorAndContinue(ex);
                             });
                         }
@@ -859,9 +893,10 @@ public final class MainActivity extends Activity {
 
                 @Override
                 public void onError(String message) {
+                    if(token.get())return;
                     videoActive = false;
                     stopPulse();
-                    videos.cleanup();
+                    worker.cleanup();
                     errorAndContinue(new Exception(message));
                 }
             });
@@ -869,7 +904,7 @@ public final class MainActivity extends Activity {
                 @Override public void run() {
                     if (!videoActive) return;
                     try {
-                        int value = videos.progress();
+                        int value = worker.progress();
                         if (value >= 0) {
                             progress.setProgress(value);
                             count.setText("Mengolah video: " + value + "% • audio dipertahankan");
@@ -882,12 +917,13 @@ public final class MainActivity extends Activity {
         } catch (Exception ex) {
             videoActive = false;
             stopPulse();
-            videos.cancel();
-            errorAndContinue(ex);
+            worker.cancel();
+            if(!token.get())errorAndContinue(ex);
         }
     }
 
     private void errorAndContinue(Exception ex) {
+        if(aborted||queueStop.get())return;
         progress.setIndeterminate(false);
         failed++;
         outputLabel.setText("Satu file gagal: " + ex.getMessage());
@@ -914,15 +950,14 @@ public final class MainActivity extends Activity {
 
     private void cancelWork() {
         aborted = true;
+        queueStop.set(true);
         pending.clear();
-        if (videoActive) {
-            videoActive = false;
-            stopPulse();
-            videos.cancel();
-            finishQueue();
-        } else {
-            count.setText("Antrean sisa dibatalkan. Menyelesaikan file yang sedang diproses…");
-        }
+        videoActive = false;
+        stopPulse();
+        videos.cancel();
+        // Queued photo/video/original-copy writers share this cancellation
+        // token. A previously finished Gallery output is not removed.
+        finishQueue();
     }
 
     private void updateShare() {
@@ -1002,6 +1037,8 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        queueStop.set(true);
+        aborted=true;
         stopPulse();
         videos.cancel();
         hideVideoPreview();

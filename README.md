@@ -1,6 +1,15 @@
 # WFS StoryBoost — Creative Editing Studio v3.0.0-beta3
 
-## Beta6 memory-first candidate — requires final-head CI
+## Beta7 — cancellation-safe gallery publishing (QA candidate)
+
+Beta6 PR #7 merged to `main` as `cd8ad45535078f80c79876bdde8adb4c11dca378` after exact final [4/4 passing CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42664085487). This retains the same offline pinned DnCNN model with the lower-memory XNNPACK-off consumer default and actual SAF / Media3 acceptance on Android29/35 **emulators**.
+
+**Beta7 change on QA branch:** real `MediaSaver` photo/video publishing can now be cancelled before insert, during file copy, after bytes are written and even just after publishing; pending (and, if needed, newly published) MediaStore rows are deleted. The Quick Enhance queue, Editor and Video Merge Studio use independent per-export `AtomicBoolean` cancellation tokens that reach the gallery writer and reject late callbacks. No source file or user photo is deleted. A new synthetic Android instrumented suite verifies photo/video and original byte-for-byte MP4-copy interrupted writes, no hidden `IS_PENDING` entries and identical source bytes.
+
+A [Windows physical-device runbook](docs/PHYSICAL_ARM64_QA_WINDOWS.md) and PowerShell ARM64 QA script (`scripts/qa-physical-arm64.ps1`) collects read-only device diagnostic snapshots by default; synthetic AI inference with forced app stops is **explicit opt-in**. It does not install APKs, access real portrait photos or infer low-RAM hardware readiness. Local QA evidence is gitignored. **All beta7 changes are candidates until 4/4 green CI on the exact final commit.**
+
+Blocking external evidence remains: owner test-account actual Google Photos-owned URI, consented real-portrait images/quality, distinct ARM64 Android10/15 physical performance, and stable owner-signed release upgrade. No lossless WA/IG/TikTok guarantee; coverage remains 23/32=71.875%.
+## Beta6 historical QA — accepted by 4/4 CI
 
 Verified beta5 PR #6 merged to main as ad2d778f94442cfe4b7de26283e8e11236d2e80d after both [4/4 green beta5 CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42543978698) and prior native DocumentsUI, separate-UID provider, revoke/disabled/reimport acceptance on Android 10/15 x86_64 emulators.
 

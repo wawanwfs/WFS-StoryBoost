@@ -11,11 +11,14 @@ mkdir -p qa-backend-matrix
 MODEL=app/src/main/assets/models/dncnn_25.tflite
 test -s "$MODEL"
 sha256sum "$MODEL" | tee qa-backend-matrix/model-sha256.txt
+printf '%s  %s\n' '59bc280342afd08357282232784d135c29a4ec64cd61b5172921e4d3d881d9fd' "$MODEL" | sha256sum -c -
 printf '%s\n' 'api,xnnpack,repeat,pid,threads,pssBeforeKB,pssAfterKB,sampledPeakPssKB,inferMs,pipelineMs,pairedPsnr,pairedSsim' \
   > qa-backend-matrix/results.csv
-prev_pid=''
+declare -A seen_pids=()
 for backend in default off on;do
-  for repeat in 1 2;do
+  repetitions=2
+  if [[ "$API" == 29 && "$backend" == default ]]; then repetitions=5; fi
+  for ((repeat=1; repeat<=repetitions; repeat++)); do
     adb shell am force-stop "$APP" || true
     adb logcat -c >/dev/null || true
     log="qa-backend-matrix/api$API-$backend-$repeat.txt"
@@ -39,8 +42,8 @@ for backend in default off on;do
     for field in "$pid" "$pre" "$post" "$peak" "$infer" "$pipeline" "$psnr" "$ssim";do
       [[ "$field" =~ ^[0-9]+([.][0-9]+)?$ ]] || { echo "Invalid $backend metric $field" >&2;exit 1; }
     done
-    [[ "$prev_pid" != "$pid" ]] || { echo "Process was not restarted" >&2;exit 1; }
-    prev_pid="$pid"
+    [[ -z "${seen_pids[$pid]:-}" ]] || { echo "Reused inference PID: $pid" >&2;exit 1; }
+    seen_pids[$pid]=1
     echo "$API,$backend,$repeat,$pid,2,$pre,$post,$peak,$infer,$pipeline,$psnr,$ssim" |
       tee -a qa-backend-matrix/results.csv
   done
@@ -49,11 +52,15 @@ python3 - <<'PY'
 import csv, math, statistics
 with open("qa-backend-matrix/results.csv",newline="") as f:
     rows=list(csv.DictReader(f))
-assert len(rows)==6, len(rows)
+api={x["api"] for x in rows}
+assert len(api)==1, api
+counts={"default": 5 if api=={"29"} else 2, "off": 2, "on": 2}
+assert len(rows)==sum(counts.values()), len(rows)
+assert len({x["pid"] for x in rows})==len(rows), "reused inference process"
 r={}
 for mode in ("default","off","on"):
     samples=[x for x in rows if x["xnnpack"]==mode]
-    assert len(samples)==2,mode
+    assert len(samples)==counts[mode],mode
     pss=[int(x["sampledPeakPssKB"]) for x in samples]
     psnr=[float(x["pairedPsnr"]) for x in samples]
     ssim=[float(x["pairedSsim"]) for x in samples]

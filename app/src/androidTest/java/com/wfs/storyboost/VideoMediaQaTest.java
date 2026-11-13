@@ -148,6 +148,35 @@ public class VideoMediaQaTest {
         }finally{bad.delete();}
     }
 
+    @Test public void videoEngineRejectsMalformedSourceBeforeAnyEncode() throws Exception {
+        Uri malformed=importFixture("qa-invalid.mp4");
+        ExportOptions options=new ExportOptions(ColorLooks.ORIGINAL,
+                AspectRatioProfile.ORIGINAL,AspectRatioProfile.FIT,true,0,0);
+        AtomicReference<RuntimeException> rejected=new AtomicReference<>();
+        java.util.concurrent.atomic.AtomicInteger callbacks=new java.util.concurrent.atomic.AtomicInteger();
+        engine=new VideoEngine();
+        String[] before=ctx.getCacheDir().list((dir,name)->name.startsWith("storyboost_"));
+        inst.runOnMainSync(()->{
+            try{
+                engine.start(ctx,malformed,options,new VideoEngine.Listener(){
+                    @Override public void onSuccess(File file,AspectRatioProfile.Size dims){
+                        outputFiles.add(file);
+                        callbacks.incrementAndGet();
+                    }
+                    @Override public void onError(String error){callbacks.incrementAndGet();}
+                });
+            }catch(IllegalArgumentException expected){rejected.set(expected);}
+        });
+        assertNotNull("Malformed source passed engine preflight",rejected.get());
+        assertEquals(0,callbacks.get());
+        String[] after=ctx.getCacheDir().list((dir,name)->name.startsWith("storyboost_"));
+        assertNotNull(before);
+        assertNotNull(after);
+        java.util.Arrays.sort(before);
+        java.util.Arrays.sort(after);
+        assertArrayEquals("Malformed source leaked encoder cache",before,after);
+    }
+
     private File realExport(Uri source, ExportOptions options) throws Exception {
         CountDownLatch completed=new CountDownLatch(1);
         AtomicReference<File> file=new AtomicReference<>();

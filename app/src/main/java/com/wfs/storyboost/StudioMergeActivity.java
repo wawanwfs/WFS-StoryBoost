@@ -46,6 +46,8 @@ public final class StudioMergeActivity extends Activity {
     private TextView count,info;
     private int quality=OutputProfile.FULL_HD,selected=-1;
     private boolean working,destroyed;
+    private java.util.concurrent.atomic.AtomicBoolean mergeStop=
+            new java.util.concurrent.atomic.AtomicBoolean(false);
     private ProgressBar progress;
     private AlertDialog dialog;
     private Uri lastSaved;
@@ -237,7 +239,10 @@ public final class StudioMergeActivity extends Activity {
         if(working)return;
         if(clips.isEmpty()){toast("Tambahkan video terlebih dahulu.");return;}
         working=true;
-        engine=new VideoMergeEngine();
+        mergeStop=new java.util.concurrent.atomic.AtomicBoolean(false);
+        final java.util.concurrent.atomic.AtomicBoolean token=mergeStop;
+        final VideoMergeEngine worker=new VideoMergeEngine();
+        engine=worker;
         LinearLayout progressCard=StudioUi.card(this,17);
         progressCard.addView(txt("Sedang menggabungkan "+clips.size()+" klip",17,StudioUi.TEXT,true));
         gap(progressCard,12);
@@ -248,30 +253,49 @@ public final class StudioMergeActivity extends Activity {
         dialog.show();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         try{
-            engine.start(this,new ArrayList<>(clips),quality,new VideoMergeEngine.Listener(){
+            worker.start(this,new ArrayList<>(clips),quality,new VideoMergeEngine.Listener(){
                 @Override public void onCompleted(java.io.File file){
+                    if(token.get())return;
+                    worker.transferCompletedFile(file);
                     thumbs.execute(()->{
                         try{
-                            Uri saved=MediaSaver.saveVideo(StudioMergeActivity.this,file,
-                                    "WFS_JOIN_"+System.currentTimeMillis()+".mp4");
+                            if(token.get())return;
+                            String exportName="WFS_JOIN_"+System.currentTimeMillis()+".mp4";
+                            Uri saved=MediaSaver.saveVideo(StudioMergeActivity.this,file,exportName,token::get);
+                            MediaSaver.beforeCallback(saved,exportName);
                             runOnUiThread(()->{
-                                lastSaved=saved;engine.clean();finishMerge(null);
+                                if(token.get()||destroyed){
+                                    MediaSaver.discardUnaccepted(StudioMergeActivity.this,saved);
+                                    return;
+                                }
+                                lastSaved=saved;finishMerge(token,null);
                             });
-                        }catch(Exception ex){runOnUiThread(()->finishMerge(ex.getMessage()));}
+                        }catch(Exception ex){
+                            if(!token.get())
+                                runOnUiThread(()->finishMerge(token,ex.getMessage()));
+                        }finally{
+                            MediaSaver.discardTemporaryFile(file);
+                        }
                     });
                 }
-                @Override public void onFailure(String message){finishMerge(message);}
+                @Override public void onFailure(String message){
+                    if(!token.get())finishMerge(token,message);
+                }
             });
             main.post(new Runnable(){
                 @Override public void run(){
-                    if(!working||engine==null||destroyed)return;
-                    int value=engine.progress();if(value>=0)progress.setProgress(value);
+                    if(!working||engine!=worker||destroyed||token.get())return;
+                    int value=worker.progress();if(value>=0)progress.setProgress(value);
                     main.postDelayed(this,400);
                 }
             });
-        }catch(Exception e){finishMerge(e.getMessage());}
+        }catch(Exception e){finishMerge(token,e.getMessage());}
+    }
+    private void finishMerge(java.util.concurrent.atomic.AtomicBoolean token,String failure){
+        if(!destroyed&&token==mergeStop&&!token.get())finishMerge(failure);
     }
     private void cancelMerge(){
+        mergeStop.set(true);
         if(engine!=null)engine.cancel();
         finishMerge("Penggabungan dibatalkan.");
     }
@@ -295,9 +319,10 @@ public final class StudioMergeActivity extends Activity {
     private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     @Override protected void onPause(){super.onPause();if(preview!=null)preview.pause();}
     @Override protected void onDestroy(){
-        destroyed=true;main.removeCallbacksAndMessages(null);
+        destroyed=true;mergeStop.set(true);main.removeCallbacksAndMessages(null);
         if(engine!=null&&working)engine.cancel();
-        thumbs.shutdownNow();
+        // Let a queued writer release its transferred file after seeing cancellation.
+        thumbs.shutdown();
         if(preview!=null)preview.stopPlayback();
         super.onDestroy();
     }

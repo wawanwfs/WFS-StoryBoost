@@ -7,3 +7,6 @@ local.properties
 .DS_Store
 .tools/
 dist/
+
+# Local physical Android QA can contain device metadata; never commit raw logs.
+qa-physical-results/

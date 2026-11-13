@@ -241,7 +241,8 @@ public final class StudioMergeActivity extends Activity {
         working=true;
         mergeStop=new java.util.concurrent.atomic.AtomicBoolean(false);
         final java.util.concurrent.atomic.AtomicBoolean token=mergeStop;
-        engine=new VideoMergeEngine();
+        final VideoMergeEngine worker=new VideoMergeEngine();
+        engine=worker;
         LinearLayout progressCard=StudioUi.card(this,17);
         progressCard.addView(txt("Sedang menggabungkan "+clips.size()+" klip",17,StudioUi.TEXT,true));
         gap(progressCard,12);
@@ -252,39 +253,46 @@ public final class StudioMergeActivity extends Activity {
         dialog.show();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         try{
-            engine.start(this,new ArrayList<>(clips),quality,new VideoMergeEngine.Listener(){
+            worker.start(this,new ArrayList<>(clips),quality,new VideoMergeEngine.Listener(){
                 @Override public void onCompleted(java.io.File file){
                     if(token.get())return;
+                    worker.transferCompletedFile(file);
                     thumbs.execute(()->{
                         try{
                             if(token.get())return;
-                            Uri saved=MediaSaver.saveVideo(StudioMergeActivity.this,file,
-                                    "WFS_JOIN_"+System.currentTimeMillis()+".mp4",token::get);
+                            String exportName="WFS_JOIN_"+System.currentTimeMillis()+".mp4";
+                            Uri saved=MediaSaver.saveVideo(StudioMergeActivity.this,file,exportName,token::get);
+                            MediaSaver.beforeCallback(saved,exportName);
                             runOnUiThread(()->{
                                 if(token.get()||destroyed){
-                                    getContentResolver().delete(saved,null,null);
+                                    MediaSaver.discardUnaccepted(StudioMergeActivity.this,saved);
                                     return;
                                 }
-                                lastSaved=saved;engine.clean();finishMerge(null);
+                                lastSaved=saved;finishMerge(token,null);
                             });
                         }catch(Exception ex){
                             if(!token.get())
-                                runOnUiThread(()->finishMerge(ex.getMessage()));
+                                runOnUiThread(()->finishMerge(token,ex.getMessage()));
+                        }finally{
+                            MediaSaver.discardTemporaryFile(file);
                         }
                     });
                 }
                 @Override public void onFailure(String message){
-                    if(!token.get())finishMerge(message);
+                    if(!token.get())finishMerge(token,message);
                 }
             });
             main.post(new Runnable(){
                 @Override public void run(){
-                    if(!working||engine==null||destroyed)return;
-                    int value=engine.progress();if(value>=0)progress.setProgress(value);
+                    if(!working||engine!=worker||destroyed||token.get())return;
+                    int value=worker.progress();if(value>=0)progress.setProgress(value);
                     main.postDelayed(this,400);
                 }
             });
-        }catch(Exception e){finishMerge(e.getMessage());}
+        }catch(Exception e){finishMerge(token,e.getMessage());}
+    }
+    private void finishMerge(java.util.concurrent.atomic.AtomicBoolean token,String failure){
+        if(!destroyed&&token==mergeStop&&!token.get())finishMerge(failure);
     }
     private void cancelMerge(){
         mergeStop.set(true);
@@ -313,7 +321,8 @@ public final class StudioMergeActivity extends Activity {
     @Override protected void onDestroy(){
         destroyed=true;mergeStop.set(true);main.removeCallbacksAndMessages(null);
         if(engine!=null&&working)engine.cancel();
-        thumbs.shutdownNow();
+        // Let a queued writer release its transferred file after seeing cancellation.
+        thumbs.shutdown();
         if(preview!=null)preview.stopPlayback();
         super.onDestroy();
     }

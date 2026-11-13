@@ -62,10 +62,10 @@ public final class MediaSaverCancellationQaTest {
             String name=uniqueName("mp4");
             AtomicInteger polls=new AtomicInteger();
             try{
-                MediaSaver.saveVideo(ctx,source,name,()->polls.incrementAndGet()>=4);
+                MediaSaver.saveVideo(ctx,source,name,()->polls.incrementAndGet()>=5);
                 fail("Cancellation after first copied chunk did not abort video save");
             }catch(IOException expected){
-                assertTrue("Cancellation did not interrupt a partial copy",polls.get()>=4);
+                assertTrue("Cancellation did not interrupt a partial copy",polls.get()>=5);
             }
             assertArrayEquals("Input bytes changed during cancelled gallery write",
                     initial,digest(source));
@@ -83,10 +83,10 @@ public final class MediaSaverCancellationQaTest {
         AtomicInteger polls=new AtomicInteger();
         try{
             MediaSaver.savePhoto(ctx,syntheticJpegLikeBytes,name,
-                    ()->polls.incrementAndGet()>=3);
+                    ()->polls.incrementAndGet()>=8);
             fail("Gallery photo save ignored cancellation before publish");
         }catch(IOException expected){
-            assertEquals("Unexpected cancellation boundary",3,polls.get());
+            assertEquals("Unexpected cancellation boundary",8,polls.get());
         }
         assertArrayEquals("Cancellation modified caller's JPEG bytes",
                 original,syntheticJpegLikeBytes);
@@ -119,11 +119,11 @@ public final class MediaSaverCancellationQaTest {
             AtomicInteger polls=new AtomicInteger();
             try{
                 MediaSaver.copyOriginalMp4(ctx,source,targetName,
-                        ()->polls.incrementAndGet()>=4);
+                        ()->polls.incrementAndGet()>=5);
                 fail("Byte-for-byte copy ignored cancellation after first data chunk");
             }catch(IOException expected){
                 assertTrue("Cancelled source copy did not cross chunk boundary",
-                        polls.get()>=4);
+                        polls.get()>=5);
             }
             assertNoRows(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,targetName);
             try(java.io.InputStream in=ctx.getContentResolver().openInputStream(source)){

@@ -256,6 +256,7 @@ public final class StudioEditorActivity extends Activity {
         LinearLayout header=row();header.setPadding(dp(8),dp(6),dp(8),dp(7));
         Button back=btn("‹",false);
         back.setTextSize(26);
+        back.setContentDescription("Kembali ke proyek");
         header.addView(back,new LinearLayout.LayoutParams(dp(40),dp(44)));
         back.setOnClickListener(v->finish());
         LinearLayout title=column();
@@ -289,6 +290,10 @@ public final class StudioEditorActivity extends Activity {
         // Aspect-specific media monitor; Canvas body expands to available screen height.
         canvasArea=new FrameLayout(this);canvasArea.setBackgroundColor(0xFF050811);
         root.addView(canvasArea,new LinearLayout.LayoutParams(-1,0,1f));
+        TextView policy=txt("Edit non-destruktif • Media asli tetap aman",9,MUTED,false);
+        policy.setGravity(Gravity.CENTER);
+        policy.setPadding(dp(8),dp(4),dp(8),dp(4));
+        root.addView(policy,new LinearLayout.LayoutParams(-1,-2));
         outputCanvas=new FrameLayout(this);
         outputCanvas.setBackground(StudioUi.solid(this,0xFF171D2B,8));
         outputCanvas.setClipToOutline(true);
@@ -347,7 +352,7 @@ public final class StudioEditorActivity extends Activity {
                 try{p.setLooping(false);video.seekTo((int)Math.min(trimStartMs,Integer.MAX_VALUE));}
                 catch(Exception ignored){}
             });
-            video.setOnCompletionListener(mp->{if(playButton!=null)playButton.setText("▶");});
+            video.setOnCompletionListener(mp->setPlaybackControl(false));
         }else{video.setVisibility(View.GONE);}
         canvasArea.addView(outputCanvas,new FrameLayout.LayoutParams(dp(180),dp(250),Gravity.CENTER));
         previewLabel=txt(isVideo?"VIDEO SOURCE PREVIEW":"LIVE PHOTO PREVIEW",9,StudioUi.GREEN,true);
@@ -356,23 +361,23 @@ public final class StudioEditorActivity extends Activity {
         FrameLayout.LayoutParams labelLp=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.LEFT);
         labelLp.leftMargin=dp(12);labelLp.topMargin=dp(12);
         canvasArea.addView(previewLabel,labelLp);
-        TextView policy=txt("Edit non-destruktif • Media asli tetap aman",9,MUTED,false);
-        policy.setGravity(Gravity.CENTER);
-        FrameLayout.LayoutParams policyLp=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM);
-        policyLp.bottomMargin=dp(8);canvasArea.addView(policy,policyLp);
         canvasArea.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
             if(r-l!=or-ol||b-t!=ob-ot)layoutPreviewCanvas();
         });
 
         // Transport / time / compare
         LinearLayout transport=row();transport.setPadding(dp(13),dp(7),dp(13),dp(5));
-        playButton=btn(isVideo?"▶":"◉",false);
-        transport.addView(playButton,new LinearLayout.LayoutParams(dp(45),dp(40)));
-        playButton.setOnClickListener(v->togglePlay());
+        playButton=btn("▶",false);
+        playButton.setContentDescription("Putar video");
+        if(isVideo){
+            transport.addView(playButton,new LinearLayout.LayoutParams(dp(45),dp(40)));
+            playButton.setOnClickListener(v->togglePlay());
+        }
         timeLabel=txt(isVideo?"00:00 / "+clock(durationMs):"FOTO  •  1 FRAME",12,TEXT,true);
         LinearLayout.LayoutParams clockLp=new LinearLayout.LayoutParams(0,-1,1f);clockLp.leftMargin=dp(12);
         transport.addView(timeLabel,clockLp);
         compareButton=btn("↔ Sebelum",false);
+        compareButton.setContentDescription("Lihat sebelum diedit");
         transport.addView(compareButton,new LinearLayout.LayoutParams(dp(104),dp(39)));
         compareButton.setOnClickListener(v->toggleCompare());
         root.addView(transport);
@@ -561,12 +566,17 @@ public final class StudioEditorActivity extends Activity {
         });
     }
     private void togglePlay(){
-        if(!isVideo){toast("Gunakan filter dan rasio untuk mengedit foto.");return;}
-        if(video.isPlaying()){video.pause();playButton.setText("▶");}
+        if(!isVideo)return;
+        if(video.isPlaying()){video.pause();setPlaybackControl(false);}
         else{
             if(video.getCurrentPosition()>=durationMs-300)video.seekTo((int)trimStartMs);
-            video.start();playButton.setText("Ⅱ");
+            video.start();setPlaybackControl(true);
         }
+    }
+    private void setPlaybackControl(boolean playing){
+        if(playButton==null)return;
+        playButton.setText(playing?"Ⅱ":"▶");
+        playButton.setContentDescription(playing?"Jeda video":"Putar video");
     }
     private void startTicker(){
         playTicker=new Runnable(){
@@ -578,7 +588,7 @@ public final class StudioEditorActivity extends Activity {
                         seekbar.setProgress((int)Math.min(1000,1000d*pos/durationMs));
                         timeLabel.setText(clock(pos)+" / "+clock(durationMs));
                         if(trimEndMs>0&&pos>=trimEndMs&&video.isPlaying()){
-                            video.pause();playButton.setText("▶");
+                            video.pause();setPlaybackControl(false);
                         }
                     }
                 }
@@ -590,6 +600,7 @@ public final class StudioEditorActivity extends Activity {
     private void toggleCompare(){
         compareOriginal=!compareOriginal;
         compareButton.setText(compareOriginal?"✦ Sesudah":"↔ Sebelum");
+        compareButton.setContentDescription(compareOriginal?"Lihat sesudah diedit":"Lihat sebelum diedit");
         if(!isVideo){
             if(portraitBokeh||aiDenoise)refreshImagePreview();
             else{
@@ -1134,73 +1145,79 @@ public final class StudioEditorActivity extends Activity {
                 try{
                     PhotoEngine.Result result=PhotoEngine.process(this,mediaUri,job.options);
                     if(cancelToken.get())return;
-                    Uri saved=MediaSaver.savePhoto(this,result.jpeg,fileName("jpg"),cancelToken::get);
+                    String exportName=fileName("jpg");
+                    Uri saved=MediaSaver.savePhoto(this,result.jpeg,exportName,cancelToken::get);
+                    MediaSaver.beforeCallback(saved,exportName);
                     runOnUiThread(()->{
                         if(destroyed||cancelToken.get()){
-                            getContentResolver().delete(saved,null,null);
+                            MediaSaver.discardUnaccepted(StudioEditorActivity.this,saved);
                             return;
                         }
                         lastExport=saved;completed++;
                         exportProgress.setProgress(100);runNextExport();
                     });
                 }catch(Exception ex){
-                    if(!cancelToken.get())runOnUiThread(()->failExport(ex.getMessage()));
+                    if(!cancelToken.get())runOnUiThread(()->failExport(cancelToken,ex.getMessage()));
                 }
             });
         }else{
-            activeVideoEngine=new VideoEngine();
+            final VideoEngine worker=new VideoEngine();
+            activeVideoEngine=worker;
             // Media3 can downgrade a failed FHD encode to HD; record the
             // actually requested dimensions so success cannot masquerade
             // as a completed 1080p export in the user-facing result dialog.
-            final java.util.concurrent.atomic.AtomicReference<AspectRatioProfile.Size>
-                    requestedVideoCanvas=new java.util.concurrent.atomic.AtomicReference<>();
+            final AspectRatioProfile.Size[] requestedVideoCanvas=new AspectRatioProfile.Size[1];
             try{
-                requestedVideoCanvas.set(activeVideoEngine.start(this,mediaUri,
+                requestedVideoCanvas[0]=worker.start(this,mediaUri,
                         job.options,new VideoEngine.Listener(){
                     @Override public void onSuccess(File source,AspectRatioProfile.Size dims){
                         if(cancelToken.get())return;
+                        worker.transferCompletedFile(source);
                         io.execute(()->{
                             try{
                                 if(cancelToken.get())return;
-                                Uri saved=MediaSaver.saveVideo(StudioEditorActivity.this,source,
-                                        fileName("mp4"),cancelToken::get);
+                                String exportName=fileName("mp4");
+                                Uri saved=MediaSaver.saveVideo(StudioEditorActivity.this,source,exportName,cancelToken::get);
+                                MediaSaver.beforeCallback(saved,exportName);
                                 runOnUiThread(()->{
                                     if(destroyed||cancelToken.get()){
-                                        getContentResolver().delete(saved,null,null);
+                                        MediaSaver.discardUnaccepted(StudioEditorActivity.this,saved);
                                         return;
                                     }
                                     lastExport=saved;completed++;
                                     lastEncodedVideoCanvas=dims.width+"×"+dims.height;
-                                    AspectRatioProfile.Size requested=requestedVideoCanvas.get();
+                                    AspectRatioProfile.Size requested=requestedVideoCanvas[0];
                                     if(requested!=null &&
                                             (requested.width!=dims.width||
                                              requested.height!=dims.height))
                                         downgradedVideoExports++;
-                                    if(activeVideoEngine!=null)activeVideoEngine.cleanup();
+                                    activeVideoEngine=null;
                                     runNextExport();
                                 });
                             }catch(Exception ex){
-                                if(!cancelToken.get())runOnUiThread(()->failExport(ex.getMessage()));
+                                if(!cancelToken.get())runOnUiThread(()->failExport(cancelToken,ex.getMessage()));
+                            }finally{
+                                MediaSaver.discardTemporaryFile(source);
                             }
                         });
                     }
                     @Override public void onError(String message){
-                        if(!cancelToken.get())failExport(message);
+                        if(!cancelToken.get())failExport(cancelToken,message);
                     }
-                }));
+                });
                 handler.post(new Runnable(){
                     @Override public void run(){
-                        if(destroyed||!exportBusy||activeVideoEngine==null)return;
-                        int pos=activeVideoEngine.progress();
+                        if(destroyed||!exportBusy||cancelToken.get()||activeVideoEngine!=worker)return;
+                        int pos=worker.progress();
                         if(pos>=0&&!exportCancelled)exportProgress.setProgress(pos);
                         handler.postDelayed(this,400);
                     }
                 });
-            }catch(Exception ex){failExport(ex.getMessage());}
+            }catch(Exception ex){failExport(cancelToken,ex.getMessage());}
         }
     }
-    private void failExport(String error){
-        if(exportCancelled||exportStop.get()||destroyed)return;
+    private void failExport(java.util.concurrent.atomic.AtomicBoolean token,String error){
+        if(exportCancelled||token!=exportStop||token.get()||destroyed)return;
         failed++;
         if(activeVideoEngine!=null){activeVideoEngine.cleanup();activeVideoEngine=null;}
         toast("Ekspor gagal: "+error);runNextExport();
@@ -1251,7 +1268,7 @@ public final class StudioEditorActivity extends Activity {
         handler.removeCallbacks(draftWriter);
         handler.removeCallbacks(adjustedPreview);
         persistDraft();
-        if(video!=null&&video.isPlaying())video.pause();
+        if(video!=null&&video.isPlaying()){video.pause();setPlaybackControl(false);}
         super.onPause();
     }
     @Override protected void onDestroy(){
@@ -1262,7 +1279,8 @@ public final class StudioEditorActivity extends Activity {
         if(photo!=null)photo.setImageDrawable(null);
         if(imagePreviewBitmap!=null)imagePreviewBitmap.recycle();
         previewWorker.shutdownNow();
-        io.shutdownNow();
+        // Let a queued writer release its transferred file after seeing cancellation.
+        io.shutdown();
         super.onDestroy();
     }
 }

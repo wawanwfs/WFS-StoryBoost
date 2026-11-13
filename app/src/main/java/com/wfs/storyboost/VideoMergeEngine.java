@@ -84,6 +84,16 @@ public final class VideoMergeEngine {
                 }).build();
         transformer.start(composition,intermediate.getAbsolutePath());
     }
+    /**
+     * Transfer a completed MP4 to its Gallery worker on the main thread.
+     * The worker is then the only owner allowed to delete it.
+     */
+    void transferCompletedFile(File file) {
+        if (!file.equals(intermediate)) throw new IllegalStateException("Export file ownership changed");
+        intermediate = null;
+        transformer = null;
+    }
+
     public int progress(){
         if(transformer==null)return -1;
         ProgressHolder h=new ProgressHolder();

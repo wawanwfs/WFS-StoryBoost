@@ -145,6 +145,7 @@ public final class VideoEngine {
                         .setRequestedVideoEncoderSettings(requested).build())
                 .addListener(new Transformer.Listener() {
                     @Override public void onCompleted(Composition composition, ExportResult result) {
+                        if(cancelled)return;
                         try {
                             validateOutput(temp,target,sourceInfo,expectedDuration,settings.muteAudio);
                             if(!cancelled)callback.onSuccess(temp,target);
@@ -228,6 +229,16 @@ public final class VideoEngine {
         } finally {
             try { retriever.release(); } catch (Exception ignored) { }
         }
+    }
+
+    /**
+     * Transfer a completed MP4 to its Gallery worker on the main thread.
+     * The worker is then the only owner allowed to delete it.
+     */
+    void transferCompletedFile(File file) {
+        if (!file.equals(temp)) throw new IllegalStateException("Export file ownership changed");
+        temp = null;
+        transformer = null;
     }
 
     public int progress() {

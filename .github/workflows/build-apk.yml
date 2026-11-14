@@ -225,6 +225,9 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
+          # API29 clamps wm size to twice the AVD's native display.
+          # Use a large display profile so 1080x2400 is genuinely reachable.
+          profile: pixel_6
           arch: x86_64
           target: google_apis
           disable-animations: true

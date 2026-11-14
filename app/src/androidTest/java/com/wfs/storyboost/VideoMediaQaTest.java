@@ -247,6 +247,104 @@ public class VideoMediaQaTest {
         return output;
     }
 
+    @Test(timeout=450000)
+    public void captionSafeZonesMatchEditorOverlayOnDecodedVideo() throws Exception {
+        Uri portrait=importFixture("qa-caption.mp4"), landscape=importFixture("qa-caption-rotated.mp4");
+        final int gold=0xffffd786;
+        for(int profile:new int[]{SocialExportProfile.CUSTOM,SocialExportProfile.INSTAGRAM_REELS}){
+            for(Uri source:new Uri[]{portrait,landscape}){
+                boolean rotated=landscape.equals(source);
+                int ratio=profile==SocialExportProfile.CUSTOM&&rotated
+                        ?AspectRatioProfile.LANDSCAPE_16_9:AspectRatioProfile.PORTRAIT_9_16;
+                String title="CAPTION PLACEMENT FROM PREVIEW TO VIDEO";
+                ExportOptions options=new ExportOptions(ColorLooks.ORIGINAL,ratio,AspectRatioProfile.FIT,
+                        false,0,0).withSocialProfile(profile).withCaption(title,gold);
+                byte[] before=hashSource(source);
+                File encoded=realExport(source,options);
+                try{
+                    assertTrue(containsCodec(encoded,"video/avc"));
+                    assertTrue(containsCodec(encoded,"audio/mp4a-latm"));
+                    MediaProbe.SampleTimeline pts=MediaProbe.inspectSampleTimeline(encoded);
+                    assertTrue("Video needs actual A/V samples",pts.videoSamples>10&&pts.audioSamples>15);
+                    assertTrue("Caption export changed A/V timing",pts.lastPtsDriftMs()>=0&&pts.lastPtsDriftMs()<=250);
+                    android.media.MediaMetadataRetriever reader=new android.media.MediaMetadataRetriever();
+                    try{
+                        reader.setDataSource(encoded.getAbsolutePath());
+                        android.graphics.Rect reference=null;
+                        int w=profile==SocialExportProfile.CUSTOM&&rotated?1280:profile==SocialExportProfile.CUSTOM?720:1080;
+                        int h=profile==SocialExportProfile.CUSTOM&&rotated?720:profile==SocialExportProfile.CUSTOM?1280:1920;
+                        for(long time:new long[]{200000L,850000L}){
+                            android.graphics.Bitmap frame=reader.getFrameAtTime(time,MediaMetadataRetriever.OPTION_CLOSEST);
+                            assertNotNull("No decoded frame at "+time,frame);
+                            try{
+                                assertEquals("Decoded width",w,frame.getWidth());
+                                assertEquals("Decoded height",h,frame.getHeight());
+                                android.graphics.Rect actual=captionPixels(frame);
+                                if(reference==null)reference=drawPreviewCaption(w,h,title,gold,profile);
+                                assertEquals("Caption left",reference.left/(float)w,actual.left/(float)w,.04f);
+                                assertEquals("Caption right",reference.right/(float)w,actual.right/(float)w,.04f);
+                                assertEquals("Caption top",reference.top/(float)h,actual.top/(float)h,.025f);
+                                assertEquals("Caption bottom",reference.bottom/(float)h,actual.bottom/(float)h,.025f);
+                                SocialExportProfile.Profile zone=SocialExportProfile.get(profile);
+                                assertTrue("Caption exceeds profile safe zone "+actual,
+                                        actual.top>=zone.safeTop*h&&actual.bottom<=(1f-zone.safeBottom)*h);
+                                assertTrue("Caption crosses horizontal safe margins "+actual,
+                                        actual.left>=w*.035f&&actual.right<=w*.965f);
+                                android.util.Log.i("WfsBeta11CaptionQA","profile="+profile+" rotated="+rotated+
+                                        " canvas="+w+"x"+h+" frameUs="+time+" preview="+reference+
+                                        " encoded="+actual+" sampleDriftMs="+pts.lastPtsDriftMs());
+                            }finally{frame.recycle();}
+                        }
+                    }finally{reader.release();}
+                    assertArrayEquals("Source video changed",before,hashSource(source));
+                }finally{inst.runOnMainSync(engine::cleanup);}
+            }
+        }
+    }
+
+    private android.graphics.Rect drawPreviewCaption(int w,int h,String text,int color,int profile) {
+        AtomicReference<android.graphics.Rect> result=new AtomicReference<>();
+        inst.runOnMainSync(()->{
+            CaptionPreviewView preview=new CaptionPreviewView(ctx);
+            preview.update(text,color,profile,false,true);
+            preview.layout(0,0,w,h);
+            android.graphics.Bitmap bitmap=android.graphics.Bitmap.createBitmap(w,h,
+                    android.graphics.Bitmap.Config.ARGB_8888);
+            try{
+                preview.draw(new android.graphics.Canvas(bitmap));
+                result.set(captionPixels(bitmap));
+            }finally{bitmap.recycle();}
+        });
+        return result.get();
+    }
+
+    private static android.graphics.Rect captionPixels(android.graphics.Bitmap bitmap) {
+        android.graphics.Rect result=new android.graphics.Rect();
+        int[] row=new int[bitmap.getWidth()];
+        for(int y=0;y<bitmap.getHeight();y++){
+            bitmap.getPixels(row,0,row.length,0,y,row.length,1);
+            for(int x=0;x<row.length;x++){
+                int pixel=row[x],r=(pixel>>16)&255,g=(pixel>>8)&255,b=pixel&255;
+                if(r>165&&g>125&&r-b>58&&g-b>34){
+                    if(result.isEmpty())result.set(x,y,x+1,y+1);
+                    else result.union(x,y,x+1,y+1);
+                }
+            }
+        }
+        assertFalse("No encoded caption pixels found",result.isEmpty());
+        return result;
+    }
+
+    private byte[] hashSource(Uri source) throws Exception {
+        java.security.MessageDigest digest=java.security.MessageDigest.getInstance("SHA-256");
+        try(InputStream in=ctx.getContentResolver().openInputStream(source)){
+            assertNotNull(in);
+            byte[] bytes=new byte[8192];
+            for(int n;(n=in.read(bytes))!=-1;)digest.update(bytes,0,n);
+        }
+        return digest.digest();
+    }
+
     @Test(timeout=350000)
     @SdkSuppress(minSdkVersion=35)
     public void splitExportProducesTwoIndependentTimedH264AacSegments() throws Exception {

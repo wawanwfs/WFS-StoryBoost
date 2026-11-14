@@ -1,3 +1,9 @@
+## Beta11 encoded caption acceptance
+
+- [ ] On API29/35 verify decoded H.264/AAC frame caption coordinates at two timestamps per case. Use manual portrait/landscape and Instagram Reels on both source rotations, compare with Editor overlay and safe bounds, and confirm source SHA and sample drift.
+- [ ] Keep beta10 photo pixels/accessibility, Gallery, process death, grants and cancellation checks green.
+- [ ] External validation remains distinct: owner-consented photo inputs, physical ARM64, real Google Photos, manual TalkBack, signed upgrades.
+
 ## Beta10 UI acceptance
 
 - [ ] On API29, Quick Enhance and Merge Studio create readable Gallery MP4 with H.264/AAC, expected dimensions, duration and compressed A/V sample PTS; original SHA and cache remain intact.

@@ -1,5 +1,9 @@
 # WFS StoryBoost — Creative Editing Studio v3.0.0-beta3
 
+## Beta11 — posisi caption video sesuai preview
+
+Preview Editor dan caption yang dirender ke MP4 memakai tata letak yang sama. Uji frame video hasil encoding memeriksa posisi teks di profil manual dan sosial. [Cakupan beta11](docs/BETA11_QA.md).
+
 ## Beta10 — ekspor Android 10 dan kesesuaian preview foto
 
 Preview foto dan JPEG ekspor memakai perender caption yang sama. Uji Gallery memeriksa ekspor video asli dari Quick Enhance dan Merge Studio pada Android 10. [Cakupan beta10](docs/BETA10_QA.md).

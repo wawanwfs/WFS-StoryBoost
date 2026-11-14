@@ -2,6 +2,12 @@
 
 This is a **feature roadmap coverage estimate** for the target v3.0, not a claim of tested production quality. Each checkbox counts as one module. Implemented means source code is present and the project builds; feature correctness still requires end-to-end device tests.
 
+## Beta11 QA candidate
+
+- [x] Verified beta10 exact-head CI on API29 and API35.
+- [ ] Confirm real decoded MP4 caption parity, audio and source integrity on both APIs.
+- Roadmap unchanged at **23/32 (71.875%)**.
+
 ## Beta10 QA candidate
 
 - [x] Verified beta9 exact-head 4/4 with genuine API29 HD and FHD and API35 late cancellation and provider revocation.

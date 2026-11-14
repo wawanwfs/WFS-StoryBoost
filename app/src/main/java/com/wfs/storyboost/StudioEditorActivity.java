@@ -97,8 +97,7 @@ public final class StudioEditorActivity extends Activity {
     private final Runnable draftWriter=this::persistDraft;
     private final Runnable adjustedPreview=()->{if(!destroyed&&!isVideo)refreshImagePreview();};
     private boolean draftRestored=false;
-    private TextView captionView;
-    private PhotoCaptionView photoCaptionView;
+    private CaptionPreviewView captionPreview;
     private Bitmap imagePreviewBitmap;
     private Runnable playTicker;
     private int renderToken=0;
@@ -306,19 +305,8 @@ public final class StudioEditorActivity extends Activity {
         safeZoneView=new SocialSafeZoneView(this);
         safeZoneView.setVisibility(View.GONE);
         outputCanvas.addView(safeZoneView,new FrameLayout.LayoutParams(-1,-1));
-        if(isVideo){
-            captionView=txt("",16,Color.WHITE,true);
-            captionView.setGravity(Gravity.CENTER);captionView.setMaxLines(3);
-            captionView.setShadowLayer(dp(3),0,dp(1),Color.BLACK);
-            captionView.setPadding(dp(8),dp(4),dp(8),dp(4));
-            FrameLayout.LayoutParams captionLp=new FrameLayout.LayoutParams(-1,-2,
-                    Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
-            captionLp.bottomMargin=dp(23);
-            outputCanvas.addView(captionView,captionLp);
-        }else{
-            photoCaptionView=new PhotoCaptionView(this);
-            outputCanvas.addView(photoCaptionView,new FrameLayout.LayoutParams(-1,-1));
-        }
+        captionPreview=new CaptionPreviewView(this);
+        outputCanvas.addView(captionPreview,new FrameLayout.LayoutParams(-1,-1));
         cropTouchLayer=new View(this);
         cropTouchLayer.setContentDescription("Drag to reposition image crop focus");
         cropTouchLayer.setClickable(true);
@@ -460,12 +448,6 @@ public final class StudioEditorActivity extends Activity {
         FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(
                 Math.max(dp(50),newW),Math.max(dp(50),newH),Gravity.CENTER);
         outputCanvas.setLayoutParams(lp);
-        if(captionView!=null && captionView.getLayoutParams() instanceof FrameLayout.LayoutParams){
-            FrameLayout.LayoutParams titleParams=(FrameLayout.LayoutParams)captionView.getLayoutParams();
-            titleParams.bottomMargin=socialProfile==SocialExportProfile.CUSTOM
-                    ?dp(23):Math.round(newH*(1f-SocialExportProfile.captionCenterY(socialProfile)));
-            captionView.setLayoutParams(titleParams);
-        }
         if(cropTouchLayer!=null)cropTouchLayer.setVisibility(framing==AspectRatioProfile.CROP
                 ?View.VISIBLE:View.GONE);
         if(safeZoneView!=null){
@@ -614,8 +596,8 @@ public final class StudioEditorActivity extends Activity {
                 photo.setColorFilter(compareOriginal?null:PhotoEngine.colorFilter(options()));
                 previewLabel.setText(compareOriginal?"SEBELUM • ASLI":"PRATINJAU FILTER");
             }
-            updateCaptionPreview();
-        }else toast("Video preview menampilkan sumber; hasil filter terlihat setelah ekspor.");
+        }else toast("Pratinjau video memakai sumber; filter diterapkan saat ekspor.");
+        updateCaptionPreview();
     }
     private ExportOptions options(){
         return withCustomIfRequired(
@@ -842,15 +824,8 @@ public final class StudioEditorActivity extends Activity {
         toolPane.addView(bottom);
     }
     private void updateCaptionPreview(){
-        if(photoCaptionView!=null){
-            photoCaptionView.update(caption,captionColor,socialProfile,compareOriginal);
-            return;
-        }
-        if(captionView==null)return;
-        boolean show=!caption.trim().isEmpty()&&!compareOriginal;
-        captionView.setVisibility(show?View.VISIBLE:View.GONE);
-        captionView.setText(caption.trim());
-        captionView.setTextColor(captionColor);
+        if(captionPreview!=null)
+            captionPreview.update(caption,captionColor,socialProfile,compareOriginal,isVideo);
     }
     private void updateLiveAdjust(){
         if(isVideo||compareOriginal)return;

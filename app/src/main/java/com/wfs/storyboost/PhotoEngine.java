@@ -86,7 +86,7 @@ public final class PhotoEngine {
                     canvas.drawBitmap(oriented,null,
                             new RectF(b.left,b.top,b.right,b.bottom),photoPaint);
                 }
-                if(settings.hasText())new PhotoCaptionRenderer().draw(canvas,settings.caption,
+                if(settings.hasText())new CaptionRenderer().draw(canvas,settings.caption,
                         settings.captionColor,settings.socialProfile,width,height);
 
                 // Avoid excessive halos and memory usage on large images.

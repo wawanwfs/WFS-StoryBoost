@@ -1,12 +1,6 @@
 package com.wfs.storyboost;
 
 import android.content.Context;
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.StyleSpan;
-import android.text.style.AbsoluteSizeSpan;
-import android.graphics.Typeface;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 
@@ -14,9 +8,7 @@ import androidx.media3.common.Effect;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.effect.Contrast;
-import androidx.media3.effect.TextOverlay;
 import androidx.media3.effect.OverlayEffect;
-import androidx.media3.effect.StaticOverlaySettings;
 import androidx.media3.effect.HslAdjustment;
 import androidx.media3.effect.GaussianBlurWithFrameOverlaid;
 import androidx.media3.effect.Crop;
@@ -110,22 +102,8 @@ public final class VideoEngine {
                 (blur&&scale<0.999f)
                     ? Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
                     : Presentation.LAYOUT_SCALE_TO_FIT));
-        if(settings.hasText()){
-            SpannableString text=new SpannableString(settings.caption.trim());
-            text.setSpan(new ForegroundColorSpan(settings.captionColor),0,text.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            text.setSpan(new StyleSpan(Typeface.BOLD),0,text.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            text.setSpan(new AbsoluteSizeSpan(100),0,text.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            StaticOverlaySettings titlePosition=new StaticOverlaySettings.Builder()
-                    .setBackgroundFrameAnchor(0f,settings.socialProfile==SocialExportProfile.CUSTOM
-                            ? -.72f : 0f)
-                    .setOverlayFrameAnchor(0f,0f)
-                    .setScale(.72f,.72f).build();
-            effects.add(new OverlayEffect(Collections.singletonList(
-                    TextOverlay.createStaticTextOverlay(text,titlePosition))));
-        }
+        if(settings.hasText())
+            effects.add(new OverlayEffect(Collections.singletonList(new VideoCaptionOverlay(settings))));
         MediaItem.ClippingConfiguration.Builder clip=new MediaItem.ClippingConfiguration.Builder()
                 .setStartPositionMs(settings.trimStartMs);
         if(settings.trimEndMs>0)clip.setEndPositionMs(settings.trimEndMs);

@@ -4,11 +4,11 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 
-/** Shared, resolution-proportional photo caption drawing for preview and JPEG. */
-final class PhotoCaptionRenderer {
+/** Shared, resolution-proportional caption drawing for Editor preview, JPEG, and video. */
+final class CaptionRenderer {
     private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.SUBPIXEL_TEXT_FLAG);
 
-    PhotoCaptionRenderer(){
+    CaptionRenderer(){
         paint.setTypeface(Typeface.create("sans-serif-medium",Typeface.BOLD));
         paint.setTextAlign(Paint.Align.CENTER);
     }

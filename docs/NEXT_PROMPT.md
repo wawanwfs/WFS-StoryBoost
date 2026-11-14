@@ -1,10 +1,10 @@
-# WFS StoryBoost — Next Execution Prompt v3.0 beta11
+# WFS StoryBoost — Next Execution Prompt v3.0 beta12
 
-Start from the newest verified main in https://github.com/wawanwfs/WFS-StoryBoost and reconcile all open beta7–beta10 drafts. Read [beta10 QA](BETA10_QA.md), the exact CI logs and the [test plan](../tests/TEST_PLAN.md). Preserve package, source SHA, Recent, 24 Color Looks and pinned DnCNN. No force push or merge of failed/unverified gates.
+Begin with current main and reconcile the open beta7–beta11 drafts without force-pushing or merging unverified changes. Read [beta11 QA](BETA11_QA.md), exact GitHub Actions artifacts, and the [test plan](../tests/TEST_PLAN.md). Preserve original bytes, app package, Recent, 24 Color Looks and pinned DnCNN.
 
-1. Verify beta10 API29 Gallery outputs and both viewport pixel logs. Extend the photo proof to owner-consented portraits and low-light inputs. Measure preservation of face details without pretending that synthetic colors are human or ML quality evidence.
-2. Bring actual encoded video caption placement to parity with the selected safe zone, including custom/social profiles and both rotations. Prove result with decoded video frames rather than a screenshot of the source preview. Keep existing 1080p, MediaStore cancellation, sample PTS and revoked-grant cases.
-3. Run physical QA on owner-operated API29 low-RAM and API35 ARM64 phones. Use the Windows runbook and record memory/CPU/thermal/battery/LMK, plus manual TalkBack. Confirm real Google Photos grants and Recent separately.
-4. Only with the owner's existing signing setup and a spare test handset, compare two independent release APK certificates/package and verify rising versionCode, then perform install-over-upgrade without removing app data or losing authorized Recent. Never publish or request signing secrets.
+1. Verify beta11 decoded video caption proof, then add wrap and safe-zone boundary cases for the other social profiles, nonstandard aspect ratios and silent clips. Keep caption-free and passthrough cases, audio/sample PTS, cancellation and provider revocation green.
+2. With owner consent, test real portrait and low-light images entirely on-device. Compare crop and face details across source, preview and export, with per-sample bounds and original SHA. Do not add personal images or identifying output to Git or CI.
+3. Run the Windows QA procedure on owner-operated low-RAM Android 10 and Android 15 ARM64, record sampled memory/CPU/thermal/battery/LMK, manually check TalkBack and a real Google Photos URI across process death, revocation and reimport.
+4. On a spare handset with the owner signing setup, verify two independently signed release APKs with the same package and cert and increasing versionCode. Install over the old release without deleting its data and verify authorized Recent still opens. Never request or publish signing secrets.
 
-Report exact baseline/head, CI, test totals and artifact links, what was proven only in emulation and remaining blockers. Maintain 23/32 until a genuinely new module is verified.
+Report commit, PR and exact CI results, artifact links, verified module count and blockers. Keep 23/32 unless a genuinely new module is verified.

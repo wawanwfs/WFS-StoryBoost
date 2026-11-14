@@ -2,6 +2,37 @@
 
 This is a **feature roadmap coverage estimate** for the target v3.0, not a claim of tested production quality. Each checkbox counts as one module. Implemented means source code is present and the project builds; feature correctness still requires end-to-end device tests.
 
+## Beta10 QA candidate
+
+- [x] Verified beta9 exact-head 4/4 with genuine API29 HD and FHD and API35 late cancellation and provider revocation.
+- [ ] Verify API29 Quick Enhance and two-clip Merge Studio published media, and photo crop/caption accessibility and pixel evidence at both real viewport configurations.
+- Roadmap unchanged at **23/32 (71.875%)**.
+
+## Beta9 QA candidate
+
+- [x] Verified beta8 exact-head 4/4, 17 API29 and 27 API35 connected tests passed.
+- [ ] Inspect beta9 exact CI for late cancellation, Android 10 codec outcome, and independent-UID MP4 revocation evidence.
+- [ ] Physical, Google Photos, consented portrait and owner-signed upgrade evidence remain separate.
+- Roadmap unchanged at **23/32 (71.875%)**.
+
+## Beta8 QA candidate — Gallery ownership and cancellation across screens
+
+- [x] Verified beta7 head `d61e4ff3ec03fafd2743f4c5befd5a15ff3f9d4e` passed all four [GitHub Actions jobs](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42726507194). Beta7 PR #8 is still draft.
+- [ ] Beta8 Activity-driven photo, MP4 passthrough, encoded video and merge cancellation assertions require a green exact-head run. See [Beta8 QA scope](BETA8_QA.md).
+- [ ] Beta8 five-default-PID DnCNN run on API29 and two on API35 require artifact inspection. Physical QA, Google Photos, real consented portrait/crop QA and owner-signed upgrades remain open.
+- Roadmap unchanged at **23/32 (71.875%)**.
+
+## Beta7 QA candidate — cancellation-safe exports across the complete app
+
+- [x] Verified beta6 PR #7 merged as cd8ad45535078f80c79876bdde8adb4c11dca378 after exact final 4/4 green CI: https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42664085487 . Model SHA and DnCNN low-memory backend, independent SAF provider, Media3 acceptance preserved.
+- [ ] Cancellable MediaSaver video, photo and byte-for-byte original MP4 output, including before insert, after first 128KiB chunk and before/after publish; no pending or published cancelled Gallery rows.
+- [ ] Queue-scoped AtomicBoolean cancellation tokens now cover Quick Enhance, single Editor and Merge Studio, preventing stale user-visible success/errors and unsolicited writing of new gallery files after pressing Batalkan. No original JPEG/MP4 URI is modified or deleted.
+- [ ] Real Android `MediaSaverCancellationQaTest`: photo/video first-stage, mid-copy, original-MP4-copy and hidden MediaStore IS_PENDING cleanup. Validate API29 and API35 full tests at exact latest branch HEAD before acceptance.
+- [ ] Windows ARM64 PowerShell physical QA diagnostics-only by default; opt-in synthetic inference mode with `-RunInstrumented` and owner knowledge; docs at docs/PHYSICAL_ARM64_QA_WINDOWS.md, local logs excluded from Git.
+- [ ] Real physical ARM64 Android10 low-RAM and Android15 acceptance, Google Photos-owned URI, consented portrait/low-light samples and stable owner signing NOT performed.
+- [x] The exact beta7 head passed all four jobs; PR #8 remains draft and unmerged.
+- Distinct roadmap coverage still **23/32 (71.875%)**; QA tests/bug fixes do not add new modules.
+
 ## Project roadmap: 23 / 32 modules ≈ 72% (beta)
 
 ### A. Editor foundation — 8 / 8

@@ -135,6 +135,52 @@ public class VideoMediaQaTest {
         }finally{retriever.release();}
     }
 
+    @Test(timeout=150000) @SdkSuppress(minSdkVersion=29,maxSdkVersion=29)
+    public void android10ReportsRealHdAndDistinguishesFullHdFromFallback() throws Exception {
+        AspectRatioProfile.Size hd=new AspectRatioProfile.Size(720,1280);
+        AspectRatioProfile.Size fhd=new AspectRatioProfile.Size(1080,1920);
+        for(int quality:new int[]{OutputProfile.HD,OutputProfile.FULL_HD}){
+            ExportOptions config=new ExportOptions(ColorLooks.ORIGINAL,
+                    AspectRatioProfile.PORTRAIT_9_16,AspectRatioProfile.FIT,true,200,1700)
+                    .withQuality(quality);
+            CountDownLatch finished=new CountDownLatch(1);
+            AtomicReference<String> error=new AtomicReference<>();
+            AtomicReference<File> actual=new AtomicReference<>();
+            AtomicReference<AspectRatioProfile.Size> resultSize=new AtomicReference<>();
+            engine=new VideoEngine();
+            inst.runOnMainSync(()->engine.start(ctx,av,config,new VideoEngine.Listener(){
+                @Override public void onSuccess(File file,AspectRatioProfile.Size dimensions){
+                    actual.set(file);resultSize.set(dimensions);finished.countDown();
+                }
+                @Override public void onError(String message){error.set(message);finished.countDown();}
+            }));
+            assertTrue("Android 10 encoder did not finish",finished.await(55,TimeUnit.SECONDS));
+            File encoded=actual.get();
+            if(encoded==null){
+                String reason=error.get();
+                assertNotNull("No classified outcome from encoder",reason);
+                assertTrue("Unexpected failure for valid MP4: "+reason,
+                        reason.startsWith("ERROR_CODE_ENCODER_")||reason.startsWith("ERROR_CODE_ENCODING_")
+                        ||reason.startsWith("ERROR_CODE_DECODER_")||reason.startsWith("ERROR_CODE_DECODING_"));
+                android.util.Log.i("WfsEncoderQa","API29 quality="+quality+" CODEC_FAILURE "+reason);
+            }else{
+                outputFiles.add(encoded);
+                assertNull(error.get());
+                assertTrue(containsCodec(encoded,"video/avc"));
+                assertTrue(containsCodec(encoded,"audio/mp4a-latm"));
+                MediaProbe.SampleTimeline pts=MediaProbe.inspectSampleTimeline(encoded);
+                assertTrue("Unexpected sample drift: "+pts.lastPtsDriftMs(),pts.lastPtsDriftMs()>=0&&pts.lastPtsDriftMs()<=250);
+                AspectRatioProfile.Size dimensions=resultSize.get();
+                assertTrue("Unexpected actual canvas "+dimensions,hd.toString().equals(dimensions.toString())
+                        ||(quality==OutputProfile.FULL_HD&&fhd.toString().equals(dimensions.toString())));
+                android.util.Log.i("WfsEncoderQa","API29 quality="+quality+" actual="+dimensions+
+                        " A/V last PTS drift="+pts.lastPtsDriftMs()+"ms result="+
+                        (quality==OutputProfile.HD?"HD":fhd.toString().equals(dimensions.toString())?"FHD":"HD_FALLBACK"));
+            }
+            inst.runOnMainSync(engine::cleanup);
+        }
+    }
+
     @Test public void rejectsMalformedMp4InsteadOfInventingVideoTrack() throws Exception {
         File bad=new File(ctx.getCacheDir(),"wfs-qa-bad-"+System.nanoTime()+".mp4");
         try{
@@ -146,6 +192,35 @@ public class VideoMediaQaTest {
                 fail("MediaExtractor must reject corrupted MP4");
             }catch(java.io.IOException|IllegalArgumentException expected){}
         }finally{bad.delete();}
+    }
+
+    @Test public void videoEngineRejectsMalformedSourceBeforeAnyEncode() throws Exception {
+        Uri malformed=importFixture("qa-invalid.mp4");
+        ExportOptions options=new ExportOptions(ColorLooks.ORIGINAL,
+                AspectRatioProfile.ORIGINAL,AspectRatioProfile.FIT,true,0,0);
+        AtomicReference<RuntimeException> rejected=new AtomicReference<>();
+        java.util.concurrent.atomic.AtomicInteger callbacks=new java.util.concurrent.atomic.AtomicInteger();
+        engine=new VideoEngine();
+        String[] before=ctx.getCacheDir().list((dir,name)->name.startsWith("storyboost_"));
+        inst.runOnMainSync(()->{
+            try{
+                engine.start(ctx,malformed,options,new VideoEngine.Listener(){
+                    @Override public void onSuccess(File file,AspectRatioProfile.Size dims){
+                        outputFiles.add(file);
+                        callbacks.incrementAndGet();
+                    }
+                    @Override public void onError(String error){callbacks.incrementAndGet();}
+                });
+            }catch(IllegalArgumentException expected){rejected.set(expected);}
+        });
+        assertNotNull("Malformed source passed engine preflight",rejected.get());
+        assertEquals(0,callbacks.get());
+        String[] after=ctx.getCacheDir().list((dir,name)->name.startsWith("storyboost_"));
+        assertNotNull(before);
+        assertNotNull(after);
+        java.util.Arrays.sort(before);
+        java.util.Arrays.sort(after);
+        assertArrayEquals("Malformed source leaked encoder cache",before,after);
     }
 
     private File realExport(Uri source, ExportOptions options) throws Exception {
@@ -356,6 +431,15 @@ public class VideoMediaQaTest {
     @Test(timeout=160000)
     @SdkSuppress(minSdkVersion=35)
     public void cancelAfterRealMedia3ProgressPreservesOriginalAndCache() throws Exception {
+        cancelAtActualProgress(1);
+    }
+
+    @Test(timeout=160000) @SdkSuppress(minSdkVersion=35)
+    public void cancelLateInRealMedia3EncodePreservesOriginalAndCache() throws Exception {
+        cancelAtActualProgress(85);
+    }
+
+    private void cancelAtActualProgress(int minimumProgress) throws Exception {
         // A longer RIGHTS-SAFE actual H264/AAC MP4 forces real async encoding.
         Uri extended=importFixture("qa-h264-extended.mp4");
         java.security.MessageDigest digest=java.security.MessageDigest.getInstance("SHA-256");
@@ -388,19 +472,19 @@ public class VideoMediaQaTest {
             @Override public void onError(String error){callbacks.incrementAndGet();}
         }));
         long deadline=android.os.SystemClock.uptimeMillis()+65000L;
-        boolean actualProgress=false;
-        while(android.os.SystemClock.uptimeMillis()<deadline&&callbacks.get()==0){
-            inst.runOnMainSync(()->encodedProgress.set(engine.progress()));
-            int pct=encodedProgress.get();
-            if(pct>=1&&pct<100){
-                actualProgress=true;
-                break;
-            }
-            android.os.SystemClock.sleep(125);
+        java.util.concurrent.atomic.AtomicBoolean cancelled=new java.util.concurrent.atomic.AtomicBoolean();
+        while(android.os.SystemClock.uptimeMillis()<deadline&&callbacks.get()==0&&!cancelled.get()){
+            inst.runOnMainSync(()->{
+                int pct=engine.progress();
+                if(pct>=minimumProgress&&pct<100&&callbacks.get()==0){
+                    encodedProgress.set(pct);
+                    engine.cancel();
+                    cancelled.set(true);
+                }
+            });
+            if(!cancelled.get())android.os.SystemClock.sleep(40);
         }
-        assertTrue("Media3 never reported non-zero in-flight encoding progress; "+
-                "no delayed cancellation was proven: "+encodedProgress.get(),actualProgress);
-        inst.runOnMainSync(engine::cancel);
+        assertTrue("No in-flight cancellation at "+minimumProgress+"% was proven",cancelled.get());
         android.os.SystemClock.sleep(1600);
         assertEquals("Cancelled export emitted a success/error callback",0,callbacks.get());
         String[] after=ctx.getCacheDir().list((dir,name)->
@@ -419,7 +503,7 @@ public class VideoMediaQaTest {
         assertArrayEquals("Cancellation mutated original MediaStore fixture",
                 beforeHash,digest.digest());
         android.util.Log.i("WfsMediaCancelQA","PASS delayed Media3 cancellation at progress="+
-                encodedProgress.get()+"%, no callback/cache leak, unchanged source bytes");
+                encodedProgress.get()+"%, threshold="+minimumProgress+"%, no callback/cache leak, unchanged source bytes");
     }
 
     @Test(timeout=50000)

@@ -32,6 +32,7 @@ public final class VideoMergeEngine {
         if(videos==null||videos.isEmpty()||videos.size()>10)
             throw new IllegalArgumentException("Pilih 1 sampai 10 video");
         cancelled=false;
+        final List<Uri> sources=new ArrayList<>(videos);
         ArrayList<EditedMediaItem> items=new ArrayList<>();
         AspectRatioProfile.Size first;
         try{first=MediaDimensions.read(context,videos.get(0));}
@@ -41,7 +42,7 @@ public final class VideoMergeEngine {
         float factor=Math.min(1f,longest/(float)Math.max(first.width,first.height));
         int width=Math.max(2,(int)(Math.round(first.width*factor)/2)*2);
         int height=Math.max(2,(int)(Math.round(first.height*factor)/2)*2);
-        for(Uri video:videos){
+        for(Uri video:sources){
             try{
                 if(!MediaProbe.inspect(context,video).video)
                     throw new IllegalArgumentException("Video tidak memiliki track yang valid");
@@ -55,13 +56,15 @@ public final class VideoMergeEngine {
                                 Presentation.LAYOUT_SCALE_TO_FIT))))
                 .build();
         intermediate=new File(context.getCacheDir(),"wfs_join_"+System.nanoTime()+".mp4");
+        final File attemptFile=intermediate;
         transformer=new Transformer.Builder(context)
                 .setVideoMimeType(MimeTypes.VIDEO_H264)
                 .setAudioMimeType(MimeTypes.AUDIO_AAC)
                 .addListener(new Transformer.Listener(){
                     @Override public void onCompleted(Composition result,ExportResult export){
-                        if(cancelled)return;
+                        if(cancelled||intermediate!=attemptFile)return;
                         try{
+                            for(Uri source:sources)SourceAccess.requireReadable(context,source);
                             if(!intermediate.isFile()||intermediate.length()<1024)
                                 throw new java.io.IOException("Gabungan video kosong");
                             MediaProbe.Info info=MediaProbe.inspect(intermediate);
@@ -75,15 +78,24 @@ public final class VideoMergeEngine {
                     }
                     @Override public void onError(Composition result,ExportResult export,
                                                    ExportException ex){
-                        if(cancelled)return;
-                        String message=ex.getMessage()==null?
-                                "Perangkat tidak mendukung komposisi ini":ex.getMessage();
+                        if(cancelled||intermediate!=attemptFile)return;
+                        String message=VideoEngine.describeFailure(ex);
                         clean();
                         listener.onFailure(message);
                     }
                 }).build();
         transformer.start(composition,intermediate.getAbsolutePath());
     }
+    /**
+     * Transfer a completed MP4 to its Gallery worker on the main thread.
+     * The worker is then the only owner allowed to delete it.
+     */
+    void transferCompletedFile(File file) {
+        if (!file.equals(intermediate)) throw new IllegalStateException("Export file ownership changed");
+        intermediate = null;
+        transformer = null;
+    }
+
     public int progress(){
         if(transformer==null)return -1;
         ProgressHolder h=new ProgressHolder();

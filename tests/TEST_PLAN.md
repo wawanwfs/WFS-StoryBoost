@@ -1,3 +1,40 @@
+## Beta10 UI acceptance
+
+- [ ] On API29, Quick Enhance and Merge Studio create readable Gallery MP4 with H.264/AAC, expected dimensions, duration and compressed A/V sample PTS; original SHA and cache remain intact.
+- [ ] On API29/35 at 320×640/160 and 1080×2400/440, a real photo crop gesture changes sampled preview/export pixels and a shared caption renderer places gold text within the Instagram Story safe zone.
+- [ ] Activate the named crop slider through Android accessibility and persist the applied position. Distinguish this from manual TalkBack.
+- [ ] Physical, Google Photos, consented real portraits, and signed upgrades require owner-provided conditions.
+
+## Beta9 encoder and URI grant acceptance
+
+- [ ] API29 classify HD/FHD/fallback or explicit codec failure; report decoded canvas and actual compressed A/V PTS for each success.
+- [ ] API35 12 s actual H.264/AAC encoder cancelled at 85–99%, no callback or cache residue, source SHA unchanged. Retain earlier nonzero and immediate tests.
+- [ ] API35 Quick Enhance real encoded MP4 cancel before Gallery commit, no pending row or cache leak.
+- [ ] API29/35 independent provider revokes MP4 during copy. An existing FD reads subsequent chunks, reopening is denied, publication rolls back, source SHA matches after grant restoration.
+- [ ] API35 provider revokes MP4 during nonzero encoder progress. Explicit failure, no encoded success, no cache leak, unchanged source after grant restoration.
+- [ ] Separate physical ARM64, Google Photos, consented portrait/crop/accessibility, and owner-signed upgrade gates remain open.
+
+## Beta8 Activity and worker boundary acceptance
+
+- [ ] API29/35: Quick Enhance JPEG abort before insert, immediately start a second export while the first worker is paused, and verify exactly one visible result and unchanged source SHA.
+- [ ] API29/35: Quick Enhance original MP4 passthrough abort after a real 128 KiB write with a pending row. A prior completed output must match the source byte-for-byte and survive cancellation.
+- [ ] API29/35: Studio Editor JPEG after confirmed publication but before UI delivery; destroy the Activity and assert the output row rolls back.
+- [ ] API35: Studio Editor actual Media3 MP4 at pending pre-publication and multi-clip Merge Studio after publication. Press the UI cancel button, check all rows including hidden pending, cache MP4 ownership and cleanup, unchanged inputs, and no success dialog. These cases do not certify an API29 encoder.
+- [ ] API29/35: malformed MP4 rejected by actual VideoEngine before temp output or success. Keep existing real H.264/AAC 1080p, sample PTS and active cancellation gates on API35.
+- [ ] DnCNN exact pinned SHA and API29 five default PIDs / API35 two default PIDs, all process IDs distinct per API across default/off/on comparison. Preserve chroma, seam, PSS and quality thresholds.
+- [ ] Remaining: Android 29 real encoder plus late-stage and mid-stream revoked URI, physical ARM64, actual Google Photos, consented portrait/crop/caption acceptance, owner signed upgrade.
+
+## Beta7 acceptance gates — actual Gallery cancellation safety
+
+- [ ] API29 and API35: `MediaSaverCancellationQaTest` must cancel a real MediaStore video copy after at least one 128 KiB chunk, with `IS_PENDING`-inclusive query showing zero remaining rows, input SHA-256 unchanged.
+- [ ] API29 and API35: photo cancellation after gallery bytes written (before publish), no pending/published record, byte array unchanged; video cancellation before insert, no gallery rows.
+- [ ] Production Editor and Merge Studio cancellation tokens must stop outstanding queued gallery publishing, suppress stale callback success/error and delete just-saved owned URI when cancellation arrives after a write. Never delete original source `Uri` or last previously completed user export.
+- [ ] Quick Enhance queue cancel during Photo, Media3 video or byte-for-byte Original MP4 copy: no new Gallery row, original input and prior already-finished outputs intact, and no late callbacks.
+- [ ] Real source-MediaStore original MP4 copy abort after one 128KiB chunk, with unchanged SHA and zero pending output row.
+- [ ] Confirm existing 12-second H264/AAC Media3 nonzero-progress cancellation, instant cancellation, split/trim, both AV/silent merge orders, compressed-sample PTS drift, 24 Color Looks, real native SAF independent provider rights/revoke and force-stop persisted drafts remain green.
+- [ ] Confirm DnCNN XNNPACK-off consumer default remains paired PSNR >=28.55 and SSIM >=.730 (same pinned model) with significantly lower transient PSS vs legacy XNNPACK-on, fresh Android process IDs.
+- [ ] Windows `scripts/qa-physical-arm64.ps1` locally available, diagnostics only by default; actual authenticated ARM64 Android10/15 data *not obtained* until user runs it; no unsupervised device work.
+- [ ] Entire build, smoke, Android29, Android35 gate **4/4 green at the final beta7 commit** before merge. Do not label synthetic MediaStore tests as real-world device or WhatsApp evidence.
 ## Beta6 acceptance ledger — P0 strict
 
 - [x] Beta5: 4/4 green CI on final beta5 commit 7217cde9e66537a6ec5493198d22bb2217458144, including independent-UID QA provider owner revoke/delete/disable/reimport, real native DocumentsUI, two PIDs and unchanged source bytes.

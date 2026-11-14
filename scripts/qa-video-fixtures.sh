@@ -38,3 +38,6 @@ assert {('video','h264'),('audio','aac')} <= {(s['codec_type'],s['codec_name']) 
 assert 11.8<=float(long_data['format']['duration'])<=12.2
 print(long_path.name,'extended-media3-cancel-fixture',long_path.stat().st_size)
 PY
+
+mkdir -p qa-provider/src/main/assets
+cp "$OUT/qa-h264-extended.mp4" qa-provider/src/main/assets/

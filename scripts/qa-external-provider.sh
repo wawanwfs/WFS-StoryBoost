@@ -17,6 +17,7 @@ diagnose(){
     adb pull /sdcard/provider-failure.xml qa-provider-results/provider-failure.xml >/dev/null 2>&1 || true
     adb logcat -d -t 1000 > qa-provider-results/provider-logcat.txt 2>/dev/null || true
   fi
+  adb shell am broadcast -n "$RECEIVER" -a "$PROVIDER.VIDEO_REVOKE" >/dev/null 2>&1 || true
   adb shell pm enable --user 0 "$PROVIDER" >/dev/null 2>&1 || true
   exit "$status"
 }
@@ -84,5 +85,9 @@ phase verifyDisabledOrDeletedProvider unavailable
 adb shell pm enable --user 0 "$PROVIDER"
 control RESTORE
 phase reimportAfterOwnerRevoke reimport
+phase verifyVideoGrantRevokedDuringOriginalCopy video-copy
+if [[ "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" == 35 ]]; then
+  phase verifyVideoGrantRevokedDuringRealEncoder video-encode
+fi
 echo "PASS independent UID DocumentsUI grants, owner revocation, deletion, disable and reimport" |
   tee qa-provider-results/provider-acceptance-summary.txt

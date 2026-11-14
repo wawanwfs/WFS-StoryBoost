@@ -24,6 +24,20 @@ public final class FixtureDocumentsProvider extends DocumentsProvider {
     public static final String AUTHORITY="com.wfs.storyboost.qaprovider.documents";
     public static final String ROOT="qa-root", PHOTO="qa-jpeg-v1";
     public static final String NAME="wfs-provider-qa.jpg";
+    static final String VIDEO="qa-mp4-v1";
+    static final String VIDEO_NAME="qa-h264-extended.mp4";
+
+    static File video(Context context) throws IOException {
+        File target=new File(context.getFilesDir(),VIDEO_NAME);
+        if(!target.isFile()||target.length()<128*1024){
+            try(java.io.InputStream in=context.getAssets().open(VIDEO_NAME);
+                FileOutputStream out=new FileOutputStream(target)){
+                byte[] bytes=new byte[8192];
+                for(int n;(n=in.read(bytes))!=-1;)out.write(bytes,0,n);
+            }
+        }
+        return target;
+    }
     private static final String PREF="qa-fixture-state";
     private static final String[] ROOT_COLUMNS={
         DocumentsContract.Root.COLUMN_ROOT_ID,
@@ -105,6 +119,11 @@ public final class FixtureDocumentsProvider extends DocumentsProvider {
             fields.put(DocumentsContract.Document.COLUMN_DISPLAY_NAME,NAME);
             fields.put(DocumentsContract.Document.COLUMN_SIZE,f.length());
             fields.put(DocumentsContract.Document.COLUMN_LAST_MODIFIED,f.lastModified());
+        }else if(VIDEO.equals(documentId)){
+            fields.put(DocumentsContract.Document.COLUMN_MIME_TYPE,"video/mp4");
+            fields.put(DocumentsContract.Document.COLUMN_DISPLAY_NAME,VIDEO_NAME);
+            try{fields.put(DocumentsContract.Document.COLUMN_SIZE,video(getContext()).length());}
+            catch(IOException e){throw new FileNotFoundException(e.toString());}
         }else throw new FileNotFoundException("Unknown/deleted QA document: "+documentId);
         add(out,fields);
     }
@@ -125,6 +144,10 @@ public final class FixtureDocumentsProvider extends DocumentsProvider {
     }
     @Override public ParcelFileDescriptor openDocument(String id,String mode,CancellationSignal signal)
             throws FileNotFoundException{
+        if(VIDEO.equals(id)&&"r".equals(mode)){
+            try{return ParcelFileDescriptor.open(video(getContext()),ParcelFileDescriptor.MODE_READ_ONLY);}
+            catch(IOException e){throw new FileNotFoundException(e.toString());}
+        }
         if(!PHOTO.equals(id)||missing(getContext())||!"r".equals(mode))
             throw new FileNotFoundException("QA source deleted or mode rejected");
         return ParcelFileDescriptor.open(file(getContext()),ParcelFileDescriptor.MODE_READ_ONLY);

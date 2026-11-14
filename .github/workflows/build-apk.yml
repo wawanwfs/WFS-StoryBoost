@@ -225,6 +225,9 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
+          # API29 clamps wm size to twice the AVD's native display.
+          # Use a large display profile so 1080x2400 is genuinely reachable.
+          profile: pixel_6
           arch: x86_64
           target: google_apis
           disable-animations: true
@@ -244,6 +247,14 @@ jobs:
             bash scripts/qa-dncnn-thread-matrix.sh
             bash scripts/qa-dncnn-backend-matrix.sh
             bash scripts/qa-external-provider.sh
+            bash scripts/qa-editor-viewports.sh
+      - name: Upload crop and caption viewport pixel results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WFS-StoryBoost-beta10-Viewport-Pixels-API${{ matrix.api }}
+          path: qa-editor-viewports/
+          if-no-files-found: warn
       - name: Upload beta6 XNNPACK backend-isolation memory comparison
         if: always()
         uses: actions/upload-artifact@v4

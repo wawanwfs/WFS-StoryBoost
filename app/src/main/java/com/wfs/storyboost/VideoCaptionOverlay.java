@@ -2,21 +2,30 @@ package com.wfs.storyboost;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.text.SpannableString;
 
 import androidx.media3.common.OverlaySettings;
 import androidx.media3.common.VideoFrameProcessingException;
 import androidx.media3.common.util.Size;
-import androidx.media3.effect.BitmapOverlay;
+import androidx.media3.effect.TextOverlay;
 import androidx.media3.effect.StaticOverlaySettings;
 
 /** Rasterizes only the caption strip, after framing, in Media3's actual display coordinates. */
 @SuppressWarnings("UnsafeOptInUsageError")
-final class VideoCaptionOverlay extends BitmapOverlay {
+final class VideoCaptionOverlay extends TextOverlay {
     private final ExportOptions options;
+    private final SpannableString text;
     private Bitmap strip;
     private OverlaySettings settings;
 
-    VideoCaptionOverlay(ExportOptions options){this.options=options;}
+    VideoCaptionOverlay(ExportOptions options){
+        this.options=options;
+        text=new SpannableString(options.caption);
+    }
+
+    // Preserve Media3's HDR text treatment. A generic bitmap overlay
+    // requires a gain map; this is caption text, not an Ultra HDR image.
+    @Override public SpannableString getText(long presentationTimeUs){return text;}
 
     @Override public void configure(Size videoSize) {
         super.configure(videoSize);

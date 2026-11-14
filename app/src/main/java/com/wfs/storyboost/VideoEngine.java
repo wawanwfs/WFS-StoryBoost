@@ -1,12 +1,6 @@
 package com.wfs.storyboost;
 
 import android.content.Context;
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.StyleSpan;
-import android.text.style.AbsoluteSizeSpan;
-import android.graphics.Typeface;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 
@@ -14,9 +8,7 @@ import androidx.media3.common.Effect;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.effect.Contrast;
-import androidx.media3.effect.TextOverlay;
 import androidx.media3.effect.OverlayEffect;
-import androidx.media3.effect.StaticOverlaySettings;
 import androidx.media3.effect.HslAdjustment;
 import androidx.media3.effect.GaussianBlurWithFrameOverlaid;
 import androidx.media3.effect.Crop;
@@ -69,6 +61,7 @@ public final class VideoEngine {
                 settings.qualityMode, sourceSize.width, sourceSize.height, settings.frameStyle,
                 settings.customWidth,settings.customHeight);
         temp = new File(context.getCacheDir(), "storyboost_" + System.nanoTime() + ".mp4");
+        final File attemptFile=temp;
         List<Effect> effects = new ArrayList<>();
         ColorLooks.Look look=ColorLooks.get(settings.preset);
         if(!ColorLooks.isOriginal(settings.preset)){
@@ -109,22 +102,8 @@ public final class VideoEngine {
                 (blur&&scale<0.999f)
                     ? Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
                     : Presentation.LAYOUT_SCALE_TO_FIT));
-        if(settings.hasText()){
-            SpannableString text=new SpannableString(settings.caption.trim());
-            text.setSpan(new ForegroundColorSpan(settings.captionColor),0,text.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            text.setSpan(new StyleSpan(Typeface.BOLD),0,text.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            text.setSpan(new AbsoluteSizeSpan(100),0,text.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            StaticOverlaySettings titlePosition=new StaticOverlaySettings.Builder()
-                    .setBackgroundFrameAnchor(0f,settings.socialProfile==SocialExportProfile.CUSTOM
-                            ? -.72f : 0f)
-                    .setOverlayFrameAnchor(0f,0f)
-                    .setScale(.72f,.72f).build();
-            effects.add(new OverlayEffect(Collections.singletonList(
-                    TextOverlay.createStaticTextOverlay(text,titlePosition))));
-        }
+        if(settings.hasText())
+            effects.add(new OverlayEffect(Collections.singletonList(new VideoCaptionOverlay(settings))));
         MediaItem.ClippingConfiguration.Builder clip=new MediaItem.ClippingConfiguration.Builder()
                 .setStartPositionMs(settings.trimStartMs);
         if(settings.trimEndMs>0)clip.setEndPositionMs(settings.trimEndMs);
@@ -145,9 +124,11 @@ public final class VideoEngine {
                         .setRequestedVideoEncoderSettings(requested).build())
                 .addListener(new Transformer.Listener() {
                     @Override public void onCompleted(Composition composition, ExportResult result) {
+                        if(cancelled||temp!=attemptFile)return;
                         try {
-                            validateOutput(temp,target,sourceInfo,expectedDuration,settings.muteAudio);
-                            if(!cancelled)callback.onSuccess(temp,target);
+                            SourceAccess.requireReadable(context,source);
+                            validateOutput(attemptFile,target,sourceInfo,expectedDuration,settings.muteAudio);
+                            if(!cancelled)callback.onSuccess(attemptFile,target);
                         } catch (Exception invalid) {
                             // A failed validation must never leak a partially encoded MP4.
                             cleanup();
@@ -156,16 +137,17 @@ public final class VideoEngine {
                     }
                     @Override public void onError(Composition composition, ExportResult result,
                                                    ExportException e) {
-                        if(cancelled)return;
-                        if(allowFallback&&settings.qualityMode==OutputProfile.FULL_HD){
-                            if(temp!=null)temp.delete();
+                        if(cancelled||temp!=attemptFile)return;
+                        String reason=describeFailure(e);
+                        if(allowFallback&&settings.qualityMode==OutputProfile.FULL_HD
+                                && canRetryAtHd(e,sourceSize,target,settings)){
+                            cleanup();
                             try{startInternal(context,source,settings.inHd(),callback,false);return;}
                             catch(Exception problem){
                                 cleanup();
-                                callback.onError("FHD/HD gagal: "+problem.getMessage());return;
+                                callback.onError("FHD/HD gagal: "+reason+" / "+problem.getMessage());return;
                             }
                         }
-                        String reason=e.getMessage()==null?"Video gagal diekspor.":e.getMessage();
                         cleanup();
                         callback.onError(reason);
                     }
@@ -173,6 +155,23 @@ public final class VideoEngine {
                 .build();
         transformer.start(item, temp.getAbsolutePath());
         return target;
+    }
+
+    static String describeFailure(ExportException error) {
+        return error.getErrorCodeName()+": "+(error.getMessage()==null
+                ?"Video gagal diekspor.":error.getMessage());
+    }
+
+    private static boolean canRetryAtHd(ExportException error,AspectRatioProfile.Size source,
+                                         AspectRatioProfile.Size requested,ExportOptions options) {
+        if(error.errorCode!=ExportException.ERROR_CODE_ENCODER_INIT_FAILED
+                && error.errorCode!=ExportException.ERROR_CODE_ENCODING_FORMAT_UNSUPPORTED
+                && error.errorCode!=ExportException.ERROR_CODE_ENCODING_FAILED)return false;
+        if(error.codecInfo!=null&&(!error.codecInfo.isVideo||error.codecInfo.isDecoder))return false;
+        AspectRatioProfile.Size hd=AspectRatioProfile.resolve(options.ratio,OutputProfile.HD,
+                source.width,source.height,options.frameStyle,options.customWidth,options.customHeight);
+        return hd.width<=requested.width&&hd.height<=requested.height
+                && (hd.width<requested.width||hd.height<requested.height);
     }
 
     private static AspectRatioProfile.Size readVideoDimensions(Context context, Uri uri) {
@@ -228,6 +227,16 @@ public final class VideoEngine {
         } finally {
             try { retriever.release(); } catch (Exception ignored) { }
         }
+    }
+
+    /**
+     * Transfer a completed MP4 to its Gallery worker on the main thread.
+     * The worker is then the only owner allowed to delete it.
+     */
+    void transferCompletedFile(File file) {
+        if (!file.equals(temp)) throw new IllegalStateException("Export file ownership changed");
+        temp = null;
+        transformer = null;
     }
 
     public int progress() {

@@ -1,6 +1,35 @@
 # WFS StoryBoost — Creative Editing Studio v3.0.0-beta3
 
-## Beta6 memory-first candidate — requires final-head CI
+## Beta11 — posisi caption video sesuai preview
+
+Preview Editor dan caption yang dirender ke MP4 memakai tata letak yang sama. Uji frame video hasil encoding memeriksa posisi teks di profil manual dan sosial. [Cakupan beta11](docs/BETA11_QA.md).
+
+## Beta10 — ekspor Android 10 dan kesesuaian preview foto
+
+Preview foto dan JPEG ekspor memakai perender caption yang sama. Uji Gallery memeriksa ekspor video asli dari Quick Enhance dan Merge Studio pada Android 10. [Cakupan beta10](docs/BETA10_QA.md).
+
+## Beta9 — real encoder and source-grant acceptance
+
+Beta9 adds true late encoder cancellation, Android 10 codec classification, and independent provider-owner MP4 revocation tests. An old open descriptor cannot authorize publishing a video after the source grant has been lost. See [beta9 QA and its boundaries](docs/BETA9_QA.md).
+
+## Beta8 — cancel-safe export handoff (QA candidate)
+
+Beta8 builds on [beta7 PR #8](https://github.com/wawanwfs/WFS-StoryBoost/pull/8), whose exact head passed [all four Android CI jobs](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42726507194). The newest verified `main` baseline is `cd8ad45535078f80c79876bdde8adb4c11dca378`; beta7 remains a separate draft.
+
+All Gallery writers now copy in cancellable 128 KiB chunks, including JPEG. An export cannot report success unless MediaStore confirms publication. Once Media3 completes, the Gallery worker owns its temporary MP4 until copying stops. Old queue callbacks cannot modify a replacement export. Quick Enhance explicitly labels an FHD-to-HD fallback. The editor's non-destructive notice no longer covers image pixels, and its video controls have accessible labels.
+
+See [Beta8 QA evidence and limits](docs/BETA8_QA.md) and the [test plan](tests/TEST_PLAN.md). This candidate is not physical-device, release-signing, or Google Photos acceptance.
+
+## Beta7 — cancellation-safe gallery publishing (QA candidate)
+
+Beta6 PR #7 merged to `main` as `cd8ad45535078f80c79876bdde8adb4c11dca378` after exact final [4/4 passing CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42664085487). This retains the same offline pinned DnCNN model with the lower-memory XNNPACK-off consumer default and actual SAF / Media3 acceptance on Android29/35 **emulators**.
+
+**Beta7 change on QA branch:** real `MediaSaver` photo/video publishing can now be cancelled before insert, during file copy, after bytes are written and even just after publishing; pending (and, if needed, newly published) MediaStore rows are deleted. The Quick Enhance queue, Editor and Video Merge Studio use independent per-export `AtomicBoolean` cancellation tokens that reach the gallery writer and reject late callbacks. No source file or user photo is deleted. A new synthetic Android instrumented suite verifies photo/video and original byte-for-byte MP4-copy interrupted writes, no hidden `IS_PENDING` entries and identical source bytes.
+
+A [Windows physical-device runbook](docs/PHYSICAL_ARM64_QA_WINDOWS.md) and PowerShell ARM64 QA script (`scripts/qa-physical-arm64.ps1`) collects read-only device diagnostic snapshots by default; synthetic AI inference with forced app stops is **explicit opt-in**. It does not install APKs, access real portrait photos or infer low-RAM hardware readiness. Local QA evidence is gitignored. [Exact beta7 head CI passed 4/4](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42726507194), but PR #8 remains draft.
+
+Blocking external evidence remains: owner test-account actual Google Photos-owned URI, consented real-portrait images/quality, distinct ARM64 Android10/15 physical performance, and stable owner-signed release upgrade. No lossless WA/IG/TikTok guarantee; coverage remains 23/32=71.875%.
+## Beta6 historical QA — accepted by 4/4 CI
 
 Verified beta5 PR #6 merged to main as ad2d778f94442cfe4b7de26283e8e11236d2e80d after both [4/4 green beta5 CI](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42543978698) and prior native DocumentsUI, separate-UID provider, revoke/disabled/reimport acceptance on Android 10/15 x86_64 emulators.
 

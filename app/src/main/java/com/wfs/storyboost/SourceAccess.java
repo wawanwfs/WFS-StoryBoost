@@ -8,6 +8,11 @@ import android.os.ParcelFileDescriptor;
 public final class SourceAccess {
     private SourceAccess() {}
 
+    static void requireReadable(Context context,Uri uri) throws java.io.IOException {
+        if(!canRead(context,uri))
+            throw new java.io.IOException("Akses media sumber hilang. Impor ulang dari galeri.");
+    }
+
     public static boolean canRead(Context context, Uri uri) {
         if(context==null || uri==null) return false;
         String scheme=uri.getScheme();

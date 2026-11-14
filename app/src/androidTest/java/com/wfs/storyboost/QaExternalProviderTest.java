@@ -277,4 +277,113 @@ public final class QaExternalProviderTest {
         assertEquals("Original fixture changed",app().getSharedPreferences(PREF,
                 Context.MODE_PRIVATE).getString("sha",""),sha(app(),picked));
     }
+
+    private Uri providerVideo(){
+        return DocumentsContract.buildDocumentUri(AUTH,"qa-mp4-v1");
+    }
+
+    private void videoControl(String action) throws Exception {
+        String result=UiDevice.getInstance(inst).executeShellCommand(
+                "am broadcast --receiver-foreground -n com.wfs.storyboost.qaprovider/.FixtureControlReceiver"
+                +" -a com.wfs.storyboost.qaprovider.VIDEO_"+action);
+        assertTrue("Provider owner did not acknowledge "+action+": "+result,result.contains("result=200"));
+    }
+
+    private void assertNoVideoRows(String name) {
+        Uri all=android.provider.MediaStore.setIncludePending(
+                android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI);
+        try(android.database.Cursor rows=app().getContentResolver().query(all,
+                new String[]{"_id"},"_display_name=?",new String[]{name},null)){
+            assertNotNull(rows);
+            assertEquals("Revoked input left a published/pending row",0,rows.getCount());
+        }
+    }
+
+    @Test(timeout=90000) public void verifyVideoGrantRevokedDuringOriginalCopy() throws Exception {
+        phase("video-copy");
+        Uri source=providerVideo();
+        String name="wfs-revoked-passthrough-"+System.nanoTime()+".mp4";
+        videoControl("REVOKE");
+        assertFalse(SourceAccess.canRead(app(),source));
+        videoControl("GRANT");
+        String initial=sha(app(),source);
+        java.util.concurrent.atomic.AtomicInteger chunks=new java.util.concurrent.atomic.AtomicInteger();
+        AtomicReference<Exception> controlFailure=new AtomicReference<>();
+        try{
+            ExportQaCheckpoint.observer=(stage,filename,row)->{
+                if(!name.equals(filename)||stage!=MediaSaver.Stage.CHUNK_WRITTEN)return;
+                if(chunks.incrementAndGet()==1){
+                    try{videoControl("REVOKE");}
+                    catch(Exception e){controlFailure.set(e);}
+                }
+            };
+            try{
+                Uri published=MediaSaver.copyOriginalMp4(app(),source,name);
+                app().getContentResolver().delete(published,null,null);
+                fail("Permission loss during copy was silently published");
+            }catch(java.io.IOException expected){
+                assertTrue(expected.toString(),expected.getMessage().contains("Akses media sumber hilang"));
+            }
+            assertNull(controlFailure.get());
+            assertTrue("An already-open descriptor should finish reading until fresh grant check",
+                    chunks.get()>1);
+            assertFalse(SourceAccess.canRead(app(),source));
+            assertNoVideoRows(name);
+            videoControl("GRANT");
+            assertEquals("Source bytes changed",initial,sha(app(),source));
+            System.out.println("VIDEO_REVOKE_COPY chunks="+chunks.get()+" originalSha="+initial+" noPending=true");
+        }finally{
+            ExportQaCheckpoint.observer=null;
+            videoControl("REVOKE");
+        }
+    }
+
+    @Test(timeout=150000) public void verifyVideoGrantRevokedDuringRealEncoder() throws Exception {
+        phase("video-encode");
+        Uri source=providerVideo();
+        videoControl("GRANT");
+        VideoEngine engine=new VideoEngine();
+        java.util.concurrent.CountDownLatch done=new java.util.concurrent.CountDownLatch(1);
+        AtomicReference<String> error=new AtomicReference<>();
+        AtomicReference<java.io.File> output=new AtomicReference<>();
+        java.util.concurrent.atomic.AtomicInteger progress=new java.util.concurrent.atomic.AtomicInteger(-1);
+        ExportOptions config=new ExportOptions(ColorLooks.ORIGINAL,AspectRatioProfile.PORTRAIT_9_16,
+                AspectRatioProfile.FIT,true,0,0).withQuality(OutputProfile.FULL_HD);
+        String[] before=app().getCacheDir().list((d,n)->n.startsWith("storyboost_")&&n.endsWith(".mp4"));
+        try{
+            String initial=sha(app(),source);
+            inst.runOnMainSync(()->engine.start(app(),source,config,new VideoEngine.Listener(){
+                @Override public void onSuccess(java.io.File f,AspectRatioProfile.Size size){
+                    output.set(f);done.countDown();
+                }
+                @Override public void onError(String message){error.set(message);done.countDown();}
+            }));
+            long deadline=SystemClock.uptimeMillis()+65000;
+            do{
+                inst.runOnMainSync(()->progress.set(engine.progress()));
+                if(progress.get()>0)break;
+                SystemClock.sleep(40);
+            }while(SystemClock.uptimeMillis()<deadline&&done.getCount()>0);
+            assertTrue("Encoder did not reach real progress",progress.get()>0&&progress.get()<100);
+            videoControl("REVOKE");
+            assertFalse(SourceAccess.canRead(app(),source));
+            assertTrue("Revoked encoder did not complete",done.await(50,java.util.concurrent.TimeUnit.SECONDS));
+            assertNull("Encoded video accepted after source revocation",output.get());
+            assertNotNull("Missing explicit failure",error.get());
+            assertTrue(error.get(),error.get().contains("Akses media sumber hilang")||
+                    error.get().startsWith("ERROR_CODE_IO_NO_PERMISSION"));
+            String[] after=app().getCacheDir().list((d,n)->n.startsWith("storyboost_")&&n.endsWith(".mp4"));
+            assertNotNull(before);
+            assertNotNull(after);
+            Arrays.sort(before);
+            Arrays.sort(after);
+            assertArrayEquals("Revoked encoder leaked a cache MP4",before,after);
+            videoControl("GRANT");
+            assertEquals(initial,sha(app(),source));
+            System.out.println("VIDEO_REVOKE_ENCODE progress="+progress.get()+"% reason="+error.get()+" noCacheLeak=true");
+        }finally{
+            inst.runOnMainSync(engine::cancel);
+            videoControl("REVOKE");
+        }
+    }
 }

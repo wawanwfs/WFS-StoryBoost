@@ -7,3 +7,10 @@ local.properties
 .DS_Store
 .tools/
 dist/
+
+# Local physical Android QA can contain device metadata; never commit raw logs.
+qa-physical-results/
+
+# Generated synthetic fixtures, verified and assembled in Android CI.
+app/src/androidTest/assets/qa-*.mp4
+qa-provider/src/main/assets/qa-h264-extended.mp4

@@ -18,7 +18,16 @@ public final class FixtureControlReceiver extends BroadcastReceiver {
         String action=intent==null?"":intent.getAction();
         Uri doc=DocumentsContract.buildDocumentUri(
                 FixtureDocumentsProvider.AUTHORITY,FixtureDocumentsProvider.PHOTO);
-        if(REVOKE.equals(action)||DELETE.equals(action)){
+        if("com.wfs.storyboost.qaprovider.VIDEO_GRANT".equals(action)
+                ||"com.wfs.storyboost.qaprovider.VIDEO_REVOKE".equals(action)){
+            Uri video=DocumentsContract.buildDocumentUri(FixtureDocumentsProvider.AUTHORITY,
+                    FixtureDocumentsProvider.VIDEO);
+            String consumer="com.wfs.storyboost.studio";
+            int read=Intent.FLAG_GRANT_READ_URI_PERMISSION;
+            if(action.endsWith("VIDEO_GRANT"))context.grantUriPermission(consumer,video,read);
+            else context.revokeUriPermission(consumer,video,read);
+            setResultCode(200);
+        }else if(REVOKE.equals(action)||DELETE.equals(action)){
             if(DELETE.equals(action))FixtureDocumentsProvider.setMissing(context,true);
             // Owner-revoked access: the external consumer is not allowed to
             // quietly reopen its old URI after the provider invalidates it.

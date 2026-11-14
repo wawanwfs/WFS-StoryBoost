@@ -1,3 +1,10 @@
+## Beta10 UI acceptance
+
+- [ ] On API29, Quick Enhance and Merge Studio create readable Gallery MP4 with H.264/AAC, expected dimensions, duration and compressed A/V sample PTS; original SHA and cache remain intact.
+- [ ] On API29/35 at 320×640/160 and 1080×2400/440, a real photo crop gesture changes sampled preview/export pixels and a shared caption renderer places gold text within the Instagram Story safe zone.
+- [ ] Activate the named crop slider through Android accessibility and persist the applied position. Distinguish this from manual TalkBack.
+- [ ] Physical, Google Photos, consented real portraits, and signed upgrades require owner-provided conditions.
+
 ## Beta9 encoder and URI grant acceptance
 
 - [ ] API29 classify HD/FHD/fallback or explicit codec failure; report decoded canvas and actual compressed A/V PTS for each success.

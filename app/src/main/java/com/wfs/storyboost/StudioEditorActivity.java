@@ -98,6 +98,7 @@ public final class StudioEditorActivity extends Activity {
     private final Runnable adjustedPreview=()->{if(!destroyed&&!isVideo)refreshImagePreview();};
     private boolean draftRestored=false;
     private TextView captionView;
+    private PhotoCaptionView photoCaptionView;
     private Bitmap imagePreviewBitmap;
     private Runnable playTicker;
     private int renderToken=0;
@@ -305,14 +306,19 @@ public final class StudioEditorActivity extends Activity {
         safeZoneView=new SocialSafeZoneView(this);
         safeZoneView.setVisibility(View.GONE);
         outputCanvas.addView(safeZoneView,new FrameLayout.LayoutParams(-1,-1));
-        captionView=txt("",16,Color.WHITE,true);
-        captionView.setGravity(Gravity.CENTER);captionView.setMaxLines(3);
-        captionView.setShadowLayer(dp(3),0,dp(1),Color.BLACK);
-        captionView.setPadding(dp(8),dp(4),dp(8),dp(4));
-        FrameLayout.LayoutParams captionLp=new FrameLayout.LayoutParams(-1,-2,
-                Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
-        captionLp.bottomMargin=dp(23);
-        outputCanvas.addView(captionView,captionLp);
+        if(isVideo){
+            captionView=txt("",16,Color.WHITE,true);
+            captionView.setGravity(Gravity.CENTER);captionView.setMaxLines(3);
+            captionView.setShadowLayer(dp(3),0,dp(1),Color.BLACK);
+            captionView.setPadding(dp(8),dp(4),dp(8),dp(4));
+            FrameLayout.LayoutParams captionLp=new FrameLayout.LayoutParams(-1,-2,
+                    Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+            captionLp.bottomMargin=dp(23);
+            outputCanvas.addView(captionView,captionLp);
+        }else{
+            photoCaptionView=new PhotoCaptionView(this);
+            outputCanvas.addView(photoCaptionView,new FrameLayout.LayoutParams(-1,-1));
+        }
         cropTouchLayer=new View(this);
         cropTouchLayer.setContentDescription("Drag to reposition image crop focus");
         cropTouchLayer.setClickable(true);
@@ -467,10 +473,10 @@ public final class StudioEditorActivity extends Activity {
             safeZoneView.setVisibility(socialProfile==SocialExportProfile.CUSTOM
                     ?View.GONE:View.VISIBLE);
         }
-        if(photo!=null){
-            photo.setScaleType(framing==AspectRatioProfile.CROP?
-                    ImageView.ScaleType.CENTER_CROP:ImageView.ScaleType.FIT_CENTER);
-        }
+        // PhotoEngine already renders the requested crop. Do not crop it a
+        // second time in the widget, especially with small display rounding.
+        if(photo!=null)photo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        updateCaptionPreview();
     }
     private void refreshSourceMetadata(){
         io.execute(()->{
@@ -522,14 +528,15 @@ public final class StudioEditorActivity extends Activity {
         if(isVideo)return;
         final int token=++renderToken;
         ExportOptions options=options();
+        final boolean showOriginal=compareOriginal;
         previewWorker.getQueue().clear();
-        if((options.portraitBokeh||options.aiDenoise)&&!compareOriginal)
+        if((options.portraitBokeh||options.aiDenoise)&&!showOriginal)
             previewLabel.setText("AI • Menjalankan model offline...");
         previewWorker.execute(()->{
             Bitmap rendered=null;
             String failure=null;
             try{
-                rendered=(options.portraitBokeh||options.aiDenoise)&&!compareOriginal?
+                rendered=(options.portraitBokeh||options.aiDenoise)&&!showOriginal?
                         PhotoEngine.enhancedPreview(this,mediaUri,options):
                         PhotoEngine.originalPreview(this,mediaUri,options);
             }catch(Exception ex){failure=ex.getMessage();}
@@ -542,7 +549,7 @@ public final class StudioEditorActivity extends Activity {
                             "Preview AI gagal: "+errorMessage);
                     return;
                 }
-                previewLabel.setText((options.portraitBokeh||options.aiDenoise)&&!compareOriginal?
+                previewLabel.setText((options.portraitBokeh||options.aiDenoise)&&!showOriginal?
                         (options.aiDenoise?"AI DENOISE • TFLITE":"AI PORTRAIT BOKEH"):"LIVE PHOTO PREVIEW");
                 Bitmap oldBitmap=imagePreviewBitmap;
                 photo.setImageBitmap(finalBitmap);
@@ -769,6 +776,7 @@ public final class StudioEditorActivity extends Activity {
     }
     private void focusPicker(boolean x){
         SeekBar slider=new SeekBar(this);slider.setMax(100);
+        slider.setContentDescription(x?"Fokus crop horizontal":"Fokus crop vertikal");
         slider.setProgress(Math.round((x?focusX:focusY)*100));
         new AlertDialog.Builder(this).setTitle(x?"Posisi horizontal crop":"Posisi vertikal crop")
                 .setView(slider).setNegativeButton("Batal",null)
@@ -834,6 +842,10 @@ public final class StudioEditorActivity extends Activity {
         toolPane.addView(bottom);
     }
     private void updateCaptionPreview(){
+        if(photoCaptionView!=null){
+            photoCaptionView.update(caption,captionColor,socialProfile,compareOriginal);
+            return;
+        }
         if(captionView==null)return;
         boolean show=!caption.trim().isEmpty()&&!compareOriginal;
         captionView.setVisibility(show?View.VISIBLE:View.GONE);

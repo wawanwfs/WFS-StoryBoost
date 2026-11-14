@@ -86,7 +86,8 @@ public final class PhotoEngine {
                     canvas.drawBitmap(oriented,null,
                             new RectF(b.left,b.top,b.right,b.bottom),photoPaint);
                 }
-                if(settings.hasText())drawCaption(canvas,settings,width,height);
+                if(settings.hasText())new PhotoCaptionRenderer().draw(canvas,settings.caption,
+                        settings.captionColor,settings.socialProfile,width,height);
 
                 // Avoid excessive halos and memory usage on large images.
                 // No destructive per-pixel sharpening: it created halos and memory
@@ -194,6 +195,9 @@ public final class PhotoEngine {
             int h=Math.max(2,(int)Math.round(target.height*factor));
             output=Bitmap.createBitmap(w,h,Bitmap.Config.ARGB_8888);
             Canvas canvas=new Canvas(output);
+            canvas.drawColor(Color.rgb(14,19,29));
+            if(settings.frameStyle==AspectRatioProfile.BLUR)
+                drawBlurredBackground(canvas,oriented,w,h);
             Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
             p.setColorFilter(colorFilter(settings));
             FrameMath.Bounds b=FrameMath.center(oriented.getWidth(),oriented.getHeight(),
@@ -364,36 +368,6 @@ public final class PhotoEngine {
         }));
         return new ColorMatrixColorFilter(matrix);
     }
-    private static void drawCaption(Canvas canvas,ExportOptions settings,int width,int height){
-        String caption=settings.caption.trim().replace((char)10,' ');
-        if(caption.isEmpty())return;
-        Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.SUBPIXEL_TEXT_FLAG);
-        paint.setTypeface(android.graphics.Typeface.create("sans-serif-medium",
-                android.graphics.Typeface.BOLD));
-        float px=Math.max(18f,Math.min(width*.058f,height*.04f));
-        paint.setTextSize(px);
-        paint.setTextAlign(Paint.Align.CENTER);
-        String[] lines;
-        if(paint.measureText(caption)>width*.88f&&caption.contains(" ")){
-            int middle=caption.length()/2;
-            int split=caption.lastIndexOf(' ',middle);
-            if(split<caption.length()/4)split=caption.indexOf(' ',middle);
-            lines=split>0?new String[]{caption.substring(0,split),caption.substring(split+1)}
-                         :new String[]{caption};
-        }else lines=new String[]{caption};
-        paint.setColor(settings.captionColor);
-        paint.setShadowLayer(Math.max(2f,px*.11f),1f,Math.max(2f,px*.10f),0xEE000000);
-        float y=height*SocialExportProfile.captionCenterY(settings.socialProfile)
-                -(lines.length-1)*px*.65f;
-        for(String line:lines){
-            // Fit even long captions within the frame, never clip at the sides.
-            float fit=paint.measureText(line)>0?Math.min(1f,width*.9f/paint.measureText(line)):1f;
-            canvas.save();canvas.translate(width/2f,y);canvas.scale(fit,1f);
-            canvas.drawText(line,0,0,paint);canvas.restore();
-            y+=px*1.25f;
-        }
-    }
-
     private static void sharpen(Bitmap image, int width, int height, float strength) {
         int[] src = new int[width * height];
         image.getPixels(src, 0, width, 0, 0, width, height);

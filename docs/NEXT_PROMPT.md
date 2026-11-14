@@ -1,10 +1,10 @@
-# WFS StoryBoost — Next Execution Prompt v3.0 beta10
+# WFS StoryBoost — Next Execution Prompt v3.0 beta11
 
-Continue from the newest verified main at https://github.com/wawanwfs/WFS-StoryBoost and reconcile the unmerged beta7–beta9 drafts before starting. Read [beta9 QA](BETA9_QA.md), [test plan](../tests/TEST_PLAN.md), and all exact-head CI evidence. Never force push or merge a failed or unverified required gate. Preserve source bytes, app package, Recent, 24 Color Looks, and the pinned DnCNN.
+Start from the newest verified main in https://github.com/wawanwfs/WFS-StoryBoost and reconcile all open beta7–beta10 drafts. Read [beta10 QA](BETA10_QA.md), the exact CI logs and the [test plan](../tests/TEST_PLAN.md). Preserve package, source SHA, Recent, 24 Color Looks and pinned DnCNN. No force push or merge of failed/unverified gates.
 
-1. Confirm beta9 exact-head run, Android 10's actual encoder outcome, and API35 late cancellation/owner revocation. Close any platform codec or UI coverage gaps without classifying passthrough or a rejected encode as HD/FHD output. Add API29 Quick Enhance and Merge Studio outcomes where encoders are supported.
-2. Run the [physical QA procedure](PHYSICAL_ARM64_QA_WINDOWS.md) on owner-operated Android 10 low-RAM and Android 15 ARM64 devices, with sampled PSS, CPU, battery, thermal, cancel and LMK records. Verify real owner-selected Google Photos URI persistence/revocation/reimport separately.
-3. Use only rights-cleared consented portraits and low-light material. Prove crop focus and caption safe-zone pixel placement and TalkBack controls at 320×640/160dpi and 1080×2400/440dpi. Preserve original SHA and portrait identity.
-4. With owner signing already configured, independently build two releases, verify same cert/package with ascending versionCode, and perform adb install -r with Recent and its authorized source intact. Do not upload secrets or treat debug APKs as production.
+1. Verify beta10 API29 Gallery outputs and both viewport pixel logs. Extend the photo proof to owner-consented portraits and low-light inputs. Measure preservation of face details without pretending that synthetic colors are human or ML quality evidence.
+2. Bring actual encoded video caption placement to parity with the selected safe zone, including custom/social profiles and both rotations. Prove result with decoded video frames rather than a screenshot of the source preview. Keep existing 1080p, MediaStore cancellation, sample PTS and revoked-grant cases.
+3. Run physical QA on owner-operated API29 low-RAM and API35 ARM64 phones. Use the Windows runbook and record memory/CPU/thermal/battery/LMK, plus manual TalkBack. Confirm real Google Photos grants and Recent separately.
+4. Only with the owner's existing signing setup and a spare test handset, compare two independent release APK certificates/package and verify rising versionCode, then perform install-over-upgrade without removing app data or losing authorized Recent. Never publish or request signing secrets.
 
-Report exact baseline, head, CI, test counts, artifacts, emulator vs physical evidence, blockers, and a unique next prompt. Keep roadmap at 23/32 unless another feature is fully implemented and verified.
+Report exact baseline/head, CI, test totals and artifact links, what was proven only in emulation and remaining blockers. Maintain 23/32 until a genuinely new module is verified.

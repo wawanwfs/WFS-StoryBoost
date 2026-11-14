@@ -1,5 +1,9 @@
 # WFS StoryBoost — Creative Editing Studio v3.0.0-beta3
 
+## Beta10 — ekspor Android 10 dan kesesuaian preview foto
+
+Preview foto dan JPEG ekspor memakai perender caption yang sama. Uji Gallery memeriksa ekspor video asli dari Quick Enhance dan Merge Studio pada Android 10. [Cakupan beta10](docs/BETA10_QA.md).
+
 ## Beta9 — real encoder and source-grant acceptance
 
 Beta9 adds true late encoder cancellation, Android 10 codec classification, and independent provider-owner MP4 revocation tests. An old open descriptor cannot authorize publishing a video after the source grant has been lost. See [beta9 QA and its boundaries](docs/BETA9_QA.md).

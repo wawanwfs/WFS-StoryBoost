@@ -2,6 +2,12 @@
 
 This is a **feature roadmap coverage estimate** for the target v3.0, not a claim of tested production quality. Each checkbox counts as one module. Implemented means source code is present and the project builds; feature correctness still requires end-to-end device tests.
 
+## Beta10 QA candidate
+
+- [x] Verified beta9 exact-head 4/4 with genuine API29 HD and FHD and API35 late cancellation and provider revocation.
+- [ ] Verify API29 Quick Enhance and two-clip Merge Studio published media, and photo crop/caption accessibility and pixel evidence at both real viewport configurations.
+- Roadmap unchanged at **23/32 (71.875%)**.
+
 ## Beta9 QA candidate
 
 - [x] Verified beta8 exact-head 4/4, 17 API29 and 27 API35 connected tests passed.

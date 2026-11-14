@@ -202,7 +202,11 @@ public final class ActivityGalleryCancellationQaTest {
     }
 
     private static void eventually(String problem,BooleanSupplier ready){
-        long deadline=SystemClock.uptimeMillis()+10000;
+        await(problem,10000,ready);
+    }
+
+    private static void await(String problem,long timeoutMs,BooleanSupplier ready){
+        long deadline=SystemClock.uptimeMillis()+timeoutMs;
         do{
             if(ready.getAsBoolean())return;
             SystemClock.sleep(80);
@@ -325,6 +329,94 @@ public final class ActivityGalleryCancellationQaTest {
             assertTrue(hasActivityText(screen,"Antrean dibatalkan"));
         }
         assertArrayEquals(initial,sha(source));
+    }
+
+    @Test(timeout=150000) @SdkSuppress(minSdkVersion=29,maxSdkVersion=29)
+    public void android10QuickEnhancePublishesRealFullHdToGallery() throws Exception {
+        Uri source=fixture("qa-h264-aac.mp4");
+        byte[] initial=sha(source);
+        setPicker(source,null);
+        quickPreferences(false);
+        String prefs=MainActivity.class.getName();
+        if(prefs.startsWith(ctx.getPackageName()+"."))prefs=prefs.substring(ctx.getPackageName().length()+1);
+        assertTrue(ctx.getSharedPreferences(prefs,Context.MODE_PRIVATE).edit()
+                .putInt("quality",OutputProfile.FULL_HD).commit());
+        Uri collection=MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+        Set<Uri> before=rows(collection,"WFS_STORY_");
+        Set<String> cache=cacheMp4();
+        try(ActivityScenario<MainActivity> screen=ActivityScenario.launch(MainActivity.class)){
+            screen.onActivity(a->tap(a,"Auto Enhance Sekarang"));
+            await("Quick Enhance never finished",100000,()->hasActivityText(screen,"Proses selesai"));
+            Uri output=newOutput(collection,"WFS_STORY_",before);
+            assertFalse("Transcode was an unchanged copy",java.util.Arrays.equals(initial,sha(output)));
+            assertMedia(output,1080,1920,2000);
+            await("Quick Enhance leaked its intermediate",10000,()->cacheMp4().equals(cache));
+        }
+        assertArrayEquals(initial,sha(source));
+    }
+
+    @Test(timeout=150000) @SdkSuppress(minSdkVersion=29,maxSdkVersion=29)
+    public void android10MergeStudioPublishesTwoActualClipsToGallery() throws Exception {
+        Uri first=fixture("qa-h264-aac.mp4"),second=fixture("qa-h264-aac.mp4");
+        byte[] one=sha(first),two=sha(second);
+        setPicker(first,second);
+        Uri collection=MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+        Set<Uri> before=rows(collection,"WFS_JOIN_");
+        Set<String> cache=cacheMp4();
+        try(ActivityScenario<StudioMergeActivity> screen=ActivityScenario.launch(StudioMergeActivity.class)){
+            screen.onActivity(a->tap(a,"Tambahkan Video"));
+            inst.waitForIdleSync();
+            screen.onActivity(a->assertTrue(findText(a.getWindow().getDecorView(),"2 klip dalam storyboard")));
+            screen.onActivity(a->tap(a,"Gabungkan & Ekspor"));
+            assertTrue("Merge never reported successful Gallery publication",
+                    device.wait(Until.hasObject(By.text("Video berhasil digabung")),100000));
+            Uri output=newOutput(collection,"WFS_JOIN_",before);
+            assertMedia(output,320,568,4000);
+            await("Merge Studio leaked its intermediate",10000,()->cacheMp4().equals(cache));
+        }
+        assertArrayEquals(one,sha(first));
+        assertArrayEquals(two,sha(second));
+    }
+
+    private Uri newOutput(Uri collection,String prefix,Set<Uri> before){
+        Set<Uri> actual=rows(collection,prefix);
+        actual.removeAll(before);
+        ownedFixtures.addAll(actual);
+        assertEquals("Expected one new MediaStore row",1,actual.size());
+        Uri output=actual.iterator().next();
+        assertRowState(output,0);
+        return output;
+    }
+
+    private void assertMedia(Uri output,int width,int height,long durationMs) throws Exception {
+        AspectRatioProfile.Size actual=MediaDimensions.read(ctx,output);
+        assertEquals(width,actual.width);
+        assertEquals(height,actual.height);
+        MediaProbe.Info info=MediaProbe.inspect(ctx,output);
+        assertTrue(info.video&&info.audio);
+        assertTrue("Unexpected output duration "+info.durationMs,Math.abs(info.durationMs-durationMs)<450);
+        File copy=File.createTempFile("beta10-check-",".mp4",ctx.getCacheDir());
+        try {
+            try(InputStream in=ctx.getContentResolver().openInputStream(output);
+                OutputStream out=new java.io.FileOutputStream(copy)){
+                assertNotNull(in);
+                byte[] buffer=new byte[8192];
+                for(int n;(n=in.read(buffer))!=-1;)out.write(buffer,0,n);
+            }
+            android.media.MediaExtractor extractor=new android.media.MediaExtractor();
+            Set<String> mime=new HashSet<>();
+            try {
+                extractor.setDataSource(copy.getPath());
+                for(int i=0;i<extractor.getTrackCount();i++)
+                    mime.add(extractor.getTrackFormat(i).getString(android.media.MediaFormat.KEY_MIME));
+            }finally{extractor.release();}
+            assertTrue(mime.toString(),mime.contains("video/avc")&&mime.contains("audio/mp4a-latm"));
+            MediaProbe.SampleTimeline pts=MediaProbe.inspectSampleTimeline(copy);
+            assertTrue("Unexpected last sample drift "+pts.lastPtsDriftMs(),pts.lastPtsDriftMs()>=0&&pts.lastPtsDriftMs()<=250);
+            android.util.Log.i("WfsBeta10GalleryQa","actual="+actual+" durationMs="+info.durationMs
+                    +" videoSamples="+pts.videoSamples+" audioSamples="+pts.audioSamples
+                    +" lastPtsDriftMs="+pts.lastPtsDriftMs());
+        }finally{assertTrue("Fixture copy left in cache",copy.delete());}
     }
 
     @Test(timeout=150000) public void editorPhotoDestroyAfterPublishBeforeUiCallbackRollsBack() throws Exception {

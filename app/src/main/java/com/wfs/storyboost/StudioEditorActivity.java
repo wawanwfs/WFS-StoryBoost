@@ -81,6 +81,7 @@ public final class StudioEditorActivity extends Activity {
     private LinearLayout toolPane,thumbStrip;
     private Button playButton,exportButton,compareButton;
     private android.app.AlertDialog exportDialog;
+    private AlertDialog exportResultDialog;
     private android.widget.ProgressBar exportProgress;
     private boolean compareOriginal=false;
     private float brightness=0f,contrast=0f,saturation=0f;
@@ -1221,7 +1222,8 @@ public final class StudioEditorActivity extends Activity {
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if(exportDialog!=null)exportDialog.dismiss();
         if(exportCancelled){toast("Antrean ekspor dibatalkan.");return;}
-        new AlertDialog.Builder(this)
+        if(isFinishing()||destroyed)return;
+        exportResultDialog=new AlertDialog.Builder(this)
                 .setTitle(completed>0?"Ekspor selesai":"Ekspor gagal")
                 .setMessage(completed+" berhasil • "+failed+" gagal.\n"+
                         (completed>0?"Media telah disimpan ke Galeri/WFS StoryBoost.":"Coba format lain atau mode HD.")+
@@ -1268,6 +1270,8 @@ public final class StudioEditorActivity extends Activity {
         previewWorker.shutdownNow();
         // Let a queued writer release its transferred file after seeing cancellation.
         io.shutdown();
+        if(exportDialog!=null)exportDialog.dismiss();
+        if(exportResultDialog!=null)exportResultDialog.dismiss();
         super.onDestroy();
     }
 }

@@ -50,6 +50,7 @@ public final class StudioMergeActivity extends Activity {
             new java.util.concurrent.atomic.AtomicBoolean(false);
     private ProgressBar progress;
     private AlertDialog dialog;
+    private AlertDialog mergeResultDialog;
     private Uri lastSaved;
     private int d(int n){return StudioUi.dp(this,n);}
     private TextView txt(String text,int size,int color,boolean bold){
@@ -305,7 +306,8 @@ public final class StudioMergeActivity extends Activity {
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if(dialog!=null)dialog.dismiss();
         if(failure!=null){toast(failure);if(engine!=null)engine.clean();return;}
-        new AlertDialog.Builder(this).setTitle("Video berhasil digabung")
+        if(isFinishing()||destroyed)return;
+        mergeResultDialog=new AlertDialog.Builder(this).setTitle("Video berhasil digabung")
             .setMessage("MP4 tersimpan di Galeri → Movies/WFS StoryBoost.")
             .setPositiveButton("Selesai",null)
             .setNeutralButton("Bagikan",(d,w)->share()).show();
@@ -325,6 +327,8 @@ public final class StudioMergeActivity extends Activity {
         // Let a queued writer release its transferred file after seeing cancellation.
         thumbs.shutdown();
         if(preview!=null)preview.stopPlayback();
+        if(dialog!=null)dialog.dismiss();
+        if(mergeResultDialog!=null)mergeResultDialog.dismiss();
         super.onDestroy();
     }
 }

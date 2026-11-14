@@ -179,11 +179,20 @@ public final class ActivityGalleryCancellationQaTest {
         return false;
     }
 
-    private void cancelDialog(){
-        UiObject2 cancel=device.wait(Until.findObject(By.res("android","button2")),5000);
-        assertNotNull("Missing export cancellation button",cancel);
-        cancel.click();
-        inst.waitForIdleSync();
+    private static void cancelDialog(Activity activity,String fieldName){
+        // Scope the action to the Activity's actual progress dialog. UiAutomator
+        // only exposes the focused window and can miss the dialog under CI load.
+        try{
+            java.lang.reflect.Field field=activity.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            android.app.AlertDialog dialog=(android.app.AlertDialog)field.get(activity);
+            assertNotNull("Missing export dialog",dialog);
+            assertTrue("Export dialog not showing",dialog.isShowing());
+            Button cancel=dialog.getButton(android.content.DialogInterface.BUTTON_NEGATIVE);
+            assertNotNull("Missing export cancellation button",cancel);
+            assertTrue("Cancel not visible and enabled",cancel.isShown()&&cancel.isEnabled());
+            assertTrue("Cancel button has no action",cancel.performClick());
+        }catch(ReflectiveOperationException e){throw new AssertionError(e);}
     }
 
     private Set<Uri> rows(Uri collection,String prefix){
@@ -455,7 +464,7 @@ public final class ActivityGalleryCancellationQaTest {
                 Set<String> active=cacheMp4();
                 active.removeAll(cache);
                 assertEquals("Encoder output must still be owned by the writer",1,active.size());
-                cancelDialog();
+                screen.onActivity(a->cancelDialog(a,"exportDialog"));
                 assertTrue("Cancel must not delete the writer's file concurrently",cacheMp4().containsAll(active));
             }
             eventually("Editor cancellation left a cache file or Gallery row",
@@ -483,7 +492,7 @@ public final class ActivityGalleryCancellationQaTest {
                 screen.onActivity(a->tap(a,"Gabungkan & Ekspor"));
                 gate.await();
                 assertRowState(gate.row.get(),0);
-                cancelDialog();
+                screen.onActivity(a->cancelDialog(a,"dialog"));
             }
             eventually("Merge cancellation left a cache file or Gallery row",
                     ()->cacheMp4().equals(cache)&&rows(collection,prefix).equals(prior));

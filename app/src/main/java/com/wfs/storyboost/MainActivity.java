@@ -864,7 +864,7 @@ public final class MainActivity extends Activity {
                         try {
                             if(token.get())return;
                             String exportName=filename("mp4");
-                            Uri saved=MediaSaver.saveVideo(MainActivity.this, file,exportName,token::get);
+                            Uri saved=MediaSaver.saveVideo(MainActivity.this, file,exportName,token::get,java.util.Collections.singletonList(input));
                             MediaSaver.beforeCallback(saved,exportName);
                             runOnUiThread(() -> {
                                 if(token.get()){

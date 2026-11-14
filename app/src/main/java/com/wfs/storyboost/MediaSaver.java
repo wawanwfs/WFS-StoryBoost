@@ -56,7 +56,7 @@ public final class MediaSaver {
                                 BooleanSupplier token) throws IOException {
         return save(context, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, fileName,
                 "image/jpeg", Environment.DIRECTORY_PICTURES, token,
-                () -> new java.io.ByteArrayInputStream(jpeg));
+                () -> new java.io.ByteArrayInputStream(jpeg), () -> {});
     }
 
     public static Uri saveVideo(Context context, File inputFile, String fileName) throws IOException {
@@ -65,9 +65,16 @@ public final class MediaSaver {
 
     public static Uri saveVideo(Context context, File inputFile, String fileName,
                                 BooleanSupplier token) throws IOException {
+        return saveVideo(context,inputFile,fileName,token,java.util.Collections.emptyList());
+    }
+
+    static Uri saveVideo(Context context, File inputFile, String fileName, BooleanSupplier token,
+                         java.util.List<Uri> sources) throws IOException {
         return save(context, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, fileName,
                 "video/mp4", Environment.DIRECTORY_MOVIES, token,
-                () -> new FileInputStream(inputFile));
+                () -> new FileInputStream(inputFile), () -> {
+                    for(Uri source:sources)SourceAccess.requireReadable(context,source);
+                });
     }
 
     /** Byte-for-byte original MP4 copy; never opens the source for writing. */
@@ -79,14 +86,18 @@ public final class MediaSaver {
                                       BooleanSupplier token) throws IOException {
         return save(context, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, name,
                 "video/mp4", Environment.DIRECTORY_MOVIES, token,
-                () -> context.getContentResolver().openInputStream(input));
+                () -> context.getContentResolver().openInputStream(input),
+                () -> SourceAccess.requireReadable(context,input));
     }
 
     @FunctionalInterface
     private interface Source { InputStream open() throws IOException; }
 
+    @FunctionalInterface
+    private interface PublicationCheck { void verify() throws IOException; }
+
     private static Uri save(Context context, Uri collection, String name, String mime,
-                            String directory, BooleanSupplier token, Source source)
+                            String directory, BooleanSupplier token, Source source, PublicationCheck permission)
             throws IOException {
         checkpoint(Stage.BEFORE_INSERT, name, null);
         rejectCancellation(token);
@@ -114,9 +125,11 @@ public final class MediaSaver {
             }
             checkpoint(Stage.BEFORE_PUBLISH, name, destination);
             rejectCancellation(token);
+            permission.verify();
             publish(resolver, destination);
             checkpoint(Stage.AFTER_PUBLISH, name, destination);
             rejectCancellation(token);
+            permission.verify();
             return destination;
         } catch (Exception error) {
             try {

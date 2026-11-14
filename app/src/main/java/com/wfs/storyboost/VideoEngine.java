@@ -69,6 +69,7 @@ public final class VideoEngine {
                 settings.qualityMode, sourceSize.width, sourceSize.height, settings.frameStyle,
                 settings.customWidth,settings.customHeight);
         temp = new File(context.getCacheDir(), "storyboost_" + System.nanoTime() + ".mp4");
+        final File attemptFile=temp;
         List<Effect> effects = new ArrayList<>();
         ColorLooks.Look look=ColorLooks.get(settings.preset);
         if(!ColorLooks.isOriginal(settings.preset)){
@@ -145,10 +146,11 @@ public final class VideoEngine {
                         .setRequestedVideoEncoderSettings(requested).build())
                 .addListener(new Transformer.Listener() {
                     @Override public void onCompleted(Composition composition, ExportResult result) {
-                        if(cancelled)return;
+                        if(cancelled||temp!=attemptFile)return;
                         try {
-                            validateOutput(temp,target,sourceInfo,expectedDuration,settings.muteAudio);
-                            if(!cancelled)callback.onSuccess(temp,target);
+                            SourceAccess.requireReadable(context,source);
+                            validateOutput(attemptFile,target,sourceInfo,expectedDuration,settings.muteAudio);
+                            if(!cancelled)callback.onSuccess(attemptFile,target);
                         } catch (Exception invalid) {
                             // A failed validation must never leak a partially encoded MP4.
                             cleanup();
@@ -157,16 +159,17 @@ public final class VideoEngine {
                     }
                     @Override public void onError(Composition composition, ExportResult result,
                                                    ExportException e) {
-                        if(cancelled)return;
-                        if(allowFallback&&settings.qualityMode==OutputProfile.FULL_HD){
-                            if(temp!=null)temp.delete();
+                        if(cancelled||temp!=attemptFile)return;
+                        String reason=describeFailure(e);
+                        if(allowFallback&&settings.qualityMode==OutputProfile.FULL_HD
+                                && canRetryAtHd(e,sourceSize,target,settings)){
+                            cleanup();
                             try{startInternal(context,source,settings.inHd(),callback,false);return;}
                             catch(Exception problem){
                                 cleanup();
-                                callback.onError("FHD/HD gagal: "+problem.getMessage());return;
+                                callback.onError("FHD/HD gagal: "+reason+" / "+problem.getMessage());return;
                             }
                         }
-                        String reason=e.getMessage()==null?"Video gagal diekspor.":e.getMessage();
                         cleanup();
                         callback.onError(reason);
                     }
@@ -174,6 +177,23 @@ public final class VideoEngine {
                 .build();
         transformer.start(item, temp.getAbsolutePath());
         return target;
+    }
+
+    static String describeFailure(ExportException error) {
+        return error.getErrorCodeName()+": "+(error.getMessage()==null
+                ?"Video gagal diekspor.":error.getMessage());
+    }
+
+    private static boolean canRetryAtHd(ExportException error,AspectRatioProfile.Size source,
+                                         AspectRatioProfile.Size requested,ExportOptions options) {
+        if(error.errorCode!=ExportException.ERROR_CODE_ENCODER_INIT_FAILED
+                && error.errorCode!=ExportException.ERROR_CODE_ENCODING_FORMAT_UNSUPPORTED
+                && error.errorCode!=ExportException.ERROR_CODE_ENCODING_FAILED)return false;
+        if(error.codecInfo!=null&&(!error.codecInfo.isVideo||error.codecInfo.isDecoder))return false;
+        AspectRatioProfile.Size hd=AspectRatioProfile.resolve(options.ratio,OutputProfile.HD,
+                source.width,source.height,options.frameStyle,options.customWidth,options.customHeight);
+        return hd.width<=requested.width&&hd.height<=requested.height
+                && (hd.width<requested.width||hd.height<requested.height);
     }
 
     private static AspectRatioProfile.Size readVideoDimensions(Context context, Uri uri) {

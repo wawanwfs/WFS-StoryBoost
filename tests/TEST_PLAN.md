@@ -1,3 +1,12 @@
+## Beta9 encoder and URI grant acceptance
+
+- [ ] API29 classify HD/FHD/fallback or explicit codec failure; report decoded canvas and actual compressed A/V PTS for each success.
+- [ ] API35 12 s actual H.264/AAC encoder cancelled at 85–99%, no callback or cache residue, source SHA unchanged. Retain earlier nonzero and immediate tests.
+- [ ] API35 Quick Enhance real encoded MP4 cancel before Gallery commit, no pending row or cache leak.
+- [ ] API29/35 independent provider revokes MP4 during copy. An existing FD reads subsequent chunks, reopening is denied, publication rolls back, source SHA matches after grant restoration.
+- [ ] API35 provider revokes MP4 during nonzero encoder progress. Explicit failure, no encoded success, no cache leak, unchanged source after grant restoration.
+- [ ] Separate physical ARM64, Google Photos, consented portrait/crop/accessibility, and owner-signed upgrade gates remain open.
+
 ## Beta8 Activity and worker boundary acceptance
 
 - [ ] API29/35: Quick Enhance JPEG abort before insert, immediately start a second export while the first worker is paused, and verify exactly one visible result and unchanged source SHA.

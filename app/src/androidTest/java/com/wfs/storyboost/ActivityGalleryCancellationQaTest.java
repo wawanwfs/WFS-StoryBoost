@@ -298,6 +298,35 @@ public final class ActivityGalleryCancellationQaTest {
         assertArrayEquals(initial,sha(source));
     }
 
+    @Test(timeout=150000) @SdkSuppress(minSdkVersion=35)
+    public void quickEncodedVideoCancelsBeforeGalleryCommit() throws Exception {
+        Uri source=fixture("qa-h264-aac.mp4");
+        byte[] initial=sha(source);
+        setPicker(source,null);
+        quickPreferences(false); // Non-original look requires a real transcode.
+        Uri collection=MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+        String prefix="WFS_STORY_";
+        Set<Uri> prior=rows(collection,prefix);
+        Set<String> cache=cacheMp4();
+        try(ActivityScenario<MainActivity> screen=ActivityScenario.launch(MainActivity.class)){
+            try(Pause gate=new Pause(MediaSaver.Stage.BEFORE_PUBLISH,prefix)){
+                screen.onActivity(a->tap(a,"Auto Enhance Sekarang"));
+                gate.await();
+                assertRowState(gate.row.get(),1);
+                Set<String> active=cacheMp4();
+                active.removeAll(cache);
+                assertEquals("A real encoder cache file must exist",1,active.size());
+                screen.onActivity(a->tap(a,"Batalkan antrean"));
+                assertTrue("Cancelled encoder cache deleted before writer finished",
+                        cacheMp4().containsAll(active));
+            }
+            eventually("Cancelled Quick Enhance transcode leaked Gallery/cache output",
+                    ()->rows(collection,prefix).equals(prior)&&cacheMp4().equals(cache));
+            assertTrue(hasActivityText(screen,"Antrean dibatalkan"));
+        }
+        assertArrayEquals(initial,sha(source));
+    }
+
     @Test(timeout=150000) public void editorPhotoDestroyAfterPublishBeforeUiCallbackRollsBack() throws Exception {
         Uri source=fixture(null);
         byte[] initial=sha(source);

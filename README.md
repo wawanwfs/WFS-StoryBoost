@@ -1,5 +1,9 @@
 # WFS StoryBoost — Creative Editing Studio v3.0.0-beta3
 
+## Beta9 — real encoder and source-grant acceptance
+
+Beta9 adds true late encoder cancellation, Android 10 codec classification, and independent provider-owner MP4 revocation tests. An old open descriptor cannot authorize publishing a video after the source grant has been lost. See [beta9 QA and its boundaries](docs/BETA9_QA.md).
+
 ## Beta8 — cancel-safe export handoff (QA candidate)
 
 Beta8 builds on [beta7 PR #8](https://github.com/wawanwfs/WFS-StoryBoost/pull/8), whose exact head passed [all four Android CI jobs](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42726507194). The newest verified `main` baseline is `cd8ad45535078f80c79876bdde8adb4c11dca378`; beta7 remains a separate draft.

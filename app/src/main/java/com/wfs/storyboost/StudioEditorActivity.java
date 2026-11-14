@@ -1177,7 +1177,7 @@ public final class StudioEditorActivity extends Activity {
                             try{
                                 if(cancelToken.get())return;
                                 String exportName=fileName("mp4");
-                                Uri saved=MediaSaver.saveVideo(StudioEditorActivity.this,source,exportName,cancelToken::get);
+                                Uri saved=MediaSaver.saveVideo(StudioEditorActivity.this,source,exportName,cancelToken::get,java.util.Collections.singletonList(mediaUri));
                                 MediaSaver.beforeCallback(saved,exportName);
                                 runOnUiThread(()->{
                                     if(destroyed||cancelToken.get()){

@@ -2,6 +2,13 @@
 
 This is a **feature roadmap coverage estimate** for the target v3.0, not a claim of tested production quality. Each checkbox counts as one module. Implemented means source code is present and the project builds; feature correctness still requires end-to-end device tests.
 
+## Beta9 QA candidate
+
+- [x] Verified beta8 exact-head 4/4, 17 API29 and 27 API35 connected tests passed.
+- [ ] Inspect beta9 exact CI for late cancellation, Android 10 codec outcome, and independent-UID MP4 revocation evidence.
+- [ ] Physical, Google Photos, consented portrait and owner-signed upgrade evidence remain separate.
+- Roadmap unchanged at **23/32 (71.875%)**.
+
 ## Beta8 QA candidate — Gallery ownership and cancellation across screens
 
 - [x] Verified beta7 head `d61e4ff3ec03fafd2743f4c5befd5a15ff3f9d4e` passed all four [GitHub Actions jobs](https://github.com/wawanwfs/WFS-StoryBoost/actions/runs/42726507194). Beta7 PR #8 is still draft.

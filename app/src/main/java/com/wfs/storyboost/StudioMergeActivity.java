@@ -243,6 +243,7 @@ public final class StudioMergeActivity extends Activity {
         final java.util.concurrent.atomic.AtomicBoolean token=mergeStop;
         final VideoMergeEngine worker=new VideoMergeEngine();
         engine=worker;
+        final ArrayList<Uri> sources=new ArrayList<>(clips);
         LinearLayout progressCard=StudioUi.card(this,17);
         progressCard.addView(txt("Sedang menggabungkan "+clips.size()+" klip",17,StudioUi.TEXT,true));
         gap(progressCard,12);
@@ -253,7 +254,7 @@ public final class StudioMergeActivity extends Activity {
         dialog.show();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         try{
-            worker.start(this,new ArrayList<>(clips),quality,new VideoMergeEngine.Listener(){
+            worker.start(this,sources,quality,new VideoMergeEngine.Listener(){
                 @Override public void onCompleted(java.io.File file){
                     if(token.get())return;
                     worker.transferCompletedFile(file);
@@ -261,7 +262,7 @@ public final class StudioMergeActivity extends Activity {
                         try{
                             if(token.get())return;
                             String exportName="WFS_JOIN_"+System.currentTimeMillis()+".mp4";
-                            Uri saved=MediaSaver.saveVideo(StudioMergeActivity.this,file,exportName,token::get);
+                            Uri saved=MediaSaver.saveVideo(StudioMergeActivity.this,file,exportName,token::get,sources);
                             MediaSaver.beforeCallback(saved,exportName);
                             runOnUiThread(()->{
                                 if(token.get()||destroyed){
